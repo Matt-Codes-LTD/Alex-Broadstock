@@ -1,4 +1,4 @@
-<script>
+
 // Project page player: unmute-first center button, play/pause, timeline, fullscreen, idle UI
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".project-player_wrap").forEach((wrap) => {
@@ -303,4 +303,4 @@ document.addEventListener("DOMContentLoaded", () => {
     mo.observe(document.body, { childList:true, subtree:true });
   });
 });
-</script>
+
