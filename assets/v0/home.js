@@ -1,4 +1,3 @@
-<script>
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".home-hero_wrap").forEach((section) => {
     if (section.dataset.scriptInitialized) return;
@@ -561,4 +560,3 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 });
-</script>
