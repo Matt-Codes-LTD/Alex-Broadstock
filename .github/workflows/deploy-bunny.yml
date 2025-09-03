@@ -7,9 +7,6 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
 
     steps:
       - uses: actions/checkout@v4
@@ -17,9 +14,7 @@ jobs:
       # Make an 8-char version folder from the commit SHA
       - name: Set SHORT_SHA
         id: vars
-        run: |
-          SHORT_SHA="$(echo "$GITHUB_SHA" | cut -c1-8)"
-          echo "SHORT_SHA=$SHORT_SHA" >> "$GITHUB_OUTPUT"
+        run: echo "SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-8)" >> $GITHUB_OUTPUT
 
       - name: Create remote directory on Bunny
         env:
@@ -37,16 +32,15 @@ jobs:
           BUNNY_ACCESS_KEY:  ${{ secrets.BUNNY_ACCESS_KEY }}
           SHORT_SHA:         ${{ steps.vars.outputs.SHORT_SHA }}
         run: |
-          set -euo pipefail
-          shopt -s globstar nullglob
-          for file in assets/**; do
-            if [[ -f "$file" ]]; then
-              dest="assets/$SHORT_SHA/${file#assets/}"
-              echo "Uploading $file -> $dest"
-              curl -sS -T "$file" \
-                -H "AccessKey: $BUNNY_ACCESS_KEY" \
-                "https://storage.bunnycdn.com/$BUNNY_STORAGE_ZONE/$dest"
-            fi
+          set -e
+          # List only tracked files under assets/ to keep the loop simple
+          FILES=$(git ls-files 'assets/**')
+          for file in $FILES; do
+            dest="assets/$SHORT_SHA/${file#assets/}"
+            echo "Uploading $file -> $dest"
+            curl -sS -T "$file" \
+              -H "AccessKey: $BUNNY_ACCESS_KEY" \
+              "https://storage.bunnycdn.com/$BUNNY_STORAGE_ZONE/$dest"
           done
 
       - name: Show CDN URL base
