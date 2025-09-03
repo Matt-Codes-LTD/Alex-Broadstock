@@ -1,4 +1,4 @@
-<script>
+
 (function(){
   if (window.__charsGlobalInit) return; window.__charsGlobalInit = true;
 
@@ -106,4 +106,4 @@
     attributeFilter:['data-animate-chars','data-animate-chars-list','data-animate-chars-target','data-animate-delay']
   });
 })();
-</script>
+
