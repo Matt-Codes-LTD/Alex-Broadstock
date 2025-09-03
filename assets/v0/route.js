@@ -1,68 +1,80 @@
+/* route.js — Barba router + simple fade + rAF page:enter dispatch */
 (function () {
-  if (!window.barba) return;
+  'use strict';
+  if (window.__routerInit) return;
+  window.__routerInit = true;
 
-  // Overlay for the smooth fade (no CSS file needed)
-  var overlay = document.createElement("div");
-  Object.assign(overlay.style, {
-    position: "fixed", inset: "0", background: "var(--_theme---background, #000)",
-    pointerEvents: "none", opacity: "0", zIndex: "9999", transition: "opacity .28s ease"
-  });
-  document.addEventListener("DOMContentLoaded", function(){ document.body.appendChild(overlay); });
-
-  function fadeIn(){ overlay.style.opacity = "1"; return new Promise(r=>setTimeout(r, 300)); }
-  function fadeOut(){ overlay.style.opacity = "0"; return new Promise(r=>setTimeout(r, 280)); }
-
-  // Pause any HTML5 videos inside a container
-  function pauseVideos(root){
-    root && root.querySelectorAll("video").forEach(function(v){ try{ v.pause(); }catch(_){} });
+  // Fire page:enter after the new container is painted
+  function fireEnter(container) {
+    requestAnimationFrame(function () {
+      document.dispatchEvent(
+        new CustomEvent('page:enter', { detail: { container: container } })
+      );
+    });
   }
 
-  // Re-init your page scripts after each swap.
-  // We emit a custom event your scripts can listen for.
-  function reinit(container){
-    var ev = new CustomEvent("page:enter", { detail: { container: container } });
-    document.dispatchEvent(ev);
-  }
+  // Decide when to let the browser handle navigation (prevent Barba)
+  function shouldPrevent({ el }) {
+    if (!el || !el.matches) return false;
+    if (!el.matches('a')) return true; // not a link
+    if (el.hasAttribute('target') || el.hasAttribute('download')) return true;
+    var href = el.getAttribute('href') || '';
+    if (!href) return true;
+    if (href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:')) return true;
 
-  // Don’t hijack external or hash links, or links you mark with data-no-barba
-  function shouldPrevent(data){
-    var el = data && data.el;
-    if (!el || !el.href) return true;
-    if (el.hasAttribute("data-no-barba")) return true;
-    if (el.target && el.target !== "_self") return true;
-    if (el.origin !== location.origin) return true;
-    if (el.getAttribute("href").indexOf("#") > -1) return true;
+    // External absolute URLs → prevent
+    try {
+      var u = new URL(href, location.href);
+      if (u.origin !== location.origin) return true;
+    } catch (_) {
+      // If URL parsing fails, fall back to default link behaviour
+      return true;
+    }
+    // Internal link → allow Barba
     return false;
   }
 
+  // Optional: tiny fade helper (no CSS dependency)
+  function fadeOut(el, ms) {
+    if (!el) return Promise.resolve();
+    el.style.willChange = 'opacity,transform';
+    el.style.transition = 'opacity ' + ms + 'ms ease';
+    el.style.opacity = '0';
+    return new Promise(function (res) { setTimeout(res, ms); });
+  }
+  function fadeIn(el, ms) {
+    if (!el) return;
+    el.style.opacity = '0';
+    el.style.transition = 'opacity ' + ms + 'ms ease';
+    requestAnimationFrame(function () { el.style.opacity = '1'; });
+    setTimeout(function () { el.style.transition = ''; el.style.willChange = ''; }, ms + 50);
+  }
+
+  // Initialize Barba
   barba.init({
-    preventRunning: true,
-    timeout: 7000,
-    // Only intercept internal, non-hash links
+    timeout: 8000,
     prevent: shouldPrevent,
     transitions: [{
-      name: "fade-overlay",
-      async leave(data) {
-        pauseVideos(data.current.container);
-        await fadeIn();
+      name: 'fade',
+      once: function ({ next }) {
+        // first page load
+        fireEnter(next.container);
       },
-      async enter(data) {
-        // Reset scroll and re-init scripts for new markup
-        try { window.scrollTo({ top: 0, left: 0, behavior: "instant" }); } catch(_) { window.scrollTo(0,0); }
-        reinit(data.next.container);
-        await fadeOut();
+      leave: function ({ current }) {
+        // animate out the old container
+        return fadeOut(current && current.container, 220);
+      },
+      enter: function ({ next }) {
+        // animate in the new container, then notify scripts
+        fadeIn(next && next.container, 220);
+        fireEnter(next.container);
       }
     }]
   });
 
-  // Optional: simple prefetch on hover for snappier nav
-  document.addEventListener("mouseover", function(e){
-    var a = e.target.closest && e.target.closest('a[href^="/"]:not([data-no-barba])');
-    if (!a || a.origin !== location.origin) return;
-    var url = a.href;
-    if (document.querySelector('link[rel="prefetch"][href="'+url+'"]')) return;
-    var l = document.createElement("link"); l.rel="prefetch"; l.href=url; l.as="document";
-    document.head.appendChild(l);
-  }, { passive: true });
-
+  // Optional: fix scroll to top on internal navs (Barba keeps scroll by default)
+  barba.hooks.enter(function () {
+    // Uncomment if you want to reset scroll on every page:
+    // window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  });
 })();
