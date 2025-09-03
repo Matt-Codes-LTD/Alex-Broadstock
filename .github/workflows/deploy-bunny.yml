@@ -1,10 +1,55 @@
-name: Ping
+name: Deploy static assets to Bunny
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+
 jobs:
-  ping:
+  deploy:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
     steps:
-      - name: Echo
-        run: echo "workflow ok"
+      - uses: actions/checkout@v4
+
+      # Make an 8-char version folder from the commit SHA
+      - name: Set SHORT_SHA
+        id: vars
+        run: |
+          SHORT_SHA="$(echo "$GITHUB_SHA" | cut -c1-8)"
+          echo "SHORT_SHA=$SHORT_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Create remote directory on Bunny
+        env:
+          BUNNY_STORAGE_ZONE: ${{ secrets.BUNNY_STORAGE_ZONE }}
+          BUNNY_ACCESS_KEY:  ${{ secrets.BUNNY_ACCESS_KEY }}
+          SHORT_SHA:         ${{ steps.vars.outputs.SHORT_SHA }}
+        run: |
+          curl -sS -X PUT \
+            -H "AccessKey: $BUNNY_ACCESS_KEY" \
+            "https://storage.bunnycdn.com/$BUNNY_STORAGE_ZONE/assets/$SHORT_SHA/"
+
+      - name: Upload assets to Bunny
+        env:
+          BUNNY_STORAGE_ZONE: ${{ secrets.BUNNY_STORAGE_ZONE }}
+          BUNNY_ACCESS_KEY:  ${{ secrets.BUNNY_ACCESS_KEY }}
+          SHORT_SHA:         ${{ steps.vars.outputs.SHORT_SHA }}
+        run: |
+          set -euo pipefail
+          shopt -s globstar nullglob
+          for file in assets/**; do
+            if [[ -f "$file" ]]; then
+              dest="assets/$SHORT_SHA/${file#assets/}"
+              echo "Uploading $file -> $dest"
+              curl -sS -T "$file" \
+                -H "AccessKey: $BUNNY_ACCESS_KEY" \
+                "https://storage.bunnycdn.com/$BUNNY_STORAGE_ZONE/$dest"
+            fi
+          done
+
+      - name: Show CDN URL base
+        env:
+          SHORT_SHA: ${{ steps.vars.outputs.SHORT_SHA }}
+        run: echo "Deployed to: https://alex-static-cdn.b-cdn.net/assets/$SHORT_SHA/"
