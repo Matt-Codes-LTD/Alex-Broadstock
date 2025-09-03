@@ -1,27 +1,24 @@
 name: Deploy static assets to Bunny
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
-
     steps:
       - uses: actions/checkout@v4
 
       # Make an 8-char version folder from the commit SHA
       - name: Set SHORT_SHA
         id: vars
+        shell: bash
         run: |
           SHORT_SHA="$(echo "$GITHUB_SHA" | cut -c1-8)"
           echo "SHORT_SHA=$SHORT_SHA" >> "$GITHUB_OUTPUT"
 
-      - name: Create remote directory on Bunny
+      # Create versioned dir
+      - name: Create versioned directory on Bunny
         env:
           BUNNY_STORAGE_ZONE: ${{ secrets.BUNNY_STORAGE_ZONE }}
           BUNNY_ACCESS_KEY:  ${{ secrets.BUNNY_ACCESS_KEY }}
@@ -31,24 +28,53 @@ jobs:
             -H "AccessKey: $BUNNY_ACCESS_KEY" \
             "https://storage.bunnycdn.com/$BUNNY_STORAGE_ZONE/assets/$SHORT_SHA/"
 
-      - name: Upload assets to Bunny
+      # Create stable "live" dir
+      - name: Ensure /assets/live/ directory exists
+        env:
+          BUNNY_STORAGE_ZONE: ${{ secrets.BUNNY_STORAGE_ZONE }}
+          BUNNY_ACCESS_KEY:  ${{ secrets.BUNNY_ACCESS_KEY }}
+        run: |
+          curl -sS -X PUT \
+            -H "AccessKey: $BUNNY_ACCESS_KEY" \
+            "https://storage.bunnycdn.com/$BUNNY_STORAGE_ZONE/assets/live/"
+
+      # Upload to versioned + mirror to live
+      - name: Upload assets to Bunny (versioned + live)
         env:
           BUNNY_STORAGE_ZONE: ${{ secrets.BUNNY_STORAGE_ZONE }}
           BUNNY_ACCESS_KEY:  ${{ secrets.BUNNY_ACCESS_KEY }}
           SHORT_SHA:         ${{ steps.vars.outputs.SHORT_SHA }}
+        shell: bash
         run: |
           set -e
           FILES=$(git ls-files 'assets/**')
           for file in $FILES; do
-            dest="assets/$SHORT_SHA/${file#assets/}"
-            echo "Uploading $file -> $dest"
-            curl -sS -T "$file" \
-              -H "AccessKey: $BUNNY_ACCESS_KEY" \
-              "https://storage.bunnycdn.com/$BUNNY_STORAGE_ZONE/$dest"
+            # versioned destination
+            dest_ver="assets/$SHORT_SHA/${file#assets/}"
+            echo "Uploading $file -> $dest_ver"
+            curl -sS -T "$file" -H "AccessKey: $BUNNY_ACCESS_KEY" \
+              "https://storage.bunnycdn.com/$BUNNY_STORAGE_ZONE/$dest_ver"
+
+            # live destination
+            dest_live="assets/live/${file#assets/}"
+            echo "Uploading $file -> $dest_live"
+            curl -sS -T "$file" -H "AccessKey: $BUNNY_ACCESS_KEY" \
+              "https://storage.bunnycdn.com/$BUNNY_STORAGE_ZONE/$dest_live"
           done
 
-      - name: Show CDN URL base
+      # Purge the live path so fixed URLs update instantly
+      - name: Purge CDN cache for /assets/live/
+        env:
+          BUNNY_ACCESS_KEY:   ${{ secrets.BUNNY_ACCESS_KEY }}
+          BUNNY_PULL_ZONE_ID: ${{ secrets.BUNNY_PULL_ZONE_ID }}
+        run: |
+          curl -sS -X POST \
+            -H "AccessKey: $BUNNY_ACCESS_KEY" \
+            "https://api.bunny.net/pullzone/${BUNNY_PULL_ZONE_ID}/purgeCache?url=https://alex-static-cdn.b-cdn.net/assets/live/"
+
+      - name: Show deployed URLs
         env:
           SHORT_SHA: ${{ steps.vars.outputs.SHORT_SHA }}
         run: |
-          echo "Deployed to: https://alex-static-cdn.b-cdn.net/assets/$SHORT_SHA/"
+          echo "Versioned: https://alex-static-cdn.b-cdn.net/assets/$SHORT_SHA/"
+          echo "Live:      https://alex-static-cdn.b-cdn.net/assets/live/"
