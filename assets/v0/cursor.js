@@ -1,1 +1,115 @@
-document.addEventListener("DOMContentLoaded",()=>{document.querySelectorAll(".cursor-crosshair_wrap").forEach(e=>{if(e.dataset.scriptInitialized)return;e.dataset.scriptInitialized="true",e.querySelectorAll(".cursor-crosshair_line, .cursor-crosshair_dot, .cursor-crosshair_dot-top, .cursor-crosshair_pulse").forEach(e=>{try{e.remove()}catch{}});let t=e.querySelector(".cursor-follow_box");t||(t=document.createElement("div"),t.className="cursor-follow_box",e.appendChild(t));let n=e.getBoundingClientRect();const i=()=>{n=e.getBoundingClientRect()},o=new ResizeObserver(i);o.observe(e),addEventListener("scroll",i,{passive:!0});const r=.18;let a=n.width/2,l=n.height/2,s=a,d=l;const c=()=>!!(window.gsap&&gsap.quickSetter&&gsap.ticker);let u=!1,m,f;function p(){u=!1,m=e=>{t.style.transform=`translate(${e}px, ${d}px)`},f=e=>{t.style.transform=`translate(${s}px, ${e}px)`},t.style.transform=`translate(${s}px, ${d}px)`}function h(){u=!0,m=gsap.quickSetter(t,"x","px"),f=gsap.quickSetter(t,"y","px"),m(s),f(d)}c()?h():p();let v=0,y=!1,g=!1,S=.05,b=3,w=0;const E=()=>{const e=l-s,t=a-d;s+=e*r,d+=t*r,m(s),f(d),Math.abs(e)<S&&Math.abs(t)<S?++w>=b?(x(),void 0):void 0:w=0,u|| (v=requestAnimationFrame(E))};function L(){g&&(g=!1,w=0),y||(y=!0,c()?(u||h(),gsap.ticker.add(E)):(v=requestAnimationFrame(E)))}function x(){y&&(y=!1,g=!0,u&&window.gsap&&gsap.ticker.remove(E),v&&(cancelAnimationFrame(v),v=0))}function A(t){n.width&&n.height||i(),l=t.clientX-n.left,a=t.clientY-n.top,L()}addEventListener("pointermove",A,{passive:!0}),addEventListener("pointerenter",A,{passive:!0}),document.addEventListener("mouseleave",function(t){if("touch"===t.pointerType)return;const o=null==t.relatedTarget,r=t.clientX<=0||t.clientY<=0||t.clientX>=innerWidth||t.clientY>=innerHeight;(o||r)&&(i(),l=n.width/2,a=n.height/2,L())},!0),document.addEventListener("mouseout",function(t){if("touch"===t.pointerType)return;const o=null==t.relatedTarget,r=t.clientX<=0||t.clientY<=0||t.clientX>=innerWidth||t.clientY>=innerHeight;(o||r)&&(i(),l=n.width/2,a=n.height/2,L())},!0),document.addEventListener("pointerout",function(t){if("touch"===t.pointerType)return;const o=null==t.relatedTarget,r=t.clientX<=0||t.clientY<=0||t.clientX>=innerWidth||t.clientY>=innerHeight;(o||r)&&(i(),l=n.width/2,a=n.height/2,L())},!0);const O=()=>{document.hidden?x():L()};document.addEventListener("visibilitychange",O),x(),addEventListener("load",()=>{u||c()&&h()},{once:!0});const T=new MutationObserver(()=>{document.body.contains(e)||(x(),document.removeEventListener("visibilitychange",O),o.disconnect(),T.disconnect())});T.observe(document.body,{childList:!0,subtree:!0})})});
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll(".cursor-crosshair_wrap").forEach((overlay) => {
+    if (overlay.dataset.scriptInitialized) return;
+    overlay.dataset.scriptInitialized = "true";
+
+    // Kill legacy bits if left in DOM
+    overlay.querySelectorAll(
+      ".cursor-crosshair_line, .cursor-crosshair_dot, .cursor-crosshair_dot-top, .cursor-crosshair_pulse"
+    ).forEach(n => { try { n.remove(); } catch(_){} });
+
+    // Ensure square exists
+    let box = overlay.querySelector(".cursor-follow_box");
+    if (!box) {
+      box = document.createElement("div");
+      box.className = "cursor-follow_box";
+      overlay.appendChild(box);
+    }
+
+    // Geometry
+    let rect = overlay.getBoundingClientRect();
+    const computeGeometry = () => { rect = overlay.getBoundingClientRect(); };
+    computeGeometry();
+    const ro = new ResizeObserver(computeGeometry);
+    ro.observe(overlay);
+    addEventListener("scroll", computeGeometry, { passive:true });
+
+    // Easing / state
+    const ease = 0.18;
+    let targetX = rect.width / 2;
+    let targetY = rect.height / 2;
+    let x = targetX, y = targetY;
+
+    // Optional GSAP (if present), else fallback to style transforms
+    const hasGSAP = () => !!(window.gsap && gsap.quickSetter && gsap.ticker);
+    let useGsap = false, setX, setY;
+    function useFallback() {
+      useGsap = false;
+      setX = (px) => { box.style.transform = `translate(${px}px, ${y}px)`; };
+      setY = (py) => { box.style.transform = `translate(${x}px, ${py}px)`; };
+      box.style.transform = `translate(${x}px, ${y}px)`; 
+    }
+    function useGsapSetters() {
+      useGsap = true;
+      setX = gsap.quickSetter(box, "x", "px");
+      setY = gsap.quickSetter(box, "y", "px");
+      setX(x); setY(y);
+    }
+    hasGSAP() ? useGsapSetters() : useFallback();
+
+    // Track pointer
+    function onMove(e) {
+      if (!rect.width || !rect.height) computeGeometry();
+      targetX = e.clientX - rect.left;
+      targetY = e.clientY - rect.top;
+    }
+    addEventListener("pointermove", onMove, { passive:true });
+    addEventListener("pointerenter", onMove, { passive:true });
+
+    // Recenter when leaving viewport (desktop only)
+    function onHardLeave(e) {
+      if (e.pointerType === "touch") return;
+      const leftViewport = (e.relatedTarget == null);
+      const atEdge = (e.clientX <= 0 || e.clientY <= 0 || e.clientX >= innerWidth || e.clientY >= innerHeight);
+      if (leftViewport || atEdge) {
+        computeGeometry();
+        targetX = rect.width / 2;
+        targetY = rect.height / 2;
+      }
+    }
+    document.addEventListener("mouseleave", onHardLeave, true);
+    document.addEventListener("mouseout",   onHardLeave, true);
+    document.addEventListener("pointerout", onHardLeave, true);
+
+    // Tick
+    let rafId = null;
+    const tick = () => {
+      x += (targetX - x) * ease;
+      y += (targetY - y) * ease;
+      setX(x); setY(y);
+    };
+
+    function start() {
+      if (hasGSAP()) {
+        if (!useGsap) useGsapSetters();
+        gsap.ticker.add(tick);
+      } else if (!rafId) {
+        const loop = () => { tick(); rafId = requestAnimationFrame(loop); };
+        rafId = requestAnimationFrame(loop);
+      }
+    }
+    function stop() {
+      if (useGsap && window.gsap) gsap.ticker.remove(tick);
+      if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    }
+    start();
+
+    // If GSAP loads later, hot-swap
+    addEventListener("load", () => {
+      if (!useGsap && hasGSAP()) { stop(); useGsapSetters(); gsap.ticker.add(tick); useGsap = true; }
+    }, { once:true });
+
+    // Pause on tab hide
+    const onVis = () => { if (document.hidden) { stop(); } else { start(); } };
+    document.addEventListener("visibilitychange", onVis);
+
+    // Cleanup
+    const mo = new MutationObserver(() => {
+      if (!document.body.contains(overlay)) {
+        stop(); document.removeEventListener("visibilitychange", onVis);
+        ro.disconnect(); mo.disconnect();
+      }
+    });
+    mo.observe(document.body, { childList:true, subtree:true });
+  });
+});
