@@ -1,1 +1,64 @@
-(()=>{"use strict";const e=navigator.connection||navigator.webkitConnection||navigator.mozConnection,t=!!e&&(["slow-2g","2g"].includes(e.effectiveType)||!0===e.saveData);function n(e){try{const t=new URL(e,location.href).origin;if(!t)return;const n="pc:"+t;if("1"===sessionStorage.getItem(n))return;const o=document.head,r=[...o.querySelectorAll('link[rel="preconnect"],link[rel="dns-prefetch"]')].some(e=>(e.href||"").startsWith(t));if(!r){const e=document.createElement("link");e.rel="preconnect",e.href=t,e.crossOrigin="anonymous",o.appendChild(e);const n=document.createElement("link");n.rel="dns-prefetch",n.href=t,o.appendChild(n)}sessionStorage.setItem(n,"1")}catch{}}function o(e){const o=(e||document).querySelector(".home-hero_wrap");if(!o||o.dataset.simpleWarmInit)return;o.dataset.simpleWarmInit="1";let r=null,a=null;const i=t?0:1;async function c(e){if(!e||e===r||i<=0)return;r=e;try{const t=document.createElement("video");t.src=e,t.muted=!0,t.playsInline=!0,t.preload="auto",t.crossOrigin="anonymous",await new Promise(e=>{const n=()=>e();t.addEventListener("loadeddata",n,{once:!0}),t.addEventListener("canplaythrough",n,{once:!0}),t.addEventListener("error",n,{once:!0}),setTimeout(n,1800)});const n=t.play?.();n&&n.then&&await n.catch(()=>{}),setTimeout(()=>{try{t.pause()}catch{}},30),a=t}catch{}}function s(e){const t=e.target.closest?.(".home-hero_link");return t?t.getAttribute("data-video-main")||t.getAttribute("data-video")||"":""}o.addEventListener("pointerover",e=>{const t=s(e);t&&(n(t),c(t))},{passive:!0}),o.addEventListener("focusin",e=>{const t=s(e);t&&(n(t),c(t))})}"loading"===document.readyState?document.addEventListener("DOMContentLoaded",()=>o(document)):o(document),n("https://alex-static-cdn.b-cdn.net/"),n("https://alexbroadstock.b-cdn.net/")})();
+<script>
+(() => {
+  'use strict';
+
+  function preconnectOnce(url) {
+    try {
+      const { origin } = new URL(url, location.href);
+      const head = document.head;
+      const exists = [...head.querySelectorAll('link[rel="preconnect"],link[rel="dns-prefetch"]')]
+        .some(l => (l.href || '').startsWith(origin));
+      if (!exists) {
+        const a = document.createElement('link'); a.rel='preconnect'; a.href=origin; a.crossOrigin='anonymous'; head.appendChild(a);
+        const b = document.createElement('link'); b.rel='dns-prefetch'; b.href=origin; head.appendChild(b);
+      }
+    } catch(_) {}
+  }
+
+  // Preconnect your video CDN immediately
+  preconnectOnce('https://alexbroadstock.b-cdn.net/');
+
+  // Warm first hovered hero link on the Home page
+  function warmOnHover(root) {
+    const section = (root || document).querySelector('.home-hero_wrap');
+    if (!section || section.dataset.simpleWarmInit) return;
+    section.dataset.simpleWarmInit = '1';
+
+    let warmedUrl = null, warmedVideo = null;
+
+    async function prime(url) {
+      if (!url || url === warmedUrl) return;
+      warmedUrl = url;
+      try {
+        const v = document.createElement('video');
+        v.src = url; v.muted = true; v.playsInline = true; v.preload = 'auto'; v.crossOrigin = 'anonymous';
+        await new Promise((res) => {
+          const done = () => res();
+          v.addEventListener('loadeddata', done, { once:true });
+          v.addEventListener('canplaythrough', done, { once:true });
+          v.addEventListener('error', done, { once:true });
+          setTimeout(done, 2500);
+        });
+        const p = v.play?.(); if (p && p.then) await p.catch(()=>{});
+        setTimeout(()=>{ try{ v.pause(); }catch(_){} }, 30);
+        warmedVideo = v;
+      } catch(_) {}
+    }
+
+    section.addEventListener('pointerover', (e) => {
+      const a = e.target.closest?.('.home-hero_link'); if (!a) return;
+      const url = a.getAttribute('data-video-main') || a.getAttribute('data-video');
+      if (url) { preconnectOnce(url); prime(url); }
+    }, { passive:true });
+
+    section.addEventListener('focusin', (e) => {
+      const a = e.target.closest?.('.home-hero_link'); if (!a) return;
+      const url = a.getAttribute('data-video-main') || a.getAttribute('data-video');
+      if (url) { preconnectOnce(url); prime(url); }
+    });
+  }
+
+  const boot = () => warmOnHover(document);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+})();
+</script>
