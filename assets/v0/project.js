@@ -1,4 +1,4 @@
-// Project page player: unmute-first center button, play/pause, timeline, fullscreen, idle UI
+// Project page player: unmute-first center button, play/pause, timeline, fullscreen, idle UI — perf tuned
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".project-player_wrap").forEach((wrap) => {
     if (wrap.dataset.scriptInitialized) return;
@@ -119,17 +119,25 @@ document.addEventListener("DOMContentLoaded", () => {
           const done = ()=> res();
           v.addEventListener('loadeddata', done, { once:true });
           v.addEventListener('canplay',    done, { once:true });
-          setTimeout(done, 3000);
+          setTimeout(done, 2500);
         });
       }
       try { ('fastSeek' in v) ? v.fastSeek(0) : (v.currentTime = Math.max(0.00001, v.currentTime)); } catch(_){}
       try { v.muted = true; v.setAttribute('muted',''); const p=v.play?.(); if (p?.then) await p.catch(()=>{}); } catch(_){}
       await new Promise((res)=>{
-        let done=false, cap=setTimeout(()=>{ if(!done){done=true;res();} }, 800);
+        let done=false, cap=setTimeout(()=>{ if(!done){done=true;res();} }, 700);
         const onTU=()=>{ if(!done){done=true; clearTimeout(cap); v.removeEventListener('timeupdate', onTU); requestAnimationFrame(res);} };
         v.addEventListener('timeupdate', onTU, { once:true });
       });
     }
+
+    // rAF only when needed
+    function startRAF(){
+      if (raf) return;
+      const loop = () => { updateTimeUI(); raf = requestAnimationFrame(loop); };
+      raf = requestAnimationFrame(loop);
+    }
+    function stopRAF(){ if (raf) { cancelAnimationFrame(raf); raf = 0; } }
 
     function updateTimeUI(){
       if (!isFinite(video.duration)) return;
@@ -141,7 +149,6 @@ document.addEventListener("DOMContentLoaded", () => {
         tlBuf.style.width = Math.min(100, (end / video.duration) * 100) + '%';
       }
     }
-    function loop(){ updateTimeUI(); raf = requestAnimationFrame(loop); }
 
     function seekPct(p){
       if (!isFinite(video.duration)) return;
@@ -158,7 +165,6 @@ document.addEventListener("DOMContentLoaded", () => {
       centerBtn.setAttribute('aria-pressed', isPlaying ? 'true' : 'false');
     }
 
-    // Play/Pause from controls
     async function togglePlayFromUser(){
       try{
         if (video.paused) {
@@ -176,11 +182,11 @@ document.addEventListener("DOMContentLoaded", () => {
       } catch(_){}
       setPlayUI(!video.paused);
       setPausedUI(video.paused);
+      if (!video.paused || dragging) startRAF(); else stopRAF();
       kickHide();
     }
     btnPlay?.addEventListener('click', togglePlayFromUser);
 
-    // Center button behaviour
     centerBtn.addEventListener('click', async ()=>{
       const inPlayMode = centerBtn.classList.contains('is-mode-play');
       if (!inPlayMode) {
@@ -194,6 +200,7 @@ document.addEventListener("DOMContentLoaded", () => {
           setMuteUI(false);
           setPlayUI(true);
           setPausedUI(false);
+          startRAF();
           didFirstSoundRestart = true;
         } catch(_){}
         kickHide();
@@ -202,7 +209,6 @@ document.addEventListener("DOMContentLoaded", () => {
       await togglePlayFromUser();
     });
 
-    // Sound text button (first unmute restarts)
     btnMute?.addEventListener('click', async ()=>{
       const wasMuted = video.muted;
       video.muted = !video.muted;
@@ -220,6 +226,7 @@ document.addEventListener("DOMContentLoaded", () => {
           try { await video.play?.(); } catch(_){}
           setPlayUI(true);
           setPausedUI(false);
+          startRAF();
         }
         switchCenterToPlayMode();
       }
@@ -228,7 +235,6 @@ document.addEventListener("DOMContentLoaded", () => {
       kickHide();
     });
 
-    // Fullscreen
     function updateFSLabel(){
       if (!btnFS) return;
       const inFS = !!document.fullscreenElement && (document.fullscreenElement === wrap || wrap.contains(document.fullscreenElement));
@@ -244,12 +250,12 @@ document.addEventListener("DOMContentLoaded", () => {
       kickHide();
     });
 
-    // Timeline
     if (tl) {
       tl.addEventListener('pointerdown', (e)=>{
         dragging = true; tl.setPointerCapture?.(e.pointerId);
         const r = tl.getBoundingClientRect();
         seekPct(((e.clientX - r.left) / r.width) * 100);
+        startRAF();
         kickHide();
       });
       tl.addEventListener('pointermove', (e)=>{
@@ -257,7 +263,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const r = tl.getBoundingClientRect();
         seekPct(((e.clientX - r.left) / r.width) * 100);
       });
-      const endDrag = ()=> { dragging = false; };
+      const endDrag = ()=> { dragging = false; if (video.paused) stopRAF(); };
       tl.addEventListener('pointerup', endDrag);
       tl.addEventListener('pointercancel', endDrag);
       tl.addEventListener('keydown', (e)=>{
@@ -265,21 +271,21 @@ document.addEventListener("DOMContentLoaded", () => {
         const now = Number(tl.getAttribute('aria-valuenow') || 0);
         if (e.key === 'ArrowRight'){ seekPct(now + step); e.preventDefault(); }
         if (e.key === 'ArrowLeft'){  seekPct(now - step); e.preventDefault(); }
+        if (!video.paused) startRAF();
       });
     }
 
-    // Idle show/hide
     ['mousemove','pointermove','touchstart','keydown'].forEach((evt)=>{
       wrap.addEventListener(evt, kickHide, { passive:true });
     });
     kickHide();
 
-    // Start pipeline
     (async function(){
       await ensureFirstFramePainted(video);
       try { await video.play(); } catch(_){}
       setPlayUI(!video.paused);
       setPausedUI(video.paused);
+      if (!video.paused) startRAF();
 
       const intent = getIntent(slug);
       if (intent && intent.withSound) {
@@ -292,29 +298,26 @@ document.addEventListener("DOMContentLoaded", () => {
           didFirstSoundRestart = true;
           setPausedUI(false);
           switchCenterToPlayMode();
+          startRAF();
         }catch(_){ setMuteUI(true); }
       } else {
         centerBtn.classList.remove('is-mode-play');
         centerBtn.setAttribute('aria-label', 'Unmute');
         setMuteUI(true);
       }
-
       requestAnimationFrame(()=> requestAnimationFrame(()=> updateTimeUI()));
-      raf = requestAnimationFrame(loop);
       updateFSLabel();
     })();
 
-    // Keep UI in sync
-    video.addEventListener('play',    ()=>{ setPlayUI(true);  setPausedUI(false); });
-    video.addEventListener('playing', ()=>{                  setPausedUI(false); });
-    video.addEventListener('pause',   ()=>{ setPlayUI(false); setPausedUI(true);  });
-    video.addEventListener('ended',   ()=>{ setPlayUI(false); setPausedUI(true);  });
+    video.addEventListener('play',    ()=>{ setPlayUI(true);  setPausedUI(false); startRAF(); });
+    video.addEventListener('playing', ()=>{                  setPausedUI(false);  startRAF(); });
+    video.addEventListener('pause',   ()=>{ setPlayUI(false); setPausedUI(true);  if (!dragging) stopRAF(); });
+    video.addEventListener('ended',   ()=>{ setPlayUI(false); setPausedUI(true);  if (!dragging) stopRAF(); });
     video.addEventListener('timeupdate', ()=> { if (!dragging) updateTimeUI(); });
 
-    // Cleanup
     const mo = new MutationObserver(()=> {
       if (!document.body.contains(wrap)) {
-        try { cancelAnimationFrame(raf); video.pause(); video.muted = true; } catch(_){}
+        try { stopRAF(); video.pause(); video.muted = true; } catch(_){}
         mo.disconnect();
       }
     });
