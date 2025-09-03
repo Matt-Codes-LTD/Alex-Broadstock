@@ -9,18 +9,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Use the first 8 chars of the commit SHA as the version folder
+      # Compute a short version folder from the commit SHA
       - name: Compute version folder (short SHA)
         id: vars
-        run: echo "SHORT_SHA=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+        shell: bash
+        run: |
+          SHORT_SHA="${GITHUB_SHA::8}"
+          echo "SHORT_SHA=$SHORT_SHA" >> "$GITHUB_OUTPUT"
 
       - name: Create remote directory on Bunny
         env:
           BUNNY_STORAGE_ZONE: ${{ secrets.BUNNY_STORAGE_ZONE }}
           BUNNY_ACCESS_KEY:  ${{ secrets.BUNNY_ACCESS_KEY }}
           SHORT_SHA:         ${{ steps.vars.outputs.SHORT_SHA }}
+        shell: bash
         run: |
-          curl -X PUT \
+          curl -sS -X PUT \
             -H "AccessKey: $BUNNY_ACCESS_KEY" \
             "https://storage.bunnycdn.com/$BUNNY_STORAGE_ZONE/assets/$SHORT_SHA/"
 
@@ -29,11 +33,13 @@ jobs:
           BUNNY_STORAGE_ZONE: ${{ secrets.BUNNY_STORAGE_ZONE }}
           BUNNY_ACCESS_KEY:  ${{ secrets.BUNNY_ACCESS_KEY }}
           SHORT_SHA:         ${{ steps.vars.outputs.SHORT_SHA }}
+        shell: bash
         run: |
+          set -euo pipefail
           find assets -type f -print0 | while IFS= read -r -d '' file; do
             dest="assets/$SHORT_SHA/${file#assets/}"
             echo "Uploading $file -> $dest"
-            curl -T "$file" \
+            curl -sS -T "$file" \
               -H "AccessKey: $BUNNY_ACCESS_KEY" \
               "https://storage.bunnycdn.com/$BUNNY_STORAGE_ZONE/$dest"
           done
@@ -41,4 +47,5 @@ jobs:
       - name: Show CDN URL base
         env:
           SHORT_SHA: ${{ steps.vars.outputs.SHORT_SHA }}
+        shell: bash
         run: echo "Deployed to: https://alex-static-cdn.b-cdn.net/assets/$SHORT_SHA/"
