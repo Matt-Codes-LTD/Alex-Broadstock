@@ -1,4 +1,4 @@
-// Home hero: video stage, category filter (FLIP + ghost exits), hover-to-activate
+// Home hero: video stage, category filter (FLIP + ghost exits), hover-to-activate — perf tuned
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".home-hero_wrap").forEach((section) => {
     if (section.dataset.scriptInitialized) return;
@@ -6,15 +6,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
     const reduceData = matchMedia("(prefers-reduced-data: reduce)").matches;
-    const normalize = (s) => (s || "").replace(/\s+/g, " ").trim().toLowerCase();
+    const conn = navigator.connection || navigator.webkitConnection || navigator.mozConnection;
+    const effective = conn?.effectiveType || '4g';
+    const slowNet = reduceData || ['slow-2g','2g'].includes(effective);
 
+    const normalize = (s) => (s || "").replace(/\s+/g, " ").trim().toLowerCase();
     const stage = section.querySelector(".home-hero_video");
     const listParent = section.querySelector(".home-hero_list_parent");
     if (!stage || !listParent) return;
 
+    // Rendering hint for long lists
+    listParent.style.contain = "layout paint";
+    listParent.style.contentVisibility = "auto"; // offscreen items don't fully render
+
     const links = Array.from(section.querySelectorAll(".home-hero_link"));
 
-    // ---- Preconnect video origins (teaser + main)
+    // ---- Preconnect video origins
     (function preconnectFromLinks() {
       const head = document.head;
       const seen = new Set();
@@ -23,15 +30,12 @@ document.addEventListener("DOMContentLoaded", () => {
           const u = new URL(val || "", location.href);
           if (!u.origin || seen.has(u.origin)) return;
           seen.add(u.origin);
-
           const exists = [...head.querySelectorAll('link[rel="preconnect"],link[rel="dns-prefetch"]')]
             .some(l => (l.href || "").startsWith(u.origin));
           if (exists) return;
-
           const l1 = document.createElement("link");
           l1.rel = "preconnect"; l1.href = u.origin; l1.crossOrigin = "anonymous";
           head.appendChild(l1);
-
           const l2 = document.createElement("link");
           l2.rel = "dns-prefetch"; l2.href = u.origin;
           head.appendChild(l2);
@@ -45,7 +49,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // ---- Video pool inside the stage
     const videoBySrc = new Map();
-    const MAX_EAGER = Number(section.getAttribute("data-warm-eager") || 3);
+    const MAX_EAGER_BASE = Number(section.getAttribute("data-warm-eager") || 3);
+    const MAX_EAGER = slowNet ? 1 : MAX_EAGER_BASE;
 
     function createVideo(src) {
       if (!src) return null;
@@ -65,12 +70,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function warmVideo(v) {
-      if (!v || v.__warmed || reduceData) return;
+      if (!v || v.__warmed || slowNet) return;
       v.__warmed = true;
       const start = () => {
-        v.play().then(() => {
-          setTimeout(() => { if (!v.__keepAlive) { try { v.pause(); } catch (_) {} } }, 250);
-        }).catch(() => {});
+        v.play().then(() => { setTimeout(() => { if (!v.__keepAlive) { try { v.pause(); } catch (_) {} } }, 180); })
+                 .catch(() => {});
       };
       (v.readyState >= 2)
         ? start()
@@ -81,7 +85,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const v = createVideo(links[i].dataset.video);
       if (!v) continue;
       if (i < MAX_EAGER) warmVideo(v);
-      else (window.requestIdleCallback || ((fn) => setTimeout(fn, 400)))(() => warmVideo(v));
+      else (window.requestIdleCallback || ((fn) => setTimeout(fn, 300)))(() => warmVideo(v));
     }
 
     // ---- Helpers
@@ -141,7 +145,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     })();
 
-    // Ghost layer
+    // Ghost layer (shared)
     const ghostLayer = (() => {
       let gl = document.__ghostExitLayer;
       if (gl && document.body.contains(gl)) return gl;
@@ -188,12 +192,12 @@ document.addEventListener("DOMContentLoaded", () => {
       return g;
     }
 
-    // FLIP filter with ghost exits
+    // FLIP filter with ghost exits (minimizes sync layout)
     function applyFilterFLIP(label) {
       const items = Array.from(section.querySelectorAll(".home-hero_list"));
       const key = normalize(label) || "all";
 
-      // BEFORE
+      // BEFORE — only measure currently visible items
       const visibleBefore = items.filter(it => it.style.display !== "none");
       const rectBefore = new Map();
       for (let i = 0; i < visibleBefore.length; i++) {
@@ -221,16 +225,12 @@ document.addEventListener("DOMContentLoaded", () => {
         el.style.display = "none";
       }
 
-      // MUTATE
       let firstVisibleLink = null;
       for (let i = 0; i < items.length; i++) {
         const it = items[i];
         const shouldShow = toStayOrEnter.includes(it);
         if (shouldShow) {
-          if (it.style.display === "none") {
-            it.style.display = "";
-            it.style.opacity = "0";
-          }
+          if (it.style.display === "none") { it.style.display = ""; it.style.opacity = "0"; }
           if (!firstVisibleLink) firstVisibleLink = it.querySelector(".home-hero_link");
         } else {
           if (!toExit.includes(it)) it.style.display = "none";
@@ -248,7 +248,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       listParent.style.pointerEvents = "none";
 
-      // AFTER
+      // AFTER (next frame measure of the new visible set only)
       requestAnimationFrame(() => {
         const visibleAfter = toStayOrEnter.filter(el => el.style.display !== "none");
         const rectAfter = new Map();
@@ -256,7 +256,6 @@ document.addEventListener("DOMContentLoaded", () => {
           rectAfter.set(visibleAfter[i], visibleAfter[i].getBoundingClientRect());
         }
 
-        // Timings
         const MOVE_DUR = reduceMotion ? 0 : 0.36;
         const ENTER_DUR = reduceMotion ? 0 : 0.32;
         const EXIT_DUR = reduceMotion ? 0 : 0.30;
@@ -266,13 +265,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const STAGGER = 12;
         const anims = [];
 
-        // MOVE / ENTER
         for (let i = 0; i < visibleAfter.length; i++) {
           const el = visibleAfter[i];
           const before = rectBefore.get(el);
           const after = rectAfter.get(el);
 
-          // ENTER
           if (!before) {
             if (ENTER_DUR) {
               anims.push(
@@ -285,13 +282,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 ).finished.catch(() => {})
               );
             } else {
-              el.style.opacity = "";
-              el.style.transform = "";
+              el.style.opacity = ""; el.style.transform = "";
             }
             continue;
           }
 
-          // STAY — FLIP
           const dx = (before.left - after.left);
           const dy = (before.top - after.top);
           if (dx || dy) {
@@ -309,7 +304,6 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }
 
-        // EXIT ghosts
         for (let i = 0; i < ghosts.length; i++) {
           const g = ghosts[i];
           anims.push(
@@ -332,14 +326,12 @@ document.addEventListener("DOMContentLoaded", () => {
           });
           listParent.style.pointerEvents = "";
 
-          // If active item got filtered out, pick first visible
           if (activeLink &&
               activeLink.closest(".home-hero_list")?.style.display === "none" &&
               firstVisibleLink) {
             const src = firstVisibleLink.dataset.video;
             if (src) setActive(src, firstVisibleLink);
           }
-          // Focus repair
           if (document.activeElement &&
               document.activeElement.closest(".home-hero_list")?.style.display === "none" &&
               firstVisibleLink) {
