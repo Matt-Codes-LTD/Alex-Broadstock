@@ -1,5 +1,3 @@
-<script>
-// Home hero: video stage, category filter (FLIP + ghost exits), hover-to-activate
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".home-hero_wrap").forEach((section) => {
     if (section.dataset.scriptInitialized) return;
@@ -429,4 +427,4 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 });
-</script>
+
