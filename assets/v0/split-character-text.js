@@ -1,1 +1,109 @@
-(function(){if(window.__charsGlobalInit)return;window.__charsGlobalInit=!0;function s(e){try{return e.replace(/[&<>"']/g,function(e){return"&"==e?"&amp;":"<"==e?"&lt;":">"==e?"&gt;":'"'==e?"&quot;":"&#39;"})}catch{return e}}function c(e){var t=e.getAttribute("data-animate-chars-target"),a=t?e.querySelectorAll(t):[e];if(!a||!a.length)return;var r=parseFloat(e.getAttribute("data-animate-delay")||"0.01")||0;for(var n=0;n<a.length;n++){var i=a[n];if(i&&"1"!==i.dataset.charsInit){var o=i.textContent||"",d=['<span data-animate-chars-inner>'];for(var l=0;l<o.length;l++){var u=o[l],m=" "===u?' style="white-space:pre;transition-delay:'+l*r+'s"':' style="transition-delay:'+l*r+'s"';d.push("<span"+m+">"+s(u)+"</span>")}d.push("</span>"),i.innerHTML=d.join(""),i.dataset.charsInit="1"}}var h=function(){e.setAttribute("data-animate-pulse","1"),clearTimeout(e.__pulseTO),e.__pulseTO=setTimeout(function(){return e.removeAttribute("data-animate-pulse")},700)};e.__pulseBound||(e.__pulseBound=!0,e.addEventListener("touchstart",h,{passive:!0}))}function f(e){e.hasAttribute("data-animate-chars")||e.setAttribute("data-animate-chars","");var t="1"===e.getAttribute("data-animate-chars-lazy");if(!t)return void c(e);if(!("IntersectionObserver"in window))return void c(e);if(e.__charsLazyObs)return;e.__charsLazyObs=new IntersectionObserver(function(a){for(var r=0;r<a.length;r++){var n=a[r];if(n.isIntersecting){try{c(e)}catch{}e.__charsLazyObs&&e.__charsLazyObs.disconnect(),e.__charsLazyObs=null;break}}},{root:null,rootMargin:"200px 0px",threshold:0}),e.__charsLazyObs.observe(e)}function p(e){if(!e||!e.querySelectorAll)return;e.querySelectorAll("[data-animate-chars]").forEach(f),1===e.nodeType&&e.hasAttribute&&e.hasAttribute("data-animate-chars")&&f(e),e.querySelectorAll("[data-animate-chars-list]").forEach(g),1===e.nodeType&&e.hasAttribute&&e.hasAttribute("data-animate-chars-list")&&g(e)}function g(e){if(!e||e.__charsListInit)return;e.__charsListInit=!0;var t=e.getAttribute("data-animate-chars-selector")||"a",a=e.getAttribute("data-animate-chars-target")||null,r=e.getAttribute("data-animate-delay"),n=e.getAttribute("data-animate-chars-lazy");e.querySelectorAll(t).forEach(function(e){e.hasAttribute("data-animate-chars")||e.setAttribute("data-animate-chars",""),a&&!e.hasAttribute("data-animate-chars-target")&&e.setAttribute("data-animate-chars-target",a),r&&!e.hasAttribute("data-animate-delay")&&e.setAttribute("data-animate-delay",r),n&&!e.hasAttribute("data-animate-chars-lazy")&&e.setAttribute("data-animate-chars-lazy",n),c(e)})}document.addEventListener("DOMContentLoaded",function(){p(document)});var t=!1,a=new Set,r=function(){t||(t=!0,requestAnimationFrame(function(){t=!1;for(var e=a.values(),r=e.next();!r.done;)p(r.value),r=e.next();a.clear()}))},n=new MutationObserver(function(e){for(var t=0;t<e.length;t++){var c=e[t];if("childList"===c.type)c.addedNodes&&c.addedNodes.forEach&&c.addedNodes.forEach(function(e){1===e.nodeType&&a.add(e)});else if("attributes"===c.type){var f=c.target;f&&1===f.nodeType&&a.add(f)}}r()});n.observe(document.documentElement,{subtree:!0,childList:!0,attributes:!0,attributeFilter:["data-animate-chars","data-animate-chars-list","data-animate-chars-target","data-animate-delay","data-animate-chars-lazy"]});})();
+<script>
+(function(){
+  if (window.__charsGlobalInit) return; window.__charsGlobalInit = true;
+
+  function splitChars(hostEl){
+    const targetSel = hostEl.getAttribute('data-animate-chars-target');
+    const targets = targetSel ? hostEl.querySelectorAll(targetSel) : [hostEl];
+    if (!targets || !targets.length) return;
+
+    const inc = parseFloat(hostEl.getAttribute('data-animate-delay') || '0.01');
+
+    targets.forEach((target) => {
+      if (!target || target.dataset.charsInit === '1') return;
+
+      const text = target.textContent || '';
+      target.textContent = '';
+
+      const inner = document.createElement('span');
+      inner.setAttribute('data-animate-chars-inner','');
+
+      const frag = document.createDocumentFragment();
+      for (let i = 0; i < text.length; i++){
+        const ch = text[i];
+        const s = document.createElement('span');
+        s.textContent = ch;
+        if (ch === ' ') s.style.whiteSpace = 'pre';
+        s.style.transitionDelay = (i * inc) + 's';
+        frag.appendChild(s);
+      }
+      inner.appendChild(frag);
+      target.appendChild(inner);
+      target.dataset.charsInit = '1';
+    });
+
+    // Touch pulse (visual hint)
+    const pulse = () => {
+      hostEl.setAttribute('data-animate-pulse','1');
+      clearTimeout(hostEl.__pulseTO);
+      hostEl.__pulseTO = setTimeout(()=> hostEl.removeAttribute('data-animate-pulse'), 700);
+    };
+    if (!hostEl.__pulseBound) {
+      hostEl.__pulseBound = true;
+      hostEl.addEventListener('touchstart', pulse, { passive:true });
+    }
+  }
+
+  function ensureOptIn(el){
+    if (!el.hasAttribute('data-animate-chars')) el.setAttribute('data-animate-chars','');
+    splitChars(el);
+  }
+
+  function initList(listEl){
+    if (!listEl || listEl.__charsListInit) return;
+    listEl.__charsListInit = true;
+
+    const sel       = listEl.getAttribute('data-animate-chars-selector') || 'a';
+    const targetSel = listEl.getAttribute('data-animate-chars-target') || null;
+    const listDelay = listEl.getAttribute('data-animate-delay');
+
+    listEl.querySelectorAll(sel).forEach((link) => {
+      if (!link.hasAttribute('data-animate-chars')) link.setAttribute('data-animate-chars','');
+      if (targetSel && !link.hasAttribute('data-animate-chars-target')) link.setAttribute('data-animate-chars-target', targetSel);
+      if (listDelay && !link.hasAttribute('data-animate-delay')) link.setAttribute('data-animate-delay', listDelay);
+      splitChars(link);
+    });
+  }
+
+  function scan(root){
+    if (!root || !root.querySelectorAll) return;
+    root.querySelectorAll('[data-animate-chars]').forEach(ensureOptIn);
+    if (root.nodeType === 1 && root.hasAttribute && root.hasAttribute('data-animate-chars')) ensureOptIn(root);
+    root.querySelectorAll('[data-animate-chars-list]').forEach(initList);
+    if (root.nodeType === 1 && root.hasAttribute && root.hasAttribute('data-animate-chars-list')) initList(root);
+  }
+
+  document.addEventListener('DOMContentLoaded', () => scan(document));
+
+  // Batched observer
+  let scheduled = false;
+  const queue = new Set();
+  const scheduleScan = () => {
+    if (scheduled) return;
+    scheduled = true;
+    requestAnimationFrame(() => {
+      scheduled = false;
+      for (const n of queue) scan(n);
+      queue.clear();
+    });
+  };
+
+  const mo = new MutationObserver((muts)=>{
+    for (let i=0;i<muts.length;i++) {
+      const m = muts[i];
+      if (m.type === 'childList') {
+        m.addedNodes && m.addedNodes.forEach?.(n => { if (n.nodeType === 1) { queue.add(n); } });
+      } else if (m.type === 'attributes') {
+        const t = m.target;
+        if (t && t.nodeType === 1) queue.add(t);
+      }
+    }
+    scheduleScan();
+  });
+
+  mo.observe(document.documentElement, {
+    subtree:true, childList:true, attributes:true,
+    attributeFilter:['data-animate-chars','data-animate-chars-list','data-animate-chars-target','data-animate-delay']
+  });
+})();
+</script>
