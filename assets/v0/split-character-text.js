@@ -1,7 +1,7 @@
-export function initSplit(root = document) {
-  const wrap = root.querySelector(".home-hero_wrap");
-  if (!wrap || wrap.dataset.simpleWarmInit) return;
-  wrap.dataset.simpleWarmInit = "1";
+window.splitInit = () => {
+  const wrap = document.querySelector(".home-hero_wrap");
+  if (!wrap || wrap.dataset.splitInit) return;
+  wrap.dataset.splitInit = "1";
 
   let last = null;
   async function warm(url) {
@@ -48,9 +48,4 @@ export function initSplit(root = document) {
 
   const current = wrap.querySelector('.home-hero_link[aria-current="true"]') || wrap.querySelector(".home-hero_link");
   if (current) setFades(current);
-}
-
-export function destroySplit(root = document) {
-  const wrap = root.querySelector(".home-hero_wrap");
-  if (wrap) delete wrap.dataset.simpleWarmInit;
-}
+};
