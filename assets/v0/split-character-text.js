@@ -1,74 +1,86 @@
-// https://alex-static-cdn.b-cdn.net/assets/live/v0/split-character-text.js
+// split-character-text.js (home hover pre-warm) → modular
 (function () {
-  function preconnect(e) {
+  window.App = window.App || {};
+  const NS = (window.App.splitChars = window.App.splitChars || {});
+
+  function preconnect(url) {
     try {
-      const { origin } = new URL(e, location.href);
+      const { origin } = new URL(url, location.href);
       const head = document.head;
       const exists = [...head.querySelectorAll('link[rel="preconnect"],link[rel="dns-prefetch"]')]
-        .some(l => (l.href || '').startsWith(origin));
+        .some(l => (l.href || "").startsWith(origin));
       if (!exists) {
-        const p = document.createElement('link');
-        p.rel = 'preconnect'; p.href = origin; p.crossOrigin = 'anonymous'; head.appendChild(p);
-        const d = document.createElement('link');
-        d.rel = 'dns-prefetch'; d.href = origin; head.appendChild(d);
+        const pc = document.createElement("link");
+        pc.rel = "preconnect";
+        pc.href = origin;
+        pc.crossOrigin = "anonymous";
+        head.appendChild(pc);
+        const dp = document.createElement("link");
+        dp.rel = "dns-prefetch";
+        dp.href = origin;
+        head.appendChild(dp);
       }
     } catch {}
   }
 
-  // This warms teaser videos & handles text-state on hover/focus for the Home hero
-  function SplitCharsInit(container) {
-    const root = (container || document).querySelector('.home-hero_wrap');
-    if (!root || root.dataset.simpleWarmInit) return;
-    root.dataset.simpleWarmInit = '1';
+  function init(root = document) {
+    const wrap = root.querySelector(".home-hero_wrap");
+    if (!wrap || wrap.dataset.simpleWarmInit) return;
+    wrap.dataset.simpleWarmInit = "1";
 
-    let warmedSrc = null;
-    async function warm(src) {
-      if (!src || src === warmedSrc) return;
-      warmedSrc = src;
+    let last = null;
+    async function warm(url) {
+      if (!url || url === last) return;
+      last = url;
       try {
-        const v = document.createElement('video');
-        v.src = src; v.muted = true; v.playsInline = true; v.preload = 'auto'; v.crossOrigin = 'anonymous';
+        const v = document.createElement("video");
+        v.src = url;
+        v.muted = true;
+        v.playsInline = true;
+        v.preload = "auto";
+        v.crossOrigin = "anonymous";
         await new Promise(res => {
           const done = () => res();
-          v.addEventListener('loadeddata', done, { once: true });
-          v.addEventListener('canplaythrough', done, { once: true });
-          v.addEventListener('error', done, { once: true });
+          v.addEventListener("loadeddata", done, { once: true });
+          v.addEventListener("canplaythrough", done, { once: true });
+          v.addEventListener("error", done, { once: true });
           setTimeout(done, 2500);
         });
-        const p = v.play?.();
-        if (p && p.then) await p.catch(() => {});
-        setTimeout(() => { try { v.pause(); } catch {} }, 30);
+        try { await v.play()?.catch(()=>{}); setTimeout(() => v.pause(), 30); } catch {}
       } catch {}
     }
 
-    function setTextState(item) {
-      root.querySelectorAll('.home-hero_link .home_hero_text, .home-hero_link .home-category_ref_text')
-        .forEach(el => el.classList.add('u-color-faded'));
+    function setFades(item) {
+      wrap.querySelectorAll(".home-hero_link")
+        .forEach(link => link.querySelectorAll(".home_hero_text, .home-category_ref_text")
+          .forEach(el => el.classList.add("u-color-faded")));
       if (item) {
-        item.querySelectorAll('.home_hero_text, .home-category_ref_text')
-          .forEach(el => el.classList.remove('u-color-faded'));
+        item.querySelectorAll(".home_hero_text, .home-category_ref_text")
+          .forEach(el => el.classList.remove("u-color-faded"));
       }
     }
 
-    root.addEventListener('pointerover', (ev) => {
-      const item = ev.target.closest?.('.home-hero_link');
-      if (!item) return;
-      const src = item.getAttribute('data-video-main') || item.getAttribute('data-video');
-      if (src) { preconnect(src); warm(src); }
-      setTextState(item);
-    }, { passive: true });
+    const onEnter = (ev) => {
+      const link = ev.target.closest?.(".home-hero_link");
+      if (!link) return;
+      const url = link.getAttribute("data-video-main") || link.getAttribute("data-video");
+      if (url) { preconnect(url); warm(url); }
+      setFades(link);
+    };
 
-    root.addEventListener('focusin', (ev) => {
-      const item = ev.target.closest?.('.home-hero_link');
-      if (!item) return;
-      const src = item.getAttribute('data-video-main') || item.getAttribute('data-video');
-      if (src) { preconnect(src); warm(src); }
-      setTextState(item);
-    });
+    wrap.addEventListener("pointerover", onEnter, { passive: true });
+    wrap.addEventListener("focusin", onEnter);
 
-    const current = root.querySelector('.home-hero_link[aria-current="true"]') || root.querySelector('.home-hero_link');
-    if (current) setTextState(current);
+    const current = wrap.querySelector('.home-hero_link[aria-current="true"]') || wrap.querySelector(".home-hero_link");
+    if (current) setFades(current);
   }
 
-  window.SplitCharsInit = SplitCharsInit;
+  NS.init = init;
+  NS.destroy = () => {}; // listeners are on the container and removed with it
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => init());
+  } else {
+    init();
+  }
 })();
