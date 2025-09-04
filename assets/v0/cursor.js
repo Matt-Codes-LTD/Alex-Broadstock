@@ -1,5 +1,5 @@
-export function initCursor() {
-  if (window.__cursorInit) return;
+window.cursorInit = () => {
+  if (window.__cursorInit) return; // run once globally
   window.__cursorInit = true;
 
   const wrap = document.querySelector(".cursor-crosshair_wrap");
@@ -24,4 +24,4 @@ export function initCursor() {
   }, { passive: true });
 
   loop();
-}
+};
