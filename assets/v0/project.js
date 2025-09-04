@@ -1,4 +1,4 @@
-// Project.js – rewritten for reliability & performance
+// Project.js – simplified (no poster images)
 (function () {
   if (window.__projectInit) return;
   window.__projectInit = true;
@@ -10,38 +10,20 @@
     const video = wrap.querySelector(".project-player_video");
     if (!video) return;
 
-    const poster = wrap.querySelector(".video_poster");
-
-    // --- 1. Poster handling ---
-    const hidePoster = () => {
-      if (poster && poster.parentNode) {
-        poster.style.opacity = "0";
-        poster.style.transition = "opacity .3s ease";
-        setTimeout(() => poster.remove(), 400);
-      }
-    };
-
-    // Hide poster as soon as the video is ready
-    video.addEventListener("loadeddata", hidePoster, { once: true });
-    video.addEventListener("playing", hidePoster, { once: true });
-
-    // --- 2. Autoplay reliability ---
+    // --- 1. Autoplay reliability ---
     const tryAutoplay = () => {
       video.play().catch(() => {
-        // Autoplay failed (iOS Safari etc.)
-        // Show play button as fallback
-        wrap.classList.add("is-paused");
+        wrap.classList.add("is-paused"); // fallback for iOS Safari
       });
     };
 
     if (video.readyState >= 2) {
-      // Already buffered enough
       tryAutoplay();
     } else {
       video.addEventListener("loadeddata", tryAutoplay, { once: true });
     }
 
-    // --- 3. Controls ---
+    // --- 2. Controls ---
     const playBtn = wrap.querySelector('[data-role="play"]');
     const muteBtn = wrap.querySelector('[data-role="mute"]');
     const fsBtn = wrap.querySelector('[data-role="fs"]');
@@ -97,17 +79,16 @@
       });
 
       // Seek
-      const seek = (e) => {
+      timeline.addEventListener("click", (e) => {
         const rect = timeline.getBoundingClientRect();
         const percent = (e.clientX - rect.left) / rect.width;
         video.currentTime = percent * video.duration;
-      };
-      timeline.addEventListener("click", seek);
+      });
     }
 
-    // --- 4. Idle state (hide controls) ---
+    // --- 3. Idle state (hide controls) ---
     let idleTimer;
-    const setIdle = (state) => wrap.dataset.idle = state ? "1" : "0";
+    const setIdle = (state) => (wrap.dataset.idle = state ? "1" : "0");
 
     const resetIdle = () => {
       setIdle(false);
