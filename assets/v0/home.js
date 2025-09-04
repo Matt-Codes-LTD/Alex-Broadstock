@@ -30,23 +30,22 @@
       v.setAttribute('preload', 'auto');
       v.crossOrigin = 'anonymous';
 
-      // Make the first (active) video autoplay immediately
+      // First video (or the active one) autoplays immediately
       if (v.classList.contains('is-active') || i === 0) {
         v.autoplay = true;
-        // Kick autoplay manually in case browser blocks attribute
         const p = v.play?.();
         if (p && p.catch) p.catch(() => {});
       }
     });
   }
 
-  // Warm first hovered hero link on the Home page
+  // Warm on hover/focus for snappy switching
   function warmOnHover(root) {
     const section = (root || document).querySelector('.home-hero_wrap');
     if (!section || section.dataset.simpleWarmInit) return;
     section.dataset.simpleWarmInit = '1';
 
-    let warmedUrl = null, warmedVideo = null;
+    let warmedUrl = null;
 
     async function prime(url) {
       if (!url || url === warmedUrl) return;
@@ -67,7 +66,6 @@
         });
         const p = v.play?.(); if (p && p.then) await p.catch(()=>{});
         setTimeout(()=>{ try{ v.pause(); }catch(_){} }, 30);
-        warmedVideo = v;
       } catch(_) {}
     }
 
