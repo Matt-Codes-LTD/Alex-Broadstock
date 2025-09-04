@@ -15,9 +15,11 @@ function initCursor() {
   const overlay = document.querySelector(".cursor-crosshair_wrap");
   if (!overlay) return;
 
+  // Remove legacy bits if left in DOM
   overlay.querySelectorAll(".cursor-crosshair_line, .cursor-crosshair_dot, .cursor-crosshair_dot-top, .cursor-crosshair_pulse")
     .forEach(n => { try { n.remove(); } catch(_){} });
 
+  // Ensure square exists
   let box = overlay.querySelector(".cursor-follow_box");
   if (!box) {
     box = document.createElement("div");
@@ -25,6 +27,7 @@ function initCursor() {
     overlay.appendChild(box);
   }
 
+  // Geometry & observers
   let rect = overlay.getBoundingClientRect();
   const computeGeometry = () => { rect = overlay.getBoundingClientRect(); };
   computeGeometry();
@@ -32,6 +35,7 @@ function initCursor() {
   ro.observe(overlay);
   addEventListener("scroll", computeGeometry, { passive:true });
 
+  // GSAP hot-swap if present
   const hasGSAP = () => !!(window.gsap && gsap.quickSetter && gsap.ticker);
   let useGsap = false, setX, setY;
 
@@ -50,7 +54,7 @@ function initCursor() {
 
   const ease = 0.18;
   let targetX = rect.width / 2, targetY = rect.height / 2;
-  let x = targetX, y = targetY;
+  let x = targetX,          y = targetY;
 
   function onMove(e) {
     if (!rect.width || !rect.height) computeGeometry();
@@ -104,6 +108,7 @@ function initCursor() {
   const onVis = () => { if (document.hidden) { stop(); } else { start(); } };
   document.addEventListener("visibilitychange", onVis);
 
+  // Cleanup if overlay ever removed
   const mo = new MutationObserver(() => {
     if (!document.body.contains(overlay)) {
       stop(); document.removeEventListener("visibilitychange", onVis);
@@ -129,11 +134,14 @@ function initSplitChars(container) {
 
     targets.forEach((target) => {
       if (!target || target.dataset.charsInit === "1") return;
+
       const text = target.textContent || "";
       originals.set(target, text);
       target.textContent = "";
+
       const inner = document.createElement("span");
       inner.setAttribute("data-animate-chars-inner","");
+
       const frag = document.createDocumentFragment();
       for (let i = 0; i < text.length; i++){
         const ch = text[i];
@@ -147,6 +155,17 @@ function initSplitChars(container) {
       target.appendChild(inner);
       target.dataset.charsInit = "1";
     });
+
+    // Touch pulse feedback
+    const pulse = () => {
+      hostEl.setAttribute("data-animate-pulse","1");
+      clearTimeout(hostEl.__pulseTO);
+      hostEl.__pulseTO = setTimeout(()=> hostEl.removeAttribute("data-animate-pulse"), 700);
+    };
+    if (!hostEl.__pulseBound) {
+      hostEl.__pulseBound = true;
+      hostEl.addEventListener("touchstart", pulse, { passive:true });
+    }
   }
 
   function ensureOptIn(el){
@@ -157,9 +176,11 @@ function initSplitChars(container) {
   function initList(listEl){
     if (!listEl || listEl.__charsListInit) return;
     listEl.__charsListInit = true;
+
     const sel       = listEl.getAttribute("data-animate-chars-selector") || "a";
     const targetSel = listEl.getAttribute("data-animate-chars-target") || null;
     const listDelay = listEl.getAttribute("data-animate-delay");
+
     listEl.querySelectorAll(sel).forEach((link) => {
       if (!link.hasAttribute("data-animate-chars")) link.setAttribute("data-animate-chars","");
       if (targetSel && !link.hasAttribute("data-animate-chars-target")) link.setAttribute("data-animate-chars-target", targetSel);
@@ -178,6 +199,7 @@ function initSplitChars(container) {
 
   scan(container);
 
+  // Batched observer (scoped to container)
   let scheduled = false;
   const queue = new Set();
   const scheduleScan = () => {
@@ -208,6 +230,7 @@ function initSplitChars(container) {
     attributeFilter:["data-animate-chars","data-animate-chars-list","data-animate-chars-target","data-animate-delay"]
   });
 
+  // Cleanup restores originals and disconnects
   return () => {
     mo.disconnect();
     originals.forEach((text, el) => {
@@ -218,7 +241,7 @@ function initSplitChars(container) {
 }
 
 /* =========================
-   HOME HERO (full body)
+   HOME HERO (full FLIP + ghosts)
 ========================= */
 function initHomeHero(container) {
   const section = container.querySelector(".home-hero_wrap");
@@ -658,7 +681,7 @@ function initHomeHero(container) {
 }
 
 /* =========================
-   PROJECT PLAYER (full body)
+   PROJECT PLAYER (full legacy, per container)
 ========================= */
 function initProjectPlayer(container) {
   const wrap = container.querySelector(".project-player_wrap");
@@ -997,7 +1020,7 @@ function initProjectPlayer(container) {
 }
 
 /* =========================
-   PAGE SCRIPTS (per container)
+   PAGE SCRIPTS (per Barba container)
 ========================= */
 function initPageScripts(container) {
   const cleanups = [];
@@ -1008,73 +1031,21 @@ function initPageScripts(container) {
 }
 
 /* =========================
-   SWIPE TRANSITION
+   BARBA BOOTSTRAP
 ========================= */
-window.initSwipeWithBarba = function(initPageScripts) {
-  if (!window.barba || !window.gsap) return;
-  if (window.__swipeBarbaInit) return;
-  window.__swipeBarbaInit = true;
-
-  const wrap  = document.querySelector(".page-transition_wrap");
-  const panel = document.querySelector(".page-transition_panel");
-  if (!wrap || !panel) return;
-
-  const prefersReducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  let activeCleanup = () => {};
-  const setActiveCleanup = (fn) => { activeCleanup = typeof fn === "function" ? fn : () => {}; };
-
-  const resetPanelRight = () => { gsap.set(panel, { xPercent: 100 }); };
-  const coverFromRight  = (dur) => gsap.to(panel, { xPercent: 0, duration: dur, ease: "power3.inOut" });
-  const revealToLeft    = (dur) => gsap.to(panel, { xPercent: -100, duration: dur, ease: "power3.inOut" });
-
-  const DUR_IN   = prefersReducedMotion ? 0 : 0.55;
-  const DUR_OUT  = prefersReducedMotion ? 0 : 0.50;
-
-  function liftIn(nextContainer) {
-    if (prefersReducedMotion) return gsap.set(nextContainer, { opacity: 1, y: 0 });
-    gsap.set(nextContainer, { opacity: 0, y: 10 });
-    return gsap.to(nextContainer, { opacity: 1, y: 0, duration: 0.35, ease: "power2.out", delay: 0.05 });
-  }
-
-  resetPanelRight();
+document.addEventListener("DOMContentLoaded", ()=>{
+  initCursor(); // global overlay (once)
+  let activeCleanup = ()=>{};
 
   barba.init({
-    transitions: [{
-      name: "swipe",
-      async leave({ current }) {
-        try { activeCleanup(); } catch(_) {}
-        await coverFromRight(DUR_IN);
-      },
-      enter({ next }) {
-        const tl = gsap.timeline({ onComplete: () => { resetPanelRight(); } });
-        tl.add(revealToLeft(DUR_OUT), 0);
-        tl.add(liftIn(next.container), 0.12);
-        return tl;
-      },
-      afterEnter({ next }) {
-        if (typeof initPageScripts === "function") {
-          setActiveCleanup(initPageScripts(next.container));
-        }
-      },
-      once({ next }) {
-        resetPanelRight();
-        if (typeof initPageScripts === "function") {
-          setActiveCleanup(initPageScripts(next.container));
-        }
-      }
+    transitions:[{
+      name:"fade",
+      leave({current}) { activeCleanup(); return gsap.to(current.container,{opacity:0,duration:0.3}); },
+      enter({next})    { return gsap.from(next.container,{opacity:0,duration:0.3}); },
+      afterEnter({next}) { activeCleanup = initPageScripts(next.container); }
     }]
   });
 
-  const first = document.querySelector('[data-barba="container"]');
-  if (first && typeof initPageScripts === "function") {
-    setActiveCleanup(initPageScripts(first));
-  }
-};
-
-/* =========================
-   BOOTSTRAP
-========================= */
-document.addEventListener("DOMContentLoaded", ()=>{
-  initCursor();
-  window.initSwipeWithBarba(initPageScripts);
+  const firstContainer = document.querySelector('[data-barba="container"]');
+  activeCleanup = initPageScripts(firstContainer);
 });
