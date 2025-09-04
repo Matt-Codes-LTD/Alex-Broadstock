@@ -1,1 +1,27 @@
-(()=>{"use strict";if(window.__cursorInit)return;window.__cursorInit=!0;const e=document.querySelector(".cursor-crosshair_wrap");if(!e)return;const t=e.querySelector(".cursor-follow_box");if(!t)return;let r=0,o=0,n=0,i=0,a=0,c=0;const s=.15;function u(){n+=((r+n)/2-n)*s,i+=((o+i)/2-i)*s,t.style.transform=`translate(${n}px, ${i}px)`,requestAnimationFrame(u)}window.addEventListener("mousemove",(e=>{r=e.clientX,o=e.clientY,c=e.clientX-n,a=e.clientY-i})),u()})();
+export function initCursor() {
+  if (window.__cursorInit) return;
+  window.__cursorInit = true;
+
+  const wrap = document.querySelector(".cursor-crosshair_wrap");
+  if (!wrap) return;
+
+  const box = wrap.querySelector(".cursor-follow_box");
+  if (!box) return;
+
+  let tx = 0, ty = 0, x = 0, y = 0;
+  const lag = 0.15;
+
+  function loop() {
+    x += ((tx + x) / 2 - x) * lag;
+    y += ((ty + y) / 2 - y) * lag;
+    box.style.transform = `translate(${x}px, ${y}px)`;
+    requestAnimationFrame(loop);
+  }
+
+  window.addEventListener("mousemove", (e) => {
+    tx = e.clientX;
+    ty = e.clientY;
+  }, { passive: true });
+
+  loop();
+}
