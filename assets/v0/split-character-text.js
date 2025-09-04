@@ -1,1 +1,74 @@
-(()=>{"use strict";function e(e){try{const{origin:t}=new URL(e,location.href),r=document.head,n=[...r.querySelectorAll('link[rel="preconnect"],link[rel="dns-prefetch"]')].some((e=>(e.href||"").startsWith(t)));if(!n){const e=document.createElement("link");e.rel="preconnect",e.href=t,e.crossOrigin="anonymous",r.appendChild(e);const n=document.createElement("link");n.rel="dns-prefetch",n.href=t,r.appendChild(n)}}catch(e){}}function t(r){const n=(r||document).querySelector(".home-hero_wrap");if(!n||n.dataset.simpleWarmInit)return;n.dataset.simpleWarmInit="1";let o=null;async function a(e){if(e&&e!==o){o=e;try{const t=document.createElement("video");t.src=e,t.muted=!0,t.playsInline=!0,t.preload="auto",t.crossOrigin="anonymous",await new Promise((e=>{const r=()=>e();t.addEventListener("loadeddata",r,{once:!0}),t.addEventListener("canplaythrough",r,{once:!0}),t.addEventListener("error",r,{once:!0}),setTimeout(r,2500)}));const r=t.play?.();r&&r.then&&await r.catch((()=>{})),setTimeout((()=>{try{t.pause()}catch(e){}}),30)}catch(e){}}}function s(e){n.querySelectorAll(".home-hero_link").forEach((e=>{e.querySelectorAll(".home_hero_text, .home-category_ref_text").forEach((e=>e.classList.add("u-color-faded")))})),e&&e.querySelectorAll(".home_hero_text, .home-category_ref_text").forEach((e=>e.classList.remove("u-color-faded")))}n.addEventListener("pointerover",(t=>{const r=t.target.closest?.(".home-hero_link");if(!r)return;const n=r.getAttribute("data-video-main")||r.getAttribute("data-video");n&&(e(n),a(n)),s(r)}),{passive:!0}),n.addEventListener("focusin",(t=>{const r=t.target.closest?.(".home-hero_link");if(!r)return;const n=r.getAttribute("data-video-main")||r.getAttribute("data-video");n&&(e(n),a(n)),s(r)}));const i=n.querySelector('.home-hero_link[aria-current="true"]')||n.querySelector(".home-hero_link");i&&s(i)}const r=()=>t(document);"loading"===document.readyState?document.addEventListener("DOMContentLoaded",r):r()})();
+// https://alex-static-cdn.b-cdn.net/assets/live/v0/split-character-text.js
+(function () {
+  function preconnect(e) {
+    try {
+      const { origin } = new URL(e, location.href);
+      const head = document.head;
+      const exists = [...head.querySelectorAll('link[rel="preconnect"],link[rel="dns-prefetch"]')]
+        .some(l => (l.href || '').startsWith(origin));
+      if (!exists) {
+        const p = document.createElement('link');
+        p.rel = 'preconnect'; p.href = origin; p.crossOrigin = 'anonymous'; head.appendChild(p);
+        const d = document.createElement('link');
+        d.rel = 'dns-prefetch'; d.href = origin; head.appendChild(d);
+      }
+    } catch {}
+  }
+
+  // This warms teaser videos & handles text-state on hover/focus for the Home hero
+  function SplitCharsInit(container) {
+    const root = (container || document).querySelector('.home-hero_wrap');
+    if (!root || root.dataset.simpleWarmInit) return;
+    root.dataset.simpleWarmInit = '1';
+
+    let warmedSrc = null;
+    async function warm(src) {
+      if (!src || src === warmedSrc) return;
+      warmedSrc = src;
+      try {
+        const v = document.createElement('video');
+        v.src = src; v.muted = true; v.playsInline = true; v.preload = 'auto'; v.crossOrigin = 'anonymous';
+        await new Promise(res => {
+          const done = () => res();
+          v.addEventListener('loadeddata', done, { once: true });
+          v.addEventListener('canplaythrough', done, { once: true });
+          v.addEventListener('error', done, { once: true });
+          setTimeout(done, 2500);
+        });
+        const p = v.play?.();
+        if (p && p.then) await p.catch(() => {});
+        setTimeout(() => { try { v.pause(); } catch {} }, 30);
+      } catch {}
+    }
+
+    function setTextState(item) {
+      root.querySelectorAll('.home-hero_link .home_hero_text, .home-hero_link .home-category_ref_text')
+        .forEach(el => el.classList.add('u-color-faded'));
+      if (item) {
+        item.querySelectorAll('.home_hero_text, .home-category_ref_text')
+          .forEach(el => el.classList.remove('u-color-faded'));
+      }
+    }
+
+    root.addEventListener('pointerover', (ev) => {
+      const item = ev.target.closest?.('.home-hero_link');
+      if (!item) return;
+      const src = item.getAttribute('data-video-main') || item.getAttribute('data-video');
+      if (src) { preconnect(src); warm(src); }
+      setTextState(item);
+    }, { passive: true });
+
+    root.addEventListener('focusin', (ev) => {
+      const item = ev.target.closest?.('.home-hero_link');
+      if (!item) return;
+      const src = item.getAttribute('data-video-main') || item.getAttribute('data-video');
+      if (src) { preconnect(src); warm(src); }
+      setTextState(item);
+    });
+
+    const current = root.querySelector('.home-hero_link[aria-current="true"]') || root.querySelector('.home-hero_link');
+    if (current) setTextState(current);
+  }
+
+  window.SplitCharsInit = SplitCharsInit;
+})();
