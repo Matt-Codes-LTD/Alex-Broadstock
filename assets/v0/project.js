@@ -1,85 +1,78 @@
-// https://alex-static-cdn.b-cdn.net/assets/live/v0/project.js
+// project.js (player) → modular
 (function () {
-  function preconnectFor(src) {
+  window.App = window.App || {};
+  const NS = (window.App.project = window.App.project || {});
+  const state = new WeakMap(); // store per-section listeners
+
+  function preconnect(url) {
     try {
-      const { origin } = new URL(src, location.href);
+      const { origin } = new URL(url, location.href);
       const head = document.head;
       const exists = [...head.querySelectorAll('link[rel="preconnect"],link[rel="dns-prefetch"]')]
-        .some(l => (l.href || '').startsWith(origin));
+        .some(l => (l.href || "").startsWith(origin));
       if (!exists) {
-        const p = document.createElement('link');
-        p.rel = 'preconnect'; p.href = origin; p.crossOrigin = 'anonymous'; head.appendChild(p);
-        const d = document.createElement('link');
-        d.rel = 'dns-prefetch'; d.href = origin; head.appendChild(d);
+        const pc = document.createElement("link");
+        pc.rel = "preconnect";
+        pc.href = origin;
+        pc.crossOrigin = "anonymous";
+        head.appendChild(pc);
+        const dp = document.createElement("link");
+        dp.rel = "dns-prefetch";
+        dp.href = origin;
+        head.appendChild(dp);
       }
-    } catch (e) {}
+    } catch {}
   }
 
-  function ProjectInit(container) {
-    const wrap = (container || document).querySelector('.project-player_wrap');
-    if (!wrap || wrap.dataset.scriptInitialized) return;
-    wrap.dataset.scriptInitialized = '1';
+  function init(root = document) {
+    const wrap = root.querySelector(".project-player_wrap");
+    if (!wrap || wrap.dataset.jsInit) return;
+    wrap.dataset.jsInit = "1";
 
-    const video = wrap.querySelector('video');
+    const video = wrap.querySelector("video");
     if (!video) return;
 
     video.muted = true;
     video.playsInline = true;
-    video.preload = 'auto';
-    video.crossOrigin = 'anonymous';
+    video.preload = "auto";
+    video.crossOrigin = "anonymous";
     video.autoplay = true;
     video.play?.().catch(() => {});
-    preconnectFor(video.currentSrc || video.src);
+    preconnect(video.currentSrc || video.src);
 
-    // Idle UI
-    let idle = null;
-    function bump() {
-      wrap.dataset.idle = '0';
-      clearTimeout(idle);
-      idle = setTimeout(() => (wrap.dataset.idle = '1'), 3000);
-    }
-    ['mousemove','keydown','click','touchstart'].forEach(evt =>
-      wrap.addEventListener(evt, bump, { passive: true })
-    );
-    bump();
+    // idle logic (scoped to wrap)
+    let idleT;
+    const makeActive = () => {
+      wrap.dataset.idle = "0";
+      clearTimeout(idleT);
+      idleT = setTimeout(() => (wrap.dataset.idle = "1"), 3000);
+    };
+    const evs = ["mousemove", "keydown", "click", "touchstart"];
+    evs.forEach(ev => wrap.addEventListener(ev, makeActive, { passive: true }));
+    makeActive();
 
-    // Basic play/pause + mute toggles (if present)
-    const playBtn = wrap.querySelector('[data-role="play"]');
-    const muteBtn = wrap.querySelector('[data-role="mute"]');
-    const center  = wrap.querySelector('.project-player_center-toggle');
-
-    function syncPlayState() {
-      const playing = !video.paused;
-      playBtn?.classList.toggle('is-playing', playing);
-      center?.classList.toggle('is-playing', playing);
-      center?.classList.toggle('is-mode-play', true); // switch from sound to play mode after first interaction
-    }
-
-    playBtn?.addEventListener('click', () => {
-      if (video.paused) video.play().catch(()=>{}); else video.pause();
-      syncPlayState();
-    });
-
-    center?.addEventListener('click', () => {
-      if (video.muted) {
-        video.muted = false;
-        center.setAttribute('aria-label','Play/Pause');
-      } else {
-        if (video.paused) video.play().catch(()=>{}); else video.pause();
-      }
-      syncPlayState();
-    });
-
-    muteBtn?.addEventListener('click', () => {
-      video.muted = !video.muted;
-      muteBtn.setAttribute('aria-pressed', String(!video.muted));
-      const lbl = muteBtn.querySelector('[data-role="mute-label"]');
-      if (lbl) lbl.textContent = video.muted ? 'Sound' : 'Mute';
-    });
-
-    video.addEventListener('play',  syncPlayState);
-    video.addEventListener('pause', syncPlayState);
+    state.set(wrap, { idleT, evs, makeActive });
   }
 
-  window.ProjectInit = ProjectInit;
+  function destroy(root = document) {
+    const wrap = root.querySelector(".project-player_wrap");
+    if (!wrap) return;
+    const s = state.get(wrap);
+    if (s) {
+      s.evs.forEach(ev => wrap.removeEventListener(ev, s.makeActive));
+      clearTimeout(s.idleT);
+      state.delete(wrap);
+    }
+    delete wrap.dataset.jsInit;
+  }
+
+  NS.init = init;
+  NS.destroy = destroy;
+
+  // direct-load support
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => init());
+  } else {
+    init();
+  }
 })();
