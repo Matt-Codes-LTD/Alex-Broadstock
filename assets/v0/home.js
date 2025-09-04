@@ -1,1 +1,47 @@
-(()=>{"use strict";function e(e){try{const{origin:t}=new URL(e,location.href),r=document.head,n=[...r.querySelectorAll('link[rel="preconnect"],link[rel="dns-prefetch"]')].some((e=>(e.href||"").startsWith(t)));if(!n){const e=document.createElement("link");e.rel="preconnect",e.href=t,e.crossOrigin="anonymous",r.appendChild(e);const n=document.createElement("link");n.rel="dns-prefetch",n.href=t,r.appendChild(n)}}catch(e){}}function t(r){const n=(r||document).querySelector(".home-hero_wrap");if(!n||n.dataset.simpleWarmInit)return;n.dataset.simpleWarmInit="1";let o=null;async function a(e){if(e&&e!==o){o=e;try{const t=document.createElement("video");t.src=e,t.muted=!0,t.playsInline=!0,t.preload="auto",t.crossOrigin="anonymous",await new Promise((e=>{const r=()=>e();t.addEventListener("loadeddata",r,{once:!0}),t.addEventListener("canplaythrough",r,{once:!0}),t.addEventListener("error",r,{once:!0}),setTimeout(r,2500)}));const r=t.play?.();r&&r.then&&await r.catch((()=>{})),setTimeout((()=>{try{t.pause()}catch(e){}}),30)}catch(e){}}}function s(){n.querySelectorAll(".home-hero_link .home_hero_text,.home-hero_link .home-category_ref_text").forEach((e=>e.classList.add("u-color-faded")));const t=n.querySelector('.home-hero_link[aria-current="true"]');t&&t.querySelectorAll(".home_hero_text,.home-category_ref_text").forEach((e=>e.classList.remove("u-color-faded")));document.querySelectorAll(".home-category_text").forEach((e=>e.classList.add("u-color-faded")));const r=document.querySelector('.home-category_text[aria-current="true"]');r&&r.classList.remove("u-color-faded")}function c(e){s(),e.querySelectorAll(".home_hero_text,.home-category_ref_text").forEach((e=>e.classList.remove("u-color-faded")))}function i(e){s(),e.classList.remove("u-color-faded")}function l(e){e&&("A"===e.tagName&&(e=document.querySelector(e.getAttribute("href"))||e),e.closest(".home-hero_link")?(n.querySelectorAll(".home-hero_link").forEach((e=>e.removeAttribute("aria-current"))),e.setAttribute("aria-current","true"),s()):e.classList.contains("home-category_text")&&(document.querySelectorAll(".home-category_text").forEach((e=>e.setAttribute("aria-current","false"))),e.setAttribute("aria-current","true"),s()))}n.addEventListener("pointerover",(t=>{const r=t.target.closest?.(".home-hero_link");if(r){const n=r.getAttribute("data-video-main")||r.getAttribute("data-video");n&&(e(n),a(n)),c(r)}const o=t.target.closest?.(".home-category_text");o&&i(o)}),{passive:!0}),n.addEventListener("focusin",(t=>{const r=t.target.closest?.(".home-hero_link");if(r){const n=r.getAttribute("data-video-main")||r.getAttribute("data-video");n&&(e(n),a(n)),c(r)}const o=t.target.closest?.(".home-category_text");o&&i(o)})),n.addEventListener("pointerout",s),n.addEventListener("focusout",s),n.addEventListener("click",(e=>{const t=e.target.closest(".home-hero_link,.home-category_text");t&&l(t)})),s()}const r=()=>t(document);"loading"===document.readyState?document.addEventListener("DOMContentLoaded",r):r()})();
+document.addEventListener("DOMContentLoaded", () => {
+  const videos = document.querySelectorAll(".home-hero_video_el");
+  const items = document.querySelectorAll(".home-hero_link");
+  const categories = document.querySelectorAll(".home-category_text");
+
+  let activeVideo = document.querySelector(".home-hero_video_el.is-active");
+  let debounceTimer;
+
+  function setActiveVideo(targetVideo, item) {
+    if (debounceTimer) clearTimeout(debounceTimer);
+
+    debounceTimer = setTimeout(() => {
+      // Reset all videos
+      videos.forEach(v => v.classList.remove("is-active"));
+      if (targetVideo) {
+        targetVideo.classList.add("is-active");
+        activeVideo = targetVideo;
+      }
+
+      // Reset faded state for all project names/tags
+      document.querySelectorAll(".home_hero_text, .home-category_ref_text")
+        .forEach(el => el.classList.add("u-color-faded"));
+      if (item) {
+        item.querySelectorAll(".home_hero_text, .home-category_ref_text")
+          .forEach(el => el.classList.remove("u-color-faded"));
+      }
+
+      // Reset faded state for categories
+      categories.forEach(cat => cat.classList.add("u-color-faded"));
+      const currentCategory = document.querySelector(".home-hero-category_wrap .home-category_text[aria-current='true']");
+      if (currentCategory) currentCategory.classList.remove("u-color-faded");
+
+    }, 100); // debounce delay (ms)
+  }
+
+  // Initialize on page load
+  setActiveVideo(activeVideo, document.querySelector(".home-hero_link[aria-current='true']"));
+
+  // Hover → change active video
+  items.forEach(item => {
+    item.addEventListener("mouseenter", () => {
+      const videoSrc = item.dataset.video;
+      const targetVideo = [...videos].find(v => v.src.includes(videoSrc.split("/").pop()));
+      setActiveVideo(targetVideo, item);
+    });
+  });
+});
