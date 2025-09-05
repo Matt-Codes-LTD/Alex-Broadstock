@@ -38,6 +38,10 @@
     gsap.set(panel, { scaleX: 0, transformOrigin: "left center", clearProps: "opacity,visibility" });
 
     let activeCleanup = () => {};
+    console.log("[swipe] registering barba.init");
+barba.init({
+  transitions: [ ... ]
+});
 
     barba.init({
       transitions: [{
