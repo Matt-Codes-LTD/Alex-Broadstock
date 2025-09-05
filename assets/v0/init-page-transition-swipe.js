@@ -1,26 +1,27 @@
-/* =========================
-   PAGE TRANSITION — SWIPE (modular)
-   Exposes: window.initPageTransitionSwipe(opts?)
-========================= */
 (function () {
   if (window.initPageTransitionSwipe) return;
 
   window.initPageTransitionSwipe = function initPageTransitionSwipe(opts = {}) {
-    // guard re-init
+    // Prevent re-init
     if (window.__pageSwipeInit) return;
     window.__pageSwipeInit = true;
+
+    if (!window.barba || !window.gsap) {
+      console.warn("[page-transition] Barba or GSAP missing — aborting swipe init.");
+      return () => {};
+    }
 
     const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     // Options / defaults
-    const DUR_LEAVE = reduceMotion ? 0 : (opts.leaveDuration ?? 0.60);
-    const DUR_ENTER = reduceMotion ? 0 : (opts.enterDuration ?? 0.55);
+    const DUR_LEAVE  = reduceMotion ? 0 : (opts.leaveDuration ?? 0.60);
+    const DUR_ENTER  = reduceMotion ? 0 : (opts.enterDuration ?? 0.55);
     const EASE_INOUT = opts.leaveEase ?? "power4.inOut";
     const EASE_OUT   = opts.enterEase ?? "power3.out";
-    const color      = opts.color ?? null;  // override panel color
-    const useOvershoot = !!opts.overshoot;  // subtle edge overshoot
+    const color      = opts.color ?? null;     // optional override
+    const overshoot  = !!opts.overshoot;       // subtle edge ripple
 
-    // Ensure overlay exists (create if missing for modularity)
+    // Ensure overlay exists (create if missing so this is 100% modular)
     let overlay = document.querySelector(".page-transition_wrap");
     if (!overlay) {
       overlay = document.createElement("div");
@@ -35,17 +36,16 @@
     if (color) panel.style.background = color;
 
     // Start hidden
-    if (window.gsap) gsap.set(panel, { scaleX: 0, transformOrigin: "left center", clearProps: "opacity,visibility" });
+    gsap.set(panel, { scaleX: 0, transformOrigin: "left center", clearProps: "opacity,visibility" });
 
     let activeCleanup = () => {};
 
-    // Barba transitions
     barba.init({
       transitions: [{
         name: "swipe",
         async leave({ current }) {
-          // cleanup page scripts for current container
-          try { activeCleanup(); } catch(_) {}
+          // Cleanup scripts on current page before swap
+          try { activeCleanup(); } catch (_) {}
 
           // left -> right cover
           gsap.set(panel, { transformOrigin: "left center", scaleX: 0 });
@@ -55,7 +55,7 @@
             duration: DUR_LEAVE,
             ease: EASE_INOUT
           });
-          if (useOvershoot && !reduceMotion) {
+          if (overshoot && !reduceMotion) {
             tl.to(panel, { scaleX: 1.02, duration: 0.12, ease: "power2.out" }, "<");
             tl.to(panel, { scaleX: 1.00, duration: 0.12, ease: "power2.inOut" }, ">");
           }
@@ -65,7 +65,7 @@
           // right -> left reveal
           gsap.set(panel, { transformOrigin: "right center", scaleX: 1 });
           const tl = gsap.timeline();
-          if (useOvershoot && !reduceMotion) {
+          if (overshoot && !reduceMotion) {
             tl.to(panel, { scaleX: 1.02, duration: 0.10, ease: "power2.out" });
           }
           tl.to(panel, {
@@ -76,7 +76,7 @@
           return tl;
         },
         afterEnter({ next }) {
-          // Initialize per-page scripts on the new container
+          // Initialize per-page scripts on new container
           if (typeof initPageScripts === "function") {
             activeCleanup = initPageScripts(next.container);
           } else {
@@ -86,18 +86,15 @@
       }]
     });
 
-    // First page boot (init per-page scripts once at load)
+    // First load boot (init per-page scripts once at load)
     const firstContainer = document.querySelector('[data-barba="container"]');
     if (firstContainer && typeof initPageScripts === "function") {
       activeCleanup = initPageScripts(firstContainer);
     }
 
-    // Make sure global cursor is set once if you use it
-    if (typeof initCursor === "function") initCursor();
-
+    // Expose a teardown if ever needed
     return () => {
-      // (optional) expose teardown if you ever need it
-      try { activeCleanup(); } catch(_) {}
+      try { activeCleanup(); } catch (_) {}
     };
   };
 })();
