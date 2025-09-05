@@ -31,22 +31,24 @@
       overlay.appendChild(panel);
       document.body.appendChild(overlay);
     }
-    const panel = overlay.querySelector(".page-transition_panel");
-    if (color) panel.style.background = color;
 
-    // Start hidden
-    gsap.set(panel, { scaleX: 0, transformOrigin: "left center", clearProps: "opacity,visibility" });
+    if (color) {
+      const panel = overlay.querySelector(".page-transition_panel");
+      if (panel) panel.style.background = color;
+    }
 
     let activeCleanup = () => {};
-
     console.log("[swipe] registering barba.init");
 
     barba.init({
       transitions: [{
         name: "swipe",
         async leave({ current }) {
-          console.log("[swipe] leave fired", current);
+          const panel = document.querySelector(".page-transition_panel");
+          if (!panel) return;
+
           try { activeCleanup(); } catch (_) {}
+
           gsap.set(panel, { transformOrigin: "left center", scaleX: 0 });
           const tl = gsap.timeline();
           tl.to(panel, { scaleX: 1, duration: DUR_LEAVE, ease: EASE_INOUT });
@@ -57,7 +59,9 @@
           return tl;
         },
         async enter({ next }) {
-          console.log("[swipe] enter fired", next);
+          const panel = document.querySelector(".page-transition_panel");
+          if (!panel) return;
+
           gsap.set(panel, { transformOrigin: "right center", scaleX: 1 });
           const tl = gsap.timeline();
           if (overshoot && !reduceMotion) {
@@ -67,7 +71,6 @@
           return tl;
         },
         afterEnter({ next }) {
-          console.log("[swipe] afterEnter fired", next);
           if (typeof initPageScripts === "function") {
             activeCleanup = initPageScripts(next.container);
           }
