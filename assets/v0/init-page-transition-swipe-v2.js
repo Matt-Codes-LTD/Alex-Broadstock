@@ -24,7 +24,7 @@
     let overlay = document.querySelector(".page-transition_wrap");
     if (!overlay) {
       overlay = document.createElement("div");
-      overlay.className = "page-transition_wrap u-position-fixed u-inset-0 u-zindex-9999 u-pointer-off";
+      overlay.className = "page-transition_wrap";
       overlay.setAttribute("aria-hidden", "true");
       const panel = document.createElement("div");
       panel.className = "page-transition_panel";
@@ -32,10 +32,26 @@
       document.body.appendChild(overlay);
     }
 
-    if (color) {
-      const panel = overlay.querySelector(".page-transition_panel");
-      if (panel) panel.style.background = color;
+    const panel = document.querySelector(".page-transition_panel");
+    if (!panel) {
+      console.warn("[page-transition] No panel found.");
+      return () => {};
     }
+
+    // Apply failsafe base styles with GSAP (self-contained, ignores Webflow overrides)
+    gsap.set(panel, {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      width: "100vw",
+      height: "100vh",
+      background: color || "black",
+      zIndex: 2147483647,
+      transformOrigin: "left center",
+      scaleX: 0,
+      opacity: 1,
+      display: "block"
+    });
 
     let activeCleanup = () => {};
     console.log("[swipe] registering barba.init");
@@ -44,9 +60,7 @@
       transitions: [{
         name: "swipe",
         async leave({ current }) {
-          const panel = document.querySelector(".page-transition_panel");
-          if (!panel) return;
-
+          console.log("[swipe] leave fired", current);
           try { activeCleanup(); } catch (_) {}
 
           gsap.set(panel, { transformOrigin: "left center", scaleX: 0 });
@@ -59,8 +73,7 @@
           return tl;
         },
         async enter({ next }) {
-          const panel = document.querySelector(".page-transition_panel");
-          if (!panel) return;
+          console.log("[swipe] enter fired", next);
 
           gsap.set(panel, { transformOrigin: "right center", scaleX: 1 });
           const tl = gsap.timeline();
@@ -71,6 +84,7 @@
           return tl;
         },
         afterEnter({ next }) {
+          console.log("[swipe] afterEnter fired", next);
           if (typeof initPageScripts === "function") {
             activeCleanup = initPageScripts(next.container);
           }
