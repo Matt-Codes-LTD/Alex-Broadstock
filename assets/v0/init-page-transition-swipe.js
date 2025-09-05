@@ -38,15 +38,14 @@
     gsap.set(panel, { scaleX: 0, transformOrigin: "left center", clearProps: "opacity,visibility" });
 
     let activeCleanup = () => {};
+
     console.log("[swipe] registering barba.init");
-barba.init({
-  transitions: [ ... ]
-});
 
     barba.init({
       transitions: [{
         name: "swipe",
         async leave({ current }) {
+          console.log("[swipe] leave fired", current);
           try { activeCleanup(); } catch (_) {}
           gsap.set(panel, { transformOrigin: "left center", scaleX: 0 });
           const tl = gsap.timeline();
@@ -58,6 +57,7 @@ barba.init({
           return tl;
         },
         async enter({ next }) {
+          console.log("[swipe] enter fired", next);
           gsap.set(panel, { transformOrigin: "right center", scaleX: 1 });
           const tl = gsap.timeline();
           if (overshoot && !reduceMotion) {
@@ -67,6 +67,7 @@ barba.init({
           return tl;
         },
         afterEnter({ next }) {
+          console.log("[swipe] afterEnter fired", next);
           if (typeof initPageScripts === "function") {
             activeCleanup = initPageScripts(next.container);
           }
