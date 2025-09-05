@@ -2,7 +2,6 @@
   if (window.initPageTransitionSwipe) return;
 
   window.initPageTransitionSwipe = function initPageTransitionSwipe(opts = {}) {
-    // Prevent re-init
     if (window.__pageSwipeInit) return;
     window.__pageSwipeInit = true;
 
@@ -18,10 +17,10 @@
     const DUR_ENTER  = reduceMotion ? 0 : (opts.enterDuration ?? 0.55);
     const EASE_INOUT = opts.leaveEase ?? "power4.inOut";
     const EASE_OUT   = opts.enterEase ?? "power3.out";
-    const color      = opts.color ?? null;     // optional override
-    const overshoot  = !!opts.overshoot;       // subtle edge ripple
+    const color      = opts.color ?? null;
+    const overshoot  = !!opts.overshoot;
 
-    // Ensure overlay exists (create if missing so this is 100% modular)
+    // Ensure overlay exists (create if missing)
     let overlay = document.querySelector(".page-transition_wrap");
     if (!overlay) {
       overlay = document.createElement("div");
@@ -44,17 +43,10 @@
       transitions: [{
         name: "swipe",
         async leave({ current }) {
-          // Cleanup scripts on current page before swap
           try { activeCleanup(); } catch (_) {}
-
-          // left -> right cover
           gsap.set(panel, { transformOrigin: "left center", scaleX: 0 });
           const tl = gsap.timeline();
-          tl.to(panel, {
-            scaleX: 1,
-            duration: DUR_LEAVE,
-            ease: EASE_INOUT
-          });
+          tl.to(panel, { scaleX: 1, duration: DUR_LEAVE, ease: EASE_INOUT });
           if (overshoot && !reduceMotion) {
             tl.to(panel, { scaleX: 1.02, duration: 0.12, ease: "power2.out" }, "<");
             tl.to(panel, { scaleX: 1.00, duration: 0.12, ease: "power2.inOut" }, ">");
@@ -62,37 +54,28 @@
           return tl;
         },
         async enter({ next }) {
-          // right -> left reveal
           gsap.set(panel, { transformOrigin: "right center", scaleX: 1 });
           const tl = gsap.timeline();
           if (overshoot && !reduceMotion) {
             tl.to(panel, { scaleX: 1.02, duration: 0.10, ease: "power2.out" });
           }
-          tl.to(panel, {
-            scaleX: 0,
-            duration: DUR_ENTER,
-            ease: EASE_OUT
-          });
+          tl.to(panel, { scaleX: 0, duration: DUR_ENTER, ease: EASE_OUT });
           return tl;
         },
         afterEnter({ next }) {
-          // Initialize per-page scripts on new container
           if (typeof initPageScripts === "function") {
             activeCleanup = initPageScripts(next.container);
-          } else {
-            activeCleanup = () => {};
           }
         }
       }]
     });
 
-    // First load boot (init per-page scripts once at load)
+    // First load: init per-page scripts once
     const firstContainer = document.querySelector('[data-barba="container"]');
     if (firstContainer && typeof initPageScripts === "function") {
       activeCleanup = initPageScripts(firstContainer);
     }
 
-    // Expose a teardown if ever needed
     return () => {
       try { activeCleanup(); } catch (_) {}
     };
