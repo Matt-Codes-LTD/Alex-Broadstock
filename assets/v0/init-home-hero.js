@@ -476,12 +476,14 @@ function initHomeHero(container) {
     const preloadSrc = v?.src;
     if (preloadSrc) {
       const t = document.createElement("link");
-      t.rel = "preload";
-      t.as = "video";
-      t.href = preloadSrc;
-      t.type = "video/mp4";
-      t.crossOrigin = "anonymous";
-      document.head.appendChild(t);
+t.rel = "preload";
+// ⚠️ "video" is not a valid `as` → switch to "fetch" (safe for arbitrary resources)
+t.as = "fetch";
+t.href = preloadSrc;
+t.type = "video/mp4";
+t.crossOrigin = "anonymous";
+document.head.appendChild(t);
+
     }
   }
 
