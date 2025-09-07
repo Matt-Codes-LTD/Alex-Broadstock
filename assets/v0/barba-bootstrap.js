@@ -12,19 +12,9 @@ function initPageScripts(container) {
 /* =========================
    BOOTSTRAP (no barba.init here)
 ========================= */
-document.addEventListener("DOMContentLoaded", () => {
-  // global cursor overlay (once)
-  try { initCursor(); } catch (_) {}
+document.addEventListener("DOMContentLoaded", (() => {
+  try { initCursor() } catch(e) {}
+  const container = document.querySelector('[data-barba="container"]');
+  if (container) initPageScripts(container);
+}));
 
-  // hand control to transition module
-  if (typeof initPageTransitionSwipe === "function") {
-    initPageTransitionSwipe({
-      overshoot: true // optional effect
-    });
-  } else {
-    console.warn("[bootstrap] initPageTransitionSwipe not found — no transitions applied.");
-    // fallback: still run scripts for first page
-    const firstContainer = document.querySelector('[data-barba="container"]');
-    if (firstContainer) initPageScripts(firstContainer);
-  }
-});
