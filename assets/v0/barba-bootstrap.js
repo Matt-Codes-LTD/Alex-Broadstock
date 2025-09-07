@@ -10,32 +10,58 @@ function initPageScripts(container) {
 }
 
 /* =========================
-   BOOTSTRAP (with barba.init)
+   BOOTSTRAP (Barba + View Transitions hybrid)
 ========================= */
 document.addEventListener("DOMContentLoaded", () => {
-  try { initCursor() } catch(e) {}
+  try { initCursor(); } catch (e) {}
 
   barba.init({
     transitions: [
       {
-        name: "default",
+        name: "vt-hybrid",
 
+        // First paint
         async once({ next }) {
-          // first load
           next.container.__cleanup = initPageScripts(next.container);
         },
 
+        // Before the old container is removed
         async leave({ current }) {
-          // cleanup before removing old container
-          if (current.container.__cleanup) {
+          if (current?.container?.__cleanup) {
             current.container.__cleanup();
             delete current.container.__cleanup;
           }
         },
 
+        // Swap + init new container
         async enter({ next }) {
-          // init scripts for new container
-          next.container.__cleanup = initPageScripts(next.container);
+          const doSwap = () => {
+            const oldEl = document.querySelector(".page_main");
+            const newEl = next.container;
+            if (oldEl && newEl && oldEl !== newEl) {
+              // Put the new container exactly where the old one was
+              oldEl.replaceWith(newEl);
+            }
+            // Init scripts for the new page container
+            newEl.__cleanup = initPageScripts(newEl);
+          };
+
+          // View Transitions API path (Chromium et al.)
+          if (document.startViewTransition) {
+            await document.startViewTransition(() => {
+              // DOM mutation must occur inside this callback
+              doSwap();
+            }).finished;
+          } else {
+            // Fallback: quick fade out/in (no extra markup)
+            await (window.gsap
+              ? gsap.to(".page_main", { opacity: 0, duration: 0.22, ease: "power1.out" })
+              : Promise.resolve());
+            doSwap();
+            await (window.gsap
+              ? gsap.fromTo(".page_main", { opacity: 0 }, { opacity: 1, duration: 0.22, ease: "power1.out" })
+              : Promise.resolve());
+          }
         },
       },
     ],
