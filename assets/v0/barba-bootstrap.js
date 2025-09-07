@@ -64,16 +64,16 @@ document.addEventListener("DOMContentLoaded", () => {
           // New page starting state
           gsap.set(newMain, {
             opacity: 0,
-            scale: 1.02,
+            scale: 1.05,
             y: 20,
-            filter: "blur(6px)",
+            filter: "blur(8px)",
           });
 
           // Create overlay wash
           const overlay = document.createElement("div");
           overlay.style.position = "fixed";
           overlay.style.inset = "0";
-          overlay.style.background = "#000"; // black wash (could also use rgba/gradient)
+          overlay.style.background = "#000";
           overlay.style.pointerEvents = "none";
           overlay.style.zIndex = "9999";
           overlay.style.opacity = "0";
@@ -82,7 +82,6 @@ document.addEventListener("DOMContentLoaded", () => {
           const tl = gsap.timeline({
             defaults: { ease: "power2.inOut" },
             onComplete: () => {
-              // Reset newMain
               newMain.style.position = "";
               newMain.style.inset = "";
               newMain.style.zIndex = "";
@@ -99,20 +98,27 @@ document.addEventListener("DOMContentLoaded", () => {
           // Old page exit
           tl.to(oldMain, {
             opacity: 0,
-            scale: 0.98,
-            y: -20,
-            filter: "blur(6px)",
-            duration: 0.6,
+            scale: 0.9,
+            y: -30,
+            filter: "blur(10px)",
+            duration: 0.7,
           }, 0);
 
-          // New page enter
+          // New page enter with overshoot effect
           tl.to(newMain, {
             opacity: 1,
-            scale: 1,
+            scale: 0.98,  // slight undershoot
             y: 0,
-            filter: "blur(0px)",
-            duration: 0.8,
+            filter: "blur(2px)",
+            duration: 0.7,
           }, "-=0.4");
+
+          tl.to(newMain, {
+            scale: 1,
+            filter: "blur(0px)",
+            duration: 0.4,
+            ease: "power3.out",
+          }, "-=0.2"); // overlaps a little for smoothness
 
           return tl;
         },
@@ -120,3 +126,4 @@ document.addEventListener("DOMContentLoaded", () => {
     ],
   });
 });
+
