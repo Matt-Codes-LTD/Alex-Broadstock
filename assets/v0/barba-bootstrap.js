@@ -37,8 +37,8 @@ document.addEventListener("DOMContentLoaded", () => {
           const container = next.container;
           container.__cleanup = initPageScripts(container);
 
-          const pageMain = container.querySelector(".page_main");
-          if (pageMain) pageMain.style.viewTransitionName = "pageMain";
+          // ✅ VT name on Barba container only
+          container.style.viewTransitionName = "pageMain";
         },
 
         async leave({ current }) {
@@ -48,24 +48,21 @@ document.addEventListener("DOMContentLoaded", () => {
           }
 
           // 🟢 Clear VT name from old container before new one is injected
-          const oldPageMain = current.container.querySelector(".page_main");
-          if (oldPageMain) oldPageMain.style.viewTransitionName = "";
+          current.container.style.viewTransitionName = "";
         },
 
         async enter({ next }) {
           const doSwap = () => {
-            const oldEl = document.querySelector(".page_main");
-            const newEl = next.container;
+            const oldContainer = document.querySelector('[data-barba="container"]');
+            const newContainer = next.container;
 
-            if (oldEl && newEl && oldEl !== newEl) {
-              oldEl.replaceWith(newEl);
+            if (oldContainer && newContainer && oldContainer !== newContainer) {
+              oldContainer.replaceWith(newContainer);
             }
 
-            // ✅ Assign VT name to new page only
-            const pageMain = newEl.querySelector(".page_main");
-            if (pageMain) pageMain.style.viewTransitionName = "pageMain";
-
-            newEl.__cleanup = initPageScripts(newEl);
+            // ✅ Apply VT name only to the new container
+            newContainer.style.viewTransitionName = "pageMain";
+            newContainer.__cleanup = initPageScripts(newContainer);
           };
 
           if (document.startViewTransition) {
