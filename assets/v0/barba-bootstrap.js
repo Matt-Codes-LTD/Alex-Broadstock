@@ -34,36 +34,39 @@ document.addEventListener("DOMContentLoaded", () => {
           gsap.set(main, { opacity: 1, x: 0 });
         },
 
-        /* Leave */
-        leave({ current }) {
-          console.log("[Barba] leave()", current.namespace);
+        /* Leave + Enter with overlap */
+        leave({ current, next }) {
+          console.log("[Barba] leave()", current.namespace, "→ enter()", next.namespace);
+
           if (current?.container?.__cleanup) {
             current.container.__cleanup();
             delete current.container.__cleanup;
           }
 
-          return gsap.to(current.container, {
-            opacity: 0,
-            x: -50,
-            duration: 0.6,
-            ease: "power2.in",
+          const tl = gsap.timeline({
+            defaults: { ease: "power2.inOut", duration: 0.6 },
           });
+
+          // Set new container offscreen to the right
+          gsap.set(next.container, { opacity: 0, x: 50 });
+
+          // Animate old container out
+          tl.to(current.container, { opacity: 0, x: -50 }, 0);
+
+          // Animate new container in with overlap
+          tl.to(next.container, { opacity: 1, x: 0 }, "-=0.4");
+
+          return tl;
         },
 
-        /* Enter */
+        /* Enter (in case of refresh or direct load) */
         enter({ next }) {
           console.log("[Barba] enter()", next.namespace);
           const main = next.container;
           main.__cleanup = initPageScripts(main);
 
-          gsap.set(main, { opacity: 0, x: 50 });
-
-          return gsap.to(main, {
-            opacity: 1,
-            x: 0,
-            duration: 0.8,
-            ease: "power3.out",
-          });
+          // Safety: ensure container is visible
+          gsap.set(main, { opacity: 1, x: 0 });
         },
       },
     ],
