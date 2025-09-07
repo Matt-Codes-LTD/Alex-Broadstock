@@ -61,7 +61,7 @@ document.addEventListener("DOMContentLoaded", () => {
           newMain.style.inset = "0";
           newMain.style.zIndex = "2";
 
-          // New page starting state (just transparent)
+          // New page starting state
           gsap.set(newMain, { opacity: 0 });
 
           // Overlay wash
@@ -75,7 +75,7 @@ document.addEventListener("DOMContentLoaded", () => {
           document.body.appendChild(overlay);
 
           const tl = gsap.timeline({
-            defaults: { ease: "power1.out" },
+            defaults: { ease: "power2.inOut" }, // smoother ease
             onComplete: () => {
               newMain.style.position = "";
               newMain.style.inset = "";
@@ -86,18 +86,18 @@ document.addEventListener("DOMContentLoaded", () => {
             },
           });
 
-          // All in one motion
+          // All in one motion, slightly slower for smoothness
           tl.to([oldMain, newMain, overlay], {
             opacity: (i, target) => {
               if (target === oldMain) return 0;   // fade out old
               if (target === newMain) return 1;   // fade in new
-              return 0.08;                        // overlay peak
+              return 0.12;                        // overlay peak
             },
-            duration: 0.25,
+            duration: 0.5,
           }, 0);
 
-          // Overlay back to 0 in same motion
-          tl.to(overlay, { opacity: 0, duration: 0.25 }, 0);
+          // Overlay fade back out at same time
+          tl.to(overlay, { opacity: 0, duration: 0.5 }, 0);
 
           return tl;
         },
