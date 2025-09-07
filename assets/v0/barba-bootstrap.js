@@ -1,15 +1,6 @@
 /* =========================
    HELPERS
 ========================= */
-function tweenPromise(target, vars) {
-  return new Promise((resolve) => {
-    gsap.to(target, { ...vars, onComplete: resolve });
-  });
-}
-
-/* =========================
-   PAGE SCRIPTS (per Barba container)
-========================= */
 function initPageScripts(container) {
   const cleanups = [];
   cleanups.push(initSplitChars(container));
@@ -19,12 +10,32 @@ function initPageScripts(container) {
 }
 
 /* =========================
+   OVERLAY (global, once)
+========================= */
+function getOverlay() {
+  let overlay = document.querySelector(".page-transition_overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.className = "page-transition_overlay";
+    Object.assign(overlay.style, {
+      position: "fixed",
+      inset: "0",
+      background: "#000", // black wash (change to white/brand if you prefer)
+      opacity: "0",
+      pointerEvents: "none",
+      zIndex: "9999",
+    });
+    document.body.appendChild(overlay);
+  }
+  return overlay;
+}
+
+/* =========================
    BARBA BOOTSTRAP
 ========================= */
 document.addEventListener("DOMContentLoaded", () => {
   console.log("[Barba] init starting…");
 
-  // Init cursor globally once
   try {
     initCursor();
   } catch (e) {
@@ -34,68 +45,88 @@ document.addEventListener("DOMContentLoaded", () => {
   barba.init({
     transitions: [
       {
-        name: "fade-blur-scale",
-        sync: true, // run leave + enter together
-
-        /* First page load */
-        once({ next }) {
+        name: "fade-blur-scale-overlay",
+        async once({ next }) {
           const main = next.container;
           main.__cleanup = initPageScripts(main);
-
           gsap.set(main, { opacity: 1, scale: 1, filter: "blur(0px)" });
         },
 
-        /* Leaving page */
-        leave({ current }) {
+        async leave({ current }) {
           if (current?.container?.__cleanup) {
             current.container.__cleanup();
             delete current.container.__cleanup;
           }
-
-          const oldMain = current.container;
-          if (!oldMain) return Promise.resolve();
-
-          oldMain.style.willChange = "opacity, transform, filter";
-          oldMain.style.pointerEvents = "none";
-
-          return gsap.to(oldMain, {
-            opacity: 0,
-            scale: 0.95,          // shrink slightly
-            y: -20,               // lift upward just a touch
-            filter: "blur(12px)", // stronger blur on exit
-            duration: 0.7,
-            ease: "power3.inOut",
-          });
+          // leave must return a promise so barba knows when to continue
+          return new Promise((resolve) => resolve());
         },
 
-        /* Entering page */
-        enter({ next }) {
+        async enter({ current, next }) {
+          const oldMain = current.container;
           const newMain = next.container;
-          newMain.__cleanup = initPageScripts(newMain);
+          const overlay = getOverlay();
 
-          if (!newMain) return;
+          next.container.__cleanup = initPageScripts(newMain);
 
+          // setup new container off-screen / hidden
           gsap.set(newMain, {
             opacity: 0,
-            scale: 1.05,          // start slightly larger
-            y: 20,                // start slightly lower
+            scale: 1.05,
+            y: 20,
             filter: "blur(12px)",
             willChange: "opacity, transform, filter",
           });
 
-          return gsap.to(newMain, {
-            opacity: 1,
-            scale: 1,
-            y: 0,
-            filter: "blur(0px)",
-            duration: 0.9,
-            delay: 0.1,           // 👈 overlap offset (starts before old fully gone)
-            ease: "power3.out",
+          // timeline that animates both together
+          const tl = gsap.timeline({
+            defaults: { ease: "power3.inOut" },
             onComplete: () => {
               newMain.style.willChange = "";
               window.scrollTo(0, 0);
             },
           });
+
+          // fade out old page + fade in overlay
+          tl.to(
+            oldMain,
+            {
+              opacity: 0,
+              scale: 0.95,
+              y: -20,
+              filter: "blur(12px)",
+              duration: 0.7,
+            },
+            0
+          ).to(
+            overlay,
+            {
+              opacity: 0.4,
+              duration: 0.5,
+            },
+            0
+          );
+
+          // fade in new page + fade out overlay with overlap
+          tl.to(
+            newMain,
+            {
+              opacity: 1,
+              scale: 1,
+              y: 0,
+              filter: "blur(0px)",
+              duration: 0.9,
+            },
+            "-=0.4" // 👈 overlap starts before old is fully gone
+          ).to(
+            overlay,
+            {
+              opacity: 0,
+              duration: 0.6,
+            },
+            "-=0.3" // 👈 overlay fades out while new fades in
+          );
+
+          return tl;
         },
       },
     ],
