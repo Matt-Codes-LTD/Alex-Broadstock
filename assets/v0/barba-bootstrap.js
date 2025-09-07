@@ -61,12 +61,12 @@ document.addEventListener("DOMContentLoaded", () => {
           newMain.style.inset = "0";
           newMain.style.zIndex = "2";
 
-          // New page starting state (no big scale, just slightly smaller for polish)
+          // New page starting state (crisper: 4px blur instead of 8px)
           gsap.set(newMain, {
             opacity: 0,
             scale: 0.99,
             y: 15,
-            filter: "blur(8px)",
+            filter: "blur(4px)",
           });
 
           // Create overlay wash
@@ -104,13 +104,13 @@ document.addEventListener("DOMContentLoaded", () => {
             duration: 0.7,
           }, 0);
 
-          // New page enter (subtle overshoot from 0.99 → 1)
+          // New page enter (fade in sharp, blur clears faster)
           tl.to(newMain, {
             opacity: 1,
             scale: 1,
             y: 0,
             filter: "blur(0px)",
-            duration: 0.9,
+            duration: 0.8,
             ease: "power3.out",
           }, "-=0.5");
 
