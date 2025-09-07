@@ -91,9 +91,9 @@ document.addEventListener("DOMContentLoaded", () => {
             },
           });
 
-          // Overlay fade in/out
+          // Overlay fade in quickly, then fade out *longer/later*
           tl.to(overlay, { opacity: 0.15, duration: 0.3 }, 0)
-            .to(overlay, { opacity: 0, duration: 0.6 }, 0.3);
+            .to(overlay, { opacity: 0, duration: 0.9 }, 0.4); // slower + delayed
 
           // Old page exit
           tl.to(oldMain, {
@@ -107,7 +107,7 @@ document.addEventListener("DOMContentLoaded", () => {
           // New page enter with overshoot effect
           tl.to(newMain, {
             opacity: 1,
-            scale: 0.98,  // slight undershoot
+            scale: 0.98,
             y: 0,
             filter: "blur(2px)",
             duration: 0.7,
@@ -118,7 +118,7 @@ document.addEventListener("DOMContentLoaded", () => {
             filter: "blur(0px)",
             duration: 0.4,
             ease: "power3.out",
-          }, "-=0.2"); // overlaps a little for smoothness
+          }, "-=0.2");
 
           return tl;
         },
@@ -126,4 +126,3 @@ document.addEventListener("DOMContentLoaded", () => {
     ],
   });
 });
-
