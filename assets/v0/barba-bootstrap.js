@@ -38,7 +38,7 @@ document.addEventListener("DOMContentLoaded", () => {
           container.__cleanup = initPageScripts(container);
         },
 
-        async leave({ current }) {
+        leave({ current }) {
           if (current?.container?.__cleanup) {
             current.container.__cleanup();
             delete current.container.__cleanup;
@@ -46,34 +46,36 @@ document.addEventListener("DOMContentLoaded", () => {
 
           const oldMain = current.container.querySelector(".page_main");
           if (oldMain) {
+            // Return a GSAP promise
             return gsap.to(oldMain, {
               opacity: 0,
               scale: 0.98,
-              filter: "blur(8px)",   // subtle blur while fading
+              filter: "blur(8px)",
               duration: 0.4,
               ease: "power1.out",
-            });
+            }).then(); // 👈 ensures Barba waits
           }
         },
 
-        async enter({ next }) {
+        enter({ next }) {
           const newMain = next.container.querySelector(".page_main");
           if (newMain) {
             gsap.set(newMain, { opacity: 0, scale: 1.02, filter: "blur(8px)" });
 
-            // overlap: new page starts fading in after 0.1s
-            await gsap.to(newMain, {
+            // Return a GSAP promise
+            return gsap.to(newMain, {
               opacity: 1,
               scale: 1,
               filter: "blur(0px)",
               duration: 0.7,
               delay: 0.1,
               ease: "power2.out",
-            });
+              onComplete: () => {
+                next.container.__cleanup = initPageScripts(next.container);
+                window.scrollTo(0, 0);
+              },
+            }).then(); // 👈 ensures Barba waits
           }
-
-          next.container.__cleanup = initPageScripts(next.container);
-          window.scrollTo(0, 0);
         },
       },
     ],
