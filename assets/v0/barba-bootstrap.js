@@ -24,13 +24,14 @@ document.addEventListener("DOMContentLoaded", () => {
   barba.init({
     transitions: [
       {
-        name: "depth-crossfade-wash",
+        name: "directional-crossfade",
 
         /* First load */
         once({ next }) {
+          console.log("[Barba] once()", next.namespace);
           const main = next.container;
           main.__cleanup = initPageScripts(main);
-          gsap.set(main, { opacity: 1, scale: 1, y: 0 });
+          gsap.set(main, { opacity: 1, x: 0 });
         },
 
         /* Leave */
@@ -41,44 +42,25 @@ document.addEventListener("DOMContentLoaded", () => {
             delete current.container.__cleanup;
           }
 
-          // Create overlay wash
-          const overlay = document.createElement("div");
-          overlay.style.position = "fixed";
-          overlay.style.inset = "0";
-          overlay.style.background = "rgba(255,255,255,0.15)";
-          overlay.style.pointerEvents = "none";
-          overlay.style.zIndex = "9999";
-          overlay.style.opacity = "0";
-          document.body.appendChild(overlay);
-
-          return gsap.timeline({
-            defaults: { ease: "power2.inOut" },
-            onComplete: () => overlay.remove(),
-          })
-            .to(overlay, { opacity: 1, duration: 0.25 }, 0)
-            .to(current.container, {
-              opacity: 0,
-              scale: 0.95,
-              y: -15,
-              duration: 0.6,
-              ease: "power2.in",
-            }, 0)
-            .to(overlay, { opacity: 0, duration: 0.6 }, 0.3);
+          return gsap.to(current.container, {
+            opacity: 0,
+            x: -50,
+            duration: 0.6,
+            ease: "power2.in",
+          });
         },
 
         /* Enter */
         enter({ next }) {
           console.log("[Barba] enter()", next.namespace);
-
           const main = next.container;
           main.__cleanup = initPageScripts(main);
 
-          gsap.set(main, { opacity: 0, scale: 1.03, y: 15 });
+          gsap.set(main, { opacity: 0, x: 50 });
 
           return gsap.to(main, {
             opacity: 1,
-            scale: 1,
-            y: 0,
+            x: 0,
             duration: 0.8,
             ease: "power3.out",
           });
