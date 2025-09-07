@@ -93,7 +93,6 @@ document.addEventListener("DOMContentLoaded", () => {
           container.__cleanup = initPageScripts(container);
           initAnimations(container);
 
-          // Only one .page_main on first load → safe
           const pageMain = container.querySelector(".page_main");
           if (pageMain) pageMain.style.viewTransitionName = "pageMain";
         },
@@ -103,6 +102,10 @@ document.addEventListener("DOMContentLoaded", () => {
             current.container.__cleanup();
             delete current.container.__cleanup;
           }
+
+          // 🟢 Clear VT name from old container before new one is injected
+          const oldPageMain = current.container.querySelector(".page_main");
+          if (oldPageMain) oldPageMain.style.viewTransitionName = "";
         },
 
         async enter({ next }) {
@@ -114,12 +117,7 @@ document.addEventListener("DOMContentLoaded", () => {
               oldEl.replaceWith(newEl);
             }
 
-            // ✅ Clear VT names first to prevent duplicates
-            document.querySelectorAll(".page_main").forEach(el => {
-              el.style.viewTransitionName = "";
-            });
-
-            // ✅ Assign to new page only
+            // ✅ Assign VT name to new page only
             const pageMain = newEl.querySelector(".page_main");
             if (pageMain) pageMain.style.viewTransitionName = "pageMain";
 
