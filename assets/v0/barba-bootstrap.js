@@ -75,7 +75,6 @@ document.addEventListener("DOMContentLoaded", () => {
           document.body.appendChild(overlay);
 
           const tl = gsap.timeline({
-            defaults: { ease: "power2.inOut" }, // smoother ease
             onComplete: () => {
               newMain.style.position = "";
               newMain.style.inset = "";
@@ -86,18 +85,24 @@ document.addEventListener("DOMContentLoaded", () => {
             },
           });
 
-          // All in one motion, slightly slower for smoothness
-          tl.to([oldMain, newMain, overlay], {
-            opacity: (i, target) => {
-              if (target === oldMain) return 0;   // fade out old
-              if (target === newMain) return 1;   // fade in new
-              return 0.12;                        // overlay peak
-            },
+          // Page crossfade (both at same time, smooth)
+          tl.to([oldMain, newMain], {
+            opacity: (i, target) => (target === oldMain ? 0 : 1),
             duration: 0.5,
+            ease: "power2.inOut",
           }, 0);
 
-          // Overlay fade back out at same time
-          tl.to(overlay, { opacity: 0, duration: 0.5 }, 0);
+          // Overlay breath (in quicker, out slower)
+          tl.to(overlay, {
+            opacity: 0.15,
+            duration: 0.2,
+            ease: "power2.out",
+          }, 0);
+          tl.to(overlay, {
+            opacity: 0,
+            duration: 0.4,
+            ease: "power2.in",
+          }, 0.1);
 
           return tl;
         },
