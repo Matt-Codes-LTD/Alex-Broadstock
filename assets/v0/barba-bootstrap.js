@@ -10,11 +10,34 @@ function initPageScripts(container) {
 }
 
 /* =========================
-   BOOTSTRAP (no barba.init here)
+   BOOTSTRAP (with barba.init)
 ========================= */
-document.addEventListener("DOMContentLoaded", (() => {
+document.addEventListener("DOMContentLoaded", () => {
   try { initCursor() } catch(e) {}
-  const container = document.querySelector('[data-barba="container"]');
-  if (container) initPageScripts(container);
-}));
 
+  barba.init({
+    transitions: [
+      {
+        name: "default",
+
+        async once({ next }) {
+          // first load
+          next.container.__cleanup = initPageScripts(next.container);
+        },
+
+        async leave({ current }) {
+          // cleanup before removing old container
+          if (current.container.__cleanup) {
+            current.container.__cleanup();
+            delete current.container.__cleanup;
+          }
+        },
+
+        async enter({ next }) {
+          // init scripts for new container
+          next.container.__cleanup = initPageScripts(next.container);
+        },
+      },
+    ],
+  });
+});
