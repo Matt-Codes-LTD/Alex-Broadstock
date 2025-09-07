@@ -22,7 +22,7 @@ function initLenis() {
 }
 
 /* =========================
-   BOOTSTRAP (Barba + GSAP)
+   BOOTSTRAP (Barba + GSAP Fade)
 ========================= */
 document.addEventListener("DOMContentLoaded", () => {
   try { initCursor(); } catch (e) {}
@@ -31,7 +31,7 @@ document.addEventListener("DOMContentLoaded", () => {
   barba.init({
     transitions: [
       {
-        name: "gsap-slide",
+        name: "gsap-fade",
 
         async once({ next }) {
           const container = next.container;
@@ -47,10 +47,9 @@ document.addEventListener("DOMContentLoaded", () => {
           const oldMain = current.container.querySelector(".page_main");
           if (oldMain) {
             await gsap.to(oldMain, {
-              y: "-100%",
-              opacity: 0.8,
-              duration: 0.9,
-              ease: "cubic-bezier(0.76, 0, 0.24, 1)",
+              opacity: 0,
+              duration: 0.4,
+              ease: "power1.out",
             });
           }
         },
@@ -58,12 +57,11 @@ document.addEventListener("DOMContentLoaded", () => {
         async enter({ next }) {
           const newMain = next.container.querySelector(".page_main");
           if (newMain) {
-            gsap.set(newMain, { y: "100%", opacity: 0.8 });
+            gsap.set(newMain, { opacity: 0 });
             await gsap.to(newMain, {
-              y: "0%",
               opacity: 1,
-              duration: 0.9,
-              ease: "cubic-bezier(0.76, 0, 0.24, 1)",
+              duration: 0.4,
+              ease: "power1.inOut",
             });
           }
 
