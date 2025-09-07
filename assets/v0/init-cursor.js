@@ -1,127 +1,161 @@
+/* =========================
+   CURSOR (global, once)
+========================= */
 function initCursor() {
   if (window.__cursorInit) return;
   window.__cursorInit = true;
 
-  const wrap = document.querySelector(".cursor-crosshair_wrap");
-  if (!wrap) return;
+  const overlay = document.querySelector(".cursor-crosshair_wrap");
+  if (!overlay) return;
 
-  // remove legacy elements
-  wrap.querySelectorAll(".cursor-crosshair_line,.cursor-crosshair_dot,.cursor-crosshair_dot-top,.cursor-crosshair_pulse")
-      .forEach(el => { try { el.remove(); } catch(e){} });
+  // Remove legacy bits if left in DOM
+  overlay
+    .querySelectorAll(
+      ".cursor-crosshair_line, .cursor-crosshair_dot, .cursor-crosshair_dot-top, .cursor-crosshair_pulse"
+    )
+    .forEach((n) => {
+      try {
+        n.remove();
+      } catch (_) {}
+    });
 
-  // ensure follow box exists
-  let box = wrap.querySelector(".cursor-follow_box");
+  // Ensure square exists
+  let box = overlay.querySelector(".cursor-follow_box");
   if (!box) {
     box = document.createElement("div");
     box.className = "cursor-follow_box";
-    wrap.appendChild(box);
+    overlay.appendChild(box);
   }
 
-  let rect = wrap.getBoundingClientRect();
-  const updateRect = () => { rect = wrap.getBoundingClientRect(); };
-  updateRect();
+  // Geometry & observers
+  let rect = overlay.getBoundingClientRect();
+  const computeGeometry = () => {
+    rect = overlay.getBoundingClientRect();
+  };
+  computeGeometry();
 
-  const ro = new ResizeObserver(updateRect);
-  ro.observe(wrap);
-  addEventListener("scroll", updateRect, { passive: true });
+  const ro = new ResizeObserver(computeGeometry);
+  ro.observe(overlay);
 
-  const gsapReady = () => !!(window.gsap && gsap.quickSetter && gsap.ticker);
+  addEventListener("scroll", computeGeometry, { passive: true });
 
-  let posX, posY, setX, setY, usingGSAP = false;
+  // GSAP hot-swap if present
+  const hasGSAP = () => !!(window.gsap && gsap.quickSetter && gsap.ticker);
+  let useGsap = false,
+    setX,
+    setY;
 
-  function useRAF() {
-    usingGSAP = false;
-    setX = (x) => { box.style.transform = `translate(${x}px, ${posY}px)`; };
-    setY = (y) => { box.style.transform = `translate(${posX}px, ${y}px)`; };
-    box.style.transform = `translate(${posX}px, ${posY}px)`;
+  function useFallback() {
+    useGsap = false;
+    setX = (px) => {
+      box.style.transform = `translate(${px}px, ${y}px)`;
+    };
+    setY = (py) => {
+      box.style.transform = `translate(${x}px, ${py}px)`;
+    };
+    box.style.transform = `translate(${x}px, ${y}px)`;
   }
 
-  function useGSAP() {
-    usingGSAP = true;
+  function useGsapSetters() {
+    useGsap = true;
     setX = gsap.quickSetter(box, "x", "px");
     setY = gsap.quickSetter(box, "y", "px");
-    setX(posX);
-    setY(posY);
+    setX(x);
+    setY(y);
   }
 
   const ease = 0.18;
   let targetX = rect.width / 2,
-      targetY = rect.height / 2;
-  posX = targetX;
-  posY = targetY;
+    targetY = rect.height / 2;
+  let x = targetX,
+    y = targetY;
 
-  function pointerMove(e) {
-    if (!rect.width || !rect.height) updateRect();
+  function onMove(e) {
+    if (!rect.width || !rect.height) computeGeometry();
     targetX = e.clientX - rect.left;
     targetY = e.clientY - rect.top;
   }
+  addEventListener("pointermove", onMove, { passive: true });
+  addEventListener("pointerenter", onMove, { passive: true });
 
-  addEventListener("pointermove", pointerMove, { passive: true });
-  addEventListener("pointerenter", pointerMove, { passive: true });
-  document.addEventListener("mouseleave", reset, true);
-  document.addEventListener("mouseout", reset, true);
-  document.addEventListener("pointerout", reset, true);
+  function onHardLeave(e) {
+    if (e.pointerType === "touch") return;
+    const leftViewport = e.relatedTarget == null;
+    const atEdge =
+      e.clientX <= 0 ||
+      e.clientY <= 0 ||
+      e.clientX >= innerWidth ||
+      e.clientY >= innerHeight;
+
+    if (leftViewport || atEdge) {
+      computeGeometry();
+      targetX = rect.width / 2;
+      targetY = rect.height / 2;
+    }
+  }
+  document.addEventListener("mouseleave", onHardLeave, true);
+  document.addEventListener("mouseout", onHardLeave, true);
+  document.addEventListener("pointerout", onHardLeave, true);
 
   let rafId = null;
-
   const tick = () => {
-    posX += (targetX - posX) * ease;
-    posY += (targetY - posY) * ease;
-    setX(posX);
-    setY(posY);
+    x += (targetX - x) * ease;
+    y += (targetY - y) * ease;
+    setX(x);
+    setY(y);
   };
 
   function start() {
-    if (gsapReady()) {
-      if (!usingGSAP) {
-        stop();
-        useGSAP();
-        gsap.ticker.add(tick);
-      }
+    if (hasGSAP()) {
+      if (!useGsap) useGsapSetters();
+      gsap.ticker.add(tick);
     } else if (!rafId) {
-      useRAF();
-      const loop = () => { tick(); rafId = requestAnimationFrame(loop); };
+      const loop = () => {
+        tick();
+        rafId = requestAnimationFrame(loop);
+      };
+      useFallback();
       rafId = requestAnimationFrame(loop);
     }
   }
 
   function stop() {
-    if (usingGSAP && window.gsap) gsap.ticker.remove(tick);
+    if (useGsap && window.gsap) gsap.ticker.remove(tick);
     if (rafId) {
       cancelAnimationFrame(rafId);
       rafId = null;
     }
   }
 
-  function reset(e) {
-    if (e.pointerType === "touch") return;
-    const leaving = e.relatedTarget == null,
-          outOfBounds = e.clientX <= 0 || e.clientY <= 0 || e.clientX >= innerWidth || e.clientY >= innerHeight;
-    if (leaving || outOfBounds) {
-      updateRect();
-      targetX = rect.width / 2;
-      targetY = rect.height / 2;
-    }
-  }
-
   start();
 
-  addEventListener("load", () => {
-    if (!usingGSAP && gsapReady()) {
+  addEventListener(
+    "load",
+    () => {
+      if (!useGsap && hasGSAP()) {
+        stop();
+        useGsapSetters();
+        gsap.ticker.add(tick);
+        useGsap = true;
+      }
+    },
+    { once: true }
+  );
+
+  const onVis = () => {
+    if (document.hidden) {
       stop();
-      useGSAP();
-      gsap.ticker.add(tick);
-      usingGSAP = true;
+    } else {
+      start();
     }
-  }, { once: true });
+  };
+  document.addEventListener("visibilitychange", onVis);
 
-  const visChange = () => { document.hidden ? stop() : start(); };
-  document.addEventListener("visibilitychange", visChange);
-
+  // Cleanup if overlay ever removed
   const mo = new MutationObserver(() => {
-    if (!document.body.contains(wrap)) {
+    if (!document.body.contains(overlay)) {
       stop();
-      document.removeEventListener("visibilitychange", visChange);
+      document.removeEventListener("visibilitychange", onVis);
       ro.disconnect();
       mo.disconnect();
     }
