@@ -22,7 +22,7 @@ function initLenis() {
 }
 
 /* =========================
-   BOOTSTRAP (Barba + GSAP Fade)
+   BOOTSTRAP (Barba + GSAP Crossfade)
 ========================= */
 document.addEventListener("DOMContentLoaded", () => {
   try { initCursor(); } catch (e) {}
@@ -31,7 +31,7 @@ document.addEventListener("DOMContentLoaded", () => {
   barba.init({
     transitions: [
       {
-        name: "gsap-fade",
+        name: "gsap-crossfade",
 
         async once({ next }) {
           const container = next.container;
@@ -46,9 +46,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
           const oldMain = current.container.querySelector(".page_main");
           if (oldMain) {
-            await gsap.to(oldMain, {
+            // fade out old page, but not fully (to allow overlap)
+            return gsap.to(oldMain, {
               opacity: 0,
-              duration: 0.4,
+              duration: 0.6,
               ease: "power1.out",
             });
           }
@@ -58,9 +59,10 @@ document.addEventListener("DOMContentLoaded", () => {
           const newMain = next.container.querySelector(".page_main");
           if (newMain) {
             gsap.set(newMain, { opacity: 0 });
+            // fade in new page while old is fading out
             await gsap.to(newMain, {
               opacity: 1,
-              duration: 0.4,
+              duration: 0.6,
               ease: "power1.inOut",
             });
           }
