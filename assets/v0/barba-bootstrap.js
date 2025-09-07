@@ -61,11 +61,11 @@ document.addEventListener("DOMContentLoaded", () => {
           newMain.style.inset = "0";
           newMain.style.zIndex = "2";
 
-          // New page starting state
+          // New page starting state (no big scale, just slightly smaller for polish)
           gsap.set(newMain, {
             opacity: 0,
-            scale: 1.05,
-            y: 20,
+            scale: 0.99,
+            y: 15,
             filter: "blur(8px)",
           });
 
@@ -91,9 +91,9 @@ document.addEventListener("DOMContentLoaded", () => {
             },
           });
 
-          // Overlay fade in quickly, then fade out *longer/later*
+          // Overlay fade in/out
           tl.to(overlay, { opacity: 0.15, duration: 0.3 }, 0)
-            .to(overlay, { opacity: 0, duration: 0.9 }, 0.4); // slower + delayed
+            .to(overlay, { opacity: 0, duration: 0.9 }, 0.4);
 
           // Old page exit
           tl.to(oldMain, {
@@ -104,21 +104,15 @@ document.addEventListener("DOMContentLoaded", () => {
             duration: 0.7,
           }, 0);
 
-          // New page enter with overshoot effect
+          // New page enter (subtle overshoot from 0.99 → 1)
           tl.to(newMain, {
             opacity: 1,
-            scale: 0.98,
-            y: 0,
-            filter: "blur(2px)",
-            duration: 0.7,
-          }, "-=0.4");
-
-          tl.to(newMain, {
             scale: 1,
+            y: 0,
             filter: "blur(0px)",
-            duration: 0.4,
+            duration: 0.9,
             ease: "power3.out",
-          }, "-=0.2");
+          }, "-=0.5");
 
           return tl;
         },
