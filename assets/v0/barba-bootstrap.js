@@ -22,7 +22,7 @@ function initLenis() {
 }
 
 /* =========================
-   BOOTSTRAP (Barba + View Transitions)
+   BOOTSTRAP (Barba + GSAP)
 ========================= */
 document.addEventListener("DOMContentLoaded", () => {
   try { initCursor(); } catch (e) {}
@@ -31,14 +31,11 @@ document.addEventListener("DOMContentLoaded", () => {
   barba.init({
     transitions: [
       {
-        name: "vt-hybrid",
+        name: "gsap-slide",
 
         async once({ next }) {
           const container = next.container;
           container.__cleanup = initPageScripts(container);
-
-          // ✅ VT name on Barba container only
-          container.style.viewTransitionName = "pageMain";
         },
 
         async leave({ current }) {
@@ -47,39 +44,30 @@ document.addEventListener("DOMContentLoaded", () => {
             delete current.container.__cleanup;
           }
 
-          // 🟢 Clear VT name from old container before new one is injected
-          current.container.style.viewTransitionName = "";
+          const oldMain = current.container.querySelector(".page_main");
+          if (oldMain) {
+            await gsap.to(oldMain, {
+              y: "-100%",
+              opacity: 0.8,
+              duration: 0.9,
+              ease: "cubic-bezier(0.76, 0, 0.24, 1)",
+            });
+          }
         },
 
         async enter({ next }) {
-          const doSwap = () => {
-            const oldContainer = document.querySelector('[data-barba="container"]');
-            const newContainer = next.container;
-
-            if (oldContainer && newContainer && oldContainer !== newContainer) {
-              oldContainer.replaceWith(newContainer);
-            }
-
-            // ✅ Apply VT name only to the new container
-            newContainer.style.viewTransitionName = "pageMain";
-            newContainer.__cleanup = initPageScripts(newContainer);
-          };
-
-          if (document.startViewTransition) {
-            await document.startViewTransition(() => {
-              doSwap();
-            }).finished;
-          } else {
-            // fallback fade
-            await (window.gsap
-              ? gsap.to(".page_main", { opacity: 0, duration: 0.22 })
-              : Promise.resolve());
-            doSwap();
-            await (window.gsap
-              ? gsap.fromTo(".page_main", { opacity: 0 }, { opacity: 1, duration: 0.22 })
-              : Promise.resolve());
+          const newMain = next.container.querySelector(".page_main");
+          if (newMain) {
+            gsap.set(newMain, { y: "100%", opacity: 0.8 });
+            await gsap.to(newMain, {
+              y: "0%",
+              opacity: 1,
+              duration: 0.9,
+              ease: "cubic-bezier(0.76, 0, 0.24, 1)",
+            });
           }
 
+          next.container.__cleanup = initPageScripts(next.container);
           window.scrollTo(0, 0);
         },
       },
