@@ -24,97 +24,62 @@ document.addEventListener("DOMContentLoaded", () => {
   barba.init({
     transitions: [
       {
-        name: "cinematic-crossfade",
+        name: "depth-crossfade-wash",
 
         /* First load */
         once({ next }) {
           const main = next.container;
           main.__cleanup = initPageScripts(main);
-          gsap.set(main, { opacity: 1, scale: 1, y: 0, filter: "blur(0px)" });
+          gsap.set(main, { opacity: 1, scale: 1 });
         },
 
         /* Leave */
-        leave({ current, next }) {
-          console.log(`[Barba] leave() from: ${current.namespace} → to: ${next.namespace}`);
+        leave({ current }) {
+          console.log("[Barba] leave()", current.namespace);
           if (current?.container?.__cleanup) {
             current.container.__cleanup();
             delete current.container.__cleanup;
           }
-          return Promise.resolve();
-        },
-
-        /* Enter */
-        enter({ current, next }) {
-          console.log(`[Barba] enter() from: ${current.namespace} → to: ${next.namespace}`);
-
-          const oldMain = current.container;
-          const newMain = next.container;
-
-          newMain.__cleanup = initPageScripts(newMain);
-
-          // Stack containers
-          oldMain.style.position = "absolute";
-          oldMain.style.inset = "0";
-          oldMain.style.zIndex = "1";
-
-          newMain.style.position = "absolute";
-          newMain.style.inset = "0";
-          newMain.style.zIndex = "2";
-
-          // New page starting state (crisper: 4px blur instead of 8px)
-          gsap.set(newMain, {
-            opacity: 0,
-            scale: 0.99,
-            y: 15,
-            filter: "blur(4px)",
-          });
 
           // Create overlay wash
           const overlay = document.createElement("div");
           overlay.style.position = "fixed";
           overlay.style.inset = "0";
-          overlay.style.background = "#000";
+          overlay.style.background = "rgba(255,255,255,0.15)";
           overlay.style.pointerEvents = "none";
           overlay.style.zIndex = "9999";
           overlay.style.opacity = "0";
           document.body.appendChild(overlay);
 
-          const tl = gsap.timeline({
+          return gsap.timeline({
             defaults: { ease: "power2.inOut" },
-            onComplete: () => {
-              newMain.style.position = "";
-              newMain.style.inset = "";
-              newMain.style.zIndex = "";
-              if (oldMain && oldMain.parentNode) oldMain.remove();
-              if (overlay && overlay.parentNode) overlay.remove();
-              window.scrollTo(0, 0);
-            },
-          });
+            onComplete: () => overlay.remove(),
+          })
+            .to(overlay, { opacity: 1, duration: 0.25 }, 0)
+            .to(current.container, {
+              opacity: 0,
+              scale: 0.95,
+              duration: 0.6,
+              ease: "power2.in",
+            }, 0)
+            .to(overlay, { opacity: 0, duration: 0.6 }, 0.3);
+        },
 
-          // Overlay fade in/out
-          tl.to(overlay, { opacity: 0.15, duration: 0.3 }, 0)
-            .to(overlay, { opacity: 0, duration: 0.9 }, 0.4);
+        /* Enter */
+        enter({ next }) {
+          console.log("[Barba] enter()", next.namespace);
 
-          // Old page exit
-          tl.to(oldMain, {
-            opacity: 0,
-            scale: 0.9,
-            y: -30,
-            filter: "blur(10px)",
-            duration: 0.7,
-          }, 0);
+          const main = next.container;
+          main.__cleanup = initPageScripts(main);
 
-          // New page enter (fade in sharp, blur clears faster)
-          tl.to(newMain, {
+          gsap.set(main, { opacity: 0, scale: 1.03 });
+
+          return gsap.to(main, {
             opacity: 1,
             scale: 1,
-            y: 0,
-            filter: "blur(0px)",
             duration: 0.8,
             ease: "power3.out",
-          }, "-=0.5");
-
-          return tl;
+          });
         },
       },
     ],
