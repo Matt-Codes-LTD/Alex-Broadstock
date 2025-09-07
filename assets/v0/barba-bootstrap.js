@@ -14,9 +14,7 @@ function initPageScripts(container) {
 ========================= */
 let lenis;
 function initLenis() {
-  if (lenis) {
-    lenis.destroy();
-  }
+  if (lenis) lenis.destroy();
   lenis = new Lenis({
     autoRaf: true,
     smoothWheel: true,
@@ -27,15 +25,19 @@ function initLenis() {
    ANIMATIONS (per page)
 ========================= */
 function initAnimations(container) {
-  // Example animations (replace/extend with your actual ones)
-  gsap.to(container.querySelectorAll(".link a"), {
-    y: 0,
-    duration: 1,
-    stagger: 0.1,
-    ease: "power4.out",
-    delay: 0.6,
-  });
+  // Links
+  const links = container.querySelectorAll(".link a");
+  if (links.length) {
+    gsap.to(links, {
+      y: 0,
+      duration: 1,
+      stagger: 0.1,
+      ease: "power4.out",
+      delay: 0.6,
+    });
+  }
 
+  // Hero
   const hero = container.querySelector(".hero h1");
   if (hero) {
     const heroText = new SplitType(hero, { types: "chars" });
@@ -46,6 +48,30 @@ function initAnimations(container) {
       stagger: 0.075,
       ease: "power4.out",
       delay: 0.6,
+    });
+  }
+
+  // Info
+  const infoLines = container.querySelectorAll(".info p");
+  if (infoLines.length) {
+    const text = new SplitType(infoLines, {
+      types: "lines",
+      tagName: "div",
+      lineClass: "line",
+    });
+
+    text.lines.forEach((line) => {
+      const content = line.innerHTML;
+      line.innerHTML = `<span>${content}</span>`;
+    });
+
+    gsap.set(".info p .line span", { y: 400, display: "block" });
+    gsap.to(".info p .line span", {
+      y: 0,
+      duration: 2,
+      stagger: 0.075,
+      ease: "power4.out",
+      delay: 0.25,
     });
   }
 }
@@ -64,12 +90,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
         async once({ next }) {
           const container = next.container;
-          // ✅ ensure page_main has a VT name
-          const pageMain = container.querySelector(".page_main");
-          if (pageMain) pageMain.style.viewTransitionName = "pageMain";
-
           container.__cleanup = initPageScripts(container);
           initAnimations(container);
+
+          // Only one .page_main on first load → safe to set here
+          const pageMain = container.querySelector(".page_main");
+          if (pageMain) pageMain.style.viewTransitionName = "pageMain";
         },
 
         async leave({ current }) {
@@ -83,10 +109,12 @@ document.addEventListener("DOMContentLoaded", () => {
           const doSwap = () => {
             const oldEl = document.querySelector(".page_main");
             const newEl = next.container;
+
             if (oldEl && newEl && oldEl !== newEl) {
               oldEl.replaceWith(newEl);
             }
-            // ✅ add VT name again to new content
+
+            // ✅ Assign VT name only after swap (avoids duplicate warning)
             const pageMain = newEl.querySelector(".page_main");
             if (pageMain) pageMain.style.viewTransitionName = "pageMain";
 
