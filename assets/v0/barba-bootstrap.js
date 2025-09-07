@@ -30,7 +30,7 @@ document.addEventListener("DOMContentLoaded", () => {
         once({ next }) {
           const main = next.container;
           main.__cleanup = initPageScripts(main);
-          gsap.set(main, { opacity: 1, scale: 1 });
+          gsap.set(main, { opacity: 1, scale: 1, y: 0 });
         },
 
         /* Leave */
@@ -59,6 +59,7 @@ document.addEventListener("DOMContentLoaded", () => {
             .to(current.container, {
               opacity: 0,
               scale: 0.95,
+              y: -15,
               duration: 0.6,
               ease: "power2.in",
             }, 0)
@@ -72,11 +73,12 @@ document.addEventListener("DOMContentLoaded", () => {
           const main = next.container;
           main.__cleanup = initPageScripts(main);
 
-          gsap.set(main, { opacity: 0, scale: 1.03 });
+          gsap.set(main, { opacity: 0, scale: 1.03, y: 15 });
 
           return gsap.to(main, {
             opacity: 1,
             scale: 1,
+            y: 0,
             duration: 0.8,
             ease: "power3.out",
           });
