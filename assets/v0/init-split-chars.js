@@ -1,109 +1,128 @@
-function initSplitChars(t) {
-  const e = new Map;
-  const a = .01;
+/* =========================
+   SPLIT CHARS (per container)
+========================= */
+function initSplitChars(container) {
+  const originals = new Map();
+  const incDefault = 0.01;
 
-  function n(t) {
-    const n = t.getAttribute("data-animate-chars-target"),
-          r = n ? t.querySelectorAll(n) : [t];
-    if (!r || !r.length) return;
+  function splitChars(hostEl) {
+    const targetSel = hostEl.getAttribute("data-animate-chars-target");
+    const targets = targetSel ? hostEl.querySelectorAll(targetSel) : [hostEl];
+    if (!targets?.length) return;
 
-    const i = parseFloat(t.getAttribute("data-animate-delay") || a);
+    const inc = parseFloat(hostEl.getAttribute("data-animate-delay") || incDefault);
 
-    r.forEach((el) => {
-      if (!el || el.dataset.charsInit === "1") return;
+    targets.forEach((target) => {
+      if (!target || target.dataset.charsInit === "1") return;
 
-      const txt = el.textContent || "";
-      e.set(el, txt);
-      el.textContent = "";
+      const text = target.textContent || "";
+      originals.set(target, text);
+      target.textContent = "";
 
-      const wrapper = document.createElement("span");
-      wrapper.setAttribute("data-animate-chars-inner", "");
+      const inner = document.createElement("span");
+      inner.setAttribute("data-animate-chars-inner", "");
 
       const frag = document.createDocumentFragment();
-      for (let j = 0; j < txt.length; j++) {
-        const ch = txt[j], span = document.createElement("span");
-        span.textContent = ch;
-        if (ch === " ") span.style.whiteSpace = "pre";
-        span.style.transitionDelay = j * i + "s";
-        frag.appendChild(span);
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        const s = document.createElement("span");
+        s.textContent = ch;
+        if (ch === " ") s.style.whiteSpace = "pre";
+        s.style.transitionDelay = i * inc + "s";
+        frag.appendChild(s);
       }
-      wrapper.appendChild(frag);
-      el.appendChild(wrapper);
-      el.dataset.charsInit = "1";
+      inner.appendChild(frag);
+      target.appendChild(inner);
+      target.dataset.charsInit = "1";
     });
 
     const pulse = () => {
-      t.setAttribute("data-animate-pulse", "1");
-      clearTimeout(t.__pulseTO);
-      t.__pulseTO = setTimeout(() => t.removeAttribute("data-animate-pulse"), 700);
+      hostEl.setAttribute("data-animate-pulse", "1");
+      clearTimeout(hostEl.__pulseTO);
+      hostEl.__pulseTO = setTimeout(
+        () => hostEl.removeAttribute("data-animate-pulse"),
+        700
+      );
     };
-    if (!t.__pulseBound) {
-      t.__pulseBound = true;
-      t.addEventListener("touchstart", pulse, { passive: true });
+
+    if (!hostEl.__pulseBound) {
+      hostEl.__pulseBound = true;
+      hostEl.addEventListener("touchstart", pulse, { passive: true });
     }
   }
 
-  function r(t) {
-    if (!t.hasAttribute("data-animate-chars"))
-      t.setAttribute("data-animate-chars", "");
-    n(t);
+  function ensureOptIn(el) {
+    if (!el.hasAttribute("data-animate-chars")) {
+      el.setAttribute("data-animate-chars", "");
+    }
+    splitChars(el);
   }
 
-  function i(t) {
-    if (!t || t.__charsListInit) return;
-    t.__charsListInit = true;
-    const eSel = t.getAttribute("data-animate-chars-selector") || "a",
-          aSel = t.getAttribute("data-animate-chars-target") || null,
-          iDelay = t.getAttribute("data-animate-delay");
-    t.querySelectorAll(eSel).forEach((el) => {
-      if (!el.hasAttribute("data-animate-chars"))
-        el.setAttribute("data-animate-chars", "");
-      if (aSel && !el.hasAttribute("data-animate-chars-target"))
-        el.setAttribute("data-animate-chars-target", aSel);
-      if (iDelay && !el.hasAttribute("data-animate-delay"))
-        el.setAttribute("data-animate-delay", iDelay);
-      n(el);
+  function initList(listEl) {
+    if (!listEl || listEl.__charsListInit) return;
+    listEl.__charsListInit = true;
+
+    const sel = listEl.getAttribute("data-animate-chars-selector") || "a";
+    const targetSel = listEl.getAttribute("data-animate-chars-target") || null;
+    const listDelay = listEl.getAttribute("data-animate-delay");
+
+    listEl.querySelectorAll(sel).forEach((link) => {
+      if (!link.hasAttribute("data-animate-chars")) {
+        link.setAttribute("data-animate-chars", "");
+      }
+      if (targetSel && !link.hasAttribute("data-animate-chars-target")) {
+        link.setAttribute("data-animate-chars-target", targetSel);
+      }
+      if (listDelay && !link.hasAttribute("data-animate-delay")) {
+        link.setAttribute("data-animate-delay", listDelay);
+      }
+      splitChars(link);
     });
   }
 
-  function s(t) {
-    if (!t || !t.querySelectorAll) return;
-    t.querySelectorAll("[data-animate-chars]").forEach(r);
-    if (t.nodeType === 1 && t.hasAttribute?.("data-animate-chars")) r(t);
-
-    t.querySelectorAll("[data-animate-chars-list]").forEach(i);
-    if (t.nodeType === 1 && t.hasAttribute?.("data-animate-chars-list")) i(t);
+  function scan(root) {
+    if (!root?.querySelectorAll) return;
+    root.querySelectorAll("[data-animate-chars]").forEach(ensureOptIn);
+    if (root.nodeType === 1 && root.hasAttribute?.("data-animate-chars")) {
+      ensureOptIn(root);
+    }
+    root.querySelectorAll("[data-animate-chars-list]").forEach(initList);
+    if (root.nodeType === 1 && root.hasAttribute?.("data-animate-chars-list")) {
+      initList(root);
+    }
   }
 
-  s(t);
+  scan(container);
 
-  let o = false;
-  const c = new Set,
-        u = () => {
-          if (o) return;
-          o = true;
-          requestAnimationFrame(() => {
-            o = false;
-            for (const el of c) s(el);
-            c.clear();
-          });
-        };
+  let scheduled = false;
+  const queue = new Set();
 
-  const l = new MutationObserver((muts) => {
-    for (let k = 0; k < muts.length; k++) {
-      const mut = muts[k];
-      if (mut.type === "childList" && mut.addedNodes) {
-        mut.addedNodes.forEach?.((node) => {
-          if (node.nodeType === 1) c.add(node);
+  const scheduleScan = () => {
+    if (scheduled) return;
+    scheduled = true;
+    requestAnimationFrame(() => {
+      scheduled = false;
+      for (const n of queue) scan(n);
+      queue.clear();
+    });
+  };
+
+  const mo = new MutationObserver((muts) => {
+    for (let i = 0; i < muts.length; i++) {
+      const m = muts[i];
+      if (m.type === "childList") {
+        m.addedNodes?.forEach((n) => {
+          if (n.nodeType === 1) queue.add(n);
         });
-      } else if (mut.type === "attributes" && mut.target && mut.target.nodeType === 1) {
-        c.add(mut.target);
+      } else if (m.type === "attributes") {
+        const t = m.target;
+        if (t?.nodeType === 1) queue.add(t);
       }
     }
-    u();
+    scheduleScan();
   });
 
-  l.observe(t, {
+  mo.observe(container, {
     subtree: true,
     childList: true,
     attributes: true,
@@ -111,14 +130,14 @@ function initSplitChars(t) {
       "data-animate-chars",
       "data-animate-chars-list",
       "data-animate-chars-target",
-      "data-animate-delay"
-    ]
+      "data-animate-delay",
+    ],
   });
 
   return () => {
-    l.disconnect();
-    e.forEach((txt, el) => {
-      el.textContent = txt;
+    mo.disconnect();
+    originals.forEach((text, el) => {
+      el.textContent = text;
       delete el.dataset.charsInit;
     });
   };
