@@ -1,1 +1,130 @@
-function initCursor(){if(window.__cursorInit)return;window.__cursorInit=!0;const e=document.querySelector(".cursor-crosshair_wrap");if(!e)return;e.querySelectorAll(".cursor-crosshair_line,.cursor-crosshair_dot,.cursor-crosshair_dot-top,.cursor-crosshair_pulse").forEach(e=>{try{e.remove()}catch(e){}});let t=e.querySelector(".cursor-follow_box");t||(t=document.createElement("div"),t.className="cursor-follow_box",e.appendChild(t));let r=e.getBoundingClientRect();const n=()=>{r=e.getBoundingClientRect()};n();const o=new ResizeObserver(n);o.observe(e),addEventListener("scroll",n,{passive:!0});const i=()=>!!(window.gsap&&gsap.quickSetter&&gsap.ticker);let s,a,c,u=!1;function d(){u=!1,a=e=>{t.style.transform=`translate(${e}px, ${c}px)`},c=e=>{t.style.transform=`translate(${s}px, ${e}px)`},t.style.transform=`translate(${s}px, ${c}px)`}function l(){u=!0,a=gsap.quickSetter(t,"x","px"),c=gsap.quickSetter(t,"y","px"),a(s),c(c)}const f=.18;let m=r.width/2,v=r.height/2;s=m,c=v;function y(e){r.width&&r.height||n(),m=e.clientX-r.left,v=e.clientY-r.top}addEventListener("pointermove",y,{passive:!0}),addEventListener("pointerenter",y,{passive:!0}),document.addEventListener("mouseleave",g,!0),document.addEventListener("mouseout",g,!0),document.addEventListener("pointerout",g,!0);let p=null;const h=()=>{s+=(m-s)*f,c+=(v-c)*f,a(s),c(c)};function w(){if(i())u||l(),gsap.ticker.add(h);else if(!p){const e=()=>{h(),p=requestAnimationFrame(e)};d(),p=requestAnimationFrame(e)}}function g(e){if("touch"!==e.pointerType){const t=null==e.relatedTarget,o=e.clientX<=0||e.clientY<=0||e.clientX>=innerWidth||e.clientY>=innerHeight;(t||o)&&(n(),m=r.width/2,v=r.height/2)}}function b(){u&&window.gsap&&gsap.ticker.remove(h),p&&(cancelAnimationFrame(p),p=null)}w(),addEventListener("load",()=>{u||i()&&(b(),l(),gsap.ticker.add(h),u=!0)},{once:!0});const E=()=>{document.hidden?b():w()};document.addEventListener("visibilitychange",E);const R=new MutationObserver(()=>{document.body.contains(e)||(b(),document.removeEventListener("visibilitychange",E),o.disconnect(),R.disconnect())});R.observe(document.body,{childList:!0,subtree:!0})}
+function initCursor() {
+  if (window.__cursorInit) return;
+  window.__cursorInit = true;
+
+  const wrap = document.querySelector(".cursor-crosshair_wrap");
+  if (!wrap) return;
+
+  // remove legacy elements
+  wrap.querySelectorAll(".cursor-crosshair_line,.cursor-crosshair_dot,.cursor-crosshair_dot-top,.cursor-crosshair_pulse")
+      .forEach(el => { try { el.remove(); } catch(e){} });
+
+  // ensure follow box exists
+  let box = wrap.querySelector(".cursor-follow_box");
+  if (!box) {
+    box = document.createElement("div");
+    box.className = "cursor-follow_box";
+    wrap.appendChild(box);
+  }
+
+  let rect = wrap.getBoundingClientRect();
+  const updateRect = () => { rect = wrap.getBoundingClientRect(); };
+  updateRect();
+
+  const ro = new ResizeObserver(updateRect);
+  ro.observe(wrap);
+  addEventListener("scroll", updateRect, { passive: true });
+
+  const gsapReady = () => !!(window.gsap && gsap.quickSetter && gsap.ticker);
+
+  let posX, posY, setX, setY, usingGSAP = false;
+
+  function useRAF() {
+    usingGSAP = false;
+    setX = (x) => { box.style.transform = `translate(${x}px, ${posY}px)`; };
+    setY = (y) => { box.style.transform = `translate(${posX}px, ${y}px)`; };
+    box.style.transform = `translate(${posX}px, ${posY}px)`;
+  }
+
+  function useGSAP() {
+    usingGSAP = true;
+    setX = gsap.quickSetter(box, "x", "px");
+    setY = gsap.quickSetter(box, "y", "px");
+    setX(posX);
+    setY(posY);
+  }
+
+  const ease = 0.18;
+  let targetX = rect.width / 2,
+      targetY = rect.height / 2;
+  posX = targetX;
+  posY = targetY;
+
+  function pointerMove(e) {
+    if (!rect.width || !rect.height) updateRect();
+    targetX = e.clientX - rect.left;
+    targetY = e.clientY - rect.top;
+  }
+
+  addEventListener("pointermove", pointerMove, { passive: true });
+  addEventListener("pointerenter", pointerMove, { passive: true });
+  document.addEventListener("mouseleave", reset, true);
+  document.addEventListener("mouseout", reset, true);
+  document.addEventListener("pointerout", reset, true);
+
+  let rafId = null;
+
+  const tick = () => {
+    posX += (targetX - posX) * ease;
+    posY += (targetY - posY) * ease;
+    setX(posX);
+    setY(posY);
+  };
+
+  function start() {
+    if (gsapReady()) {
+      if (!usingGSAP) {
+        stop();
+        useGSAP();
+        gsap.ticker.add(tick);
+      }
+    } else if (!rafId) {
+      useRAF();
+      const loop = () => { tick(); rafId = requestAnimationFrame(loop); };
+      rafId = requestAnimationFrame(loop);
+    }
+  }
+
+  function stop() {
+    if (usingGSAP && window.gsap) gsap.ticker.remove(tick);
+    if (rafId) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+  }
+
+  function reset(e) {
+    if (e.pointerType === "touch") return;
+    const leaving = e.relatedTarget == null,
+          outOfBounds = e.clientX <= 0 || e.clientY <= 0 || e.clientX >= innerWidth || e.clientY >= innerHeight;
+    if (leaving || outOfBounds) {
+      updateRect();
+      targetX = rect.width / 2;
+      targetY = rect.height / 2;
+    }
+  }
+
+  start();
+
+  addEventListener("load", () => {
+    if (!usingGSAP && gsapReady()) {
+      stop();
+      useGSAP();
+      gsap.ticker.add(tick);
+      usingGSAP = true;
+    }
+  }, { once: true });
+
+  const visChange = () => { document.hidden ? stop() : start(); };
+  document.addEventListener("visibilitychange", visChange);
+
+  const mo = new MutationObserver(() => {
+    if (!document.body.contains(wrap)) {
+      stop();
+      document.removeEventListener("visibilitychange", visChange);
+      ro.disconnect();
+      mo.disconnect();
+    }
+  });
+  mo.observe(document.body, { childList: true, subtree: true });
+}
