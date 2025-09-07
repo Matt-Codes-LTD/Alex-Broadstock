@@ -61,12 +61,12 @@ document.addEventListener("DOMContentLoaded", () => {
           newMain.style.inset = "0";
           newMain.style.zIndex = "2";
 
-          // New page starting state (no big scale, just slightly smaller for polish)
+          // New page starting state (tiny offset for polish)
           gsap.set(newMain, {
             opacity: 0,
-            scale: 0.99,
-            y: 15,
-            filter: "blur(8px)",
+            scale: 0.995,
+            y: 8,
+            filter: "blur(3px)",
           });
 
           // Create overlay wash
@@ -80,7 +80,7 @@ document.addEventListener("DOMContentLoaded", () => {
           document.body.appendChild(overlay);
 
           const tl = gsap.timeline({
-            defaults: { ease: "power2.inOut" },
+            defaults: { ease: "power1.out" },
             onComplete: () => {
               newMain.style.position = "";
               newMain.style.inset = "";
@@ -91,28 +91,29 @@ document.addEventListener("DOMContentLoaded", () => {
             },
           });
 
-          // Overlay fade in/out
-          tl.to(overlay, { opacity: 0.15, duration: 0.3 }, 0)
-            .to(overlay, { opacity: 0, duration: 0.9 }, 0.4);
+          // Overlay fade in/out (super quick)
+          tl.to(overlay, { opacity: 0.08, duration: 0.1 }, 0)
+            .to(overlay, { opacity: 0, duration: 0.2 }, 0.1);
 
-          // Old page exit
+          // Old page exit (minimal movement/blur)
           tl.to(oldMain, {
             opacity: 0,
-            scale: 0.9,
-            y: -30,
-            filter: "blur(10px)",
-            duration: 0.7,
+            scale: 0.98,
+            y: -10,
+            filter: "blur(3px)",
+            duration: 0.2,
+            ease: "power1.inOut",
           }, 0);
 
-          // New page enter (subtle overshoot from 0.99 → 1)
+          // New page enter (fast + clean)
           tl.to(newMain, {
             opacity: 1,
             scale: 1,
             y: 0,
             filter: "blur(0px)",
-            duration: 0.9,
-            ease: "power3.out",
-          }, "-=0.5");
+            duration: 0.25,
+            ease: "power1.out",
+          }, "-=0.1");
 
           return tl;
         },
