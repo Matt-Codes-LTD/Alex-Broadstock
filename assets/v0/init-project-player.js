@@ -1,41 +1,50 @@
-/* =========================
-   PROJECT PLAYER (full legacy, per container)
-========================= */
 function initProjectPlayer(container) {
   const wrap = container.querySelector(".project-player_wrap");
   if (!wrap) return () => {};
   if (wrap.dataset.scriptInitialized) return () => {};
   wrap.dataset.scriptInitialized = "true";
 
-  const controlsEl  = wrap.querySelector(".project-player_controls");
-  const btnMuteEl   = wrap.querySelector('[data-role="mute"]');
-  const centerBtnEl = wrap.querySelector(".project-player_center-toggle");
-
-  // ✅ Force visible immediately (overrides CSS opacity:0 at first paint)
-  gsap.set([wrap, controlsEl, btnMuteEl, centerBtnEl], { opacity: 1 });
-
-  const stage  = wrap.querySelector(".project-player_stage") || wrap;
-  const slug   = stage.getAttribute("data-project-slug") || wrap.getAttribute("data-project-slug") || "";
-  const url    = stage.getAttribute("data-video")        || wrap.getAttribute("data-video")        || "";
-  const vtt    = stage.getAttribute("data-captions")     || wrap.getAttribute("data-captions")     || "";
-  const poster = stage.getAttribute("data-poster")       || wrap.getAttribute("data-poster")       || "";
-  const host   = stage.querySelector(".project-player_video-host") || wrap.querySelector(".project-player_video-host");
+  const stage =
+    wrap.querySelector(".project-player_stage") || wrap;
+  const slug =
+    stage.getAttribute("data-project-slug") ||
+    wrap.getAttribute("data-project-slug") ||
+    "";
+  const url =
+    stage.getAttribute("data-video") ||
+    wrap.getAttribute("data-video") ||
+    "";
+  const vtt =
+    stage.getAttribute("data-captions") ||
+    wrap.getAttribute("data-captions") ||
+    "";
+  const poster =
+    stage.getAttribute("data-poster") ||
+    wrap.getAttribute("data-poster") ||
+    "";
+  const host =
+    stage.querySelector(".project-player_video-host") ||
+    wrap.querySelector(".project-player_video-host");
 
   // Controls
-  const btnPlay   = wrap.querySelector('[data-role="play"]');
-  const btnMute   = btnMuteEl;
+  const btnPlay = wrap.querySelector('[data-role="play"]');
+  const btnMute = wrap.querySelector('[data-role="mute"]');
   const muteLabel = wrap.querySelector('[data-role="mute-label"]');
-  const btnFS     = wrap.querySelector('[data-role="fs"]');
-  const tl        = wrap.querySelector('[data-role="timeline"]');
-  const tlBuf     = wrap.querySelector(".project-player_timeline-buffer");
-  const tlHandle  = wrap.querySelector(".project-player_timeline-handle");
+  const btnFS = wrap.querySelector('[data-role="fs"]');
+  const tl = wrap.querySelector('[data-role="timeline"]');
+  const tlBuf = wrap.querySelector(".project-player_timeline-buffer");
+  const tlHandle = wrap.querySelector(".project-player_timeline-handle");
 
   // Pause overlay
   let pauseFx = wrap.querySelector(".project-player_pausefx");
   if (!pauseFx) {
     pauseFx = document.createElement("div");
-    pauseFx.className = "project-player_pausefx u-cover-absolute u-inset-0";
-    const afterTarget = (wrap.querySelector(".project-player_stage") || wrap).querySelector(".project-player_video-host");
+    pauseFx.className =
+      "project-player_pausefx u-cover-absolute u-inset-0";
+    const afterTarget =
+      (wrap.querySelector(".project-player_stage") || wrap).querySelector(
+        ".project-player_video-host"
+      );
     const target = wrap.querySelector(".project-player_stage") || wrap;
     afterTarget?.nextSibling
       ? target.insertBefore(pauseFx, afterTarget.nextSibling)
@@ -43,7 +52,7 @@ function initProjectPlayer(container) {
   }
 
   // Center overlay
-  let centerBtn = centerBtnEl;
+  let centerBtn = wrap.querySelector(".project-player_center-toggle");
   if (!centerBtn) {
     centerBtn = document.createElement("button");
     centerBtn.className =
@@ -71,7 +80,9 @@ function initProjectPlayer(container) {
       </svg>
       <span class="u-sr-only">Unmute</span>
     `.trim();
-    (wrap.querySelector(".project-player_stage") || wrap).appendChild(centerBtn);
+    (wrap.querySelector(".project-player_stage") || wrap).appendChild(
+      centerBtn
+    );
   }
 
   // Video element
@@ -85,7 +96,10 @@ function initProjectPlayer(container) {
   }
   if (!video) return () => {};
 
-  if (vtt && !video.querySelector('track[kind="subtitles"], track[kind="captions"]')) {
+  if (
+    vtt &&
+    !video.querySelector('track[kind="subtitles"], track[kind="captions"]')
+  ) {
     const tr = document.createElement("track");
     tr.kind = "subtitles";
     tr.label = "English";
@@ -94,6 +108,7 @@ function initProjectPlayer(container) {
     tr.default = false;
     video.appendChild(tr);
   }
+
   video.className = "project-player_video";
   video.controls = false;
   if (poster) video.poster = poster;
@@ -105,7 +120,9 @@ function initProjectPlayer(container) {
   video.volume = 0;
 
   // Helpers & state
-  let raf = 0, dragging = false, hidingTO = 0;
+  let raf = 0,
+    dragging = false,
+    hidingTO = 0;
   let didFirstSoundRestart = false;
   const handlers = [];
 
@@ -152,19 +169,38 @@ function initProjectPlayer(container) {
         setTimeout(done, 3000);
       });
     }
-    try { "fastSeek" in v ? v.fastSeek(0) : (v.currentTime = Math.max(0.00001, v.currentTime)); } catch (_) {}
     try {
-      v.muted = true; v.setAttribute("muted", "");
-      const p = v.play?.(); if (p?.then) await p.catch(() => {});
+      "fastSeek" in v
+        ? v.fastSeek(0)
+        : (v.currentTime = Math.max(0.00001, v.currentTime));
+    } catch (_) {}
+    try {
+      v.muted = true;
+      v.setAttribute("muted", "");
+      const p = v.play?.();
+      if (p?.then) await p.catch(() => {});
     } catch (_) {}
     await new Promise((res) => {
-      let done = false, cap = setTimeout(() => { if (!done) { done = true; res(); } }, 800);
+      let done = false,
+        cap = setTimeout(() => {
+          if (!done) {
+            done = true;
+            res();
+          }
+        }, 800);
       const onTU = () => {
-        if (!done) { done = true; clearTimeout(cap); v.removeEventListener("timeupdate", onTU); requestAnimationFrame(res); }
+        if (!done) {
+          done = true;
+          clearTimeout(cap);
+          v.removeEventListener("timeupdate", onTU);
+          requestAnimationFrame(res);
+        }
       };
       v.addEventListener("timeupdate", onTU, { once: true });
     });
-    try { v.pause(); } catch (_) {}
+    try {
+      v.pause();
+    } catch (_) {}
   }
 
   function updateTimeUI() {
@@ -174,7 +210,8 @@ function initProjectPlayer(container) {
     if (tl) tl.setAttribute("aria-valuenow", String(Math.round(pct)));
     if (video.buffered && video.buffered.length && tlBuf) {
       const end = video.buffered.end(video.buffered.length - 1);
-      tlBuf.style.width = Math.min(100, (end / video.duration) * 100) + "%";
+      tlBuf.style.width =
+        Math.min(100, (end / video.duration) * 100) + "%";
     }
   }
 
@@ -198,14 +235,190 @@ function initProjectPlayer(container) {
     centerBtn.setAttribute("aria-pressed", isPlaying ? "true" : "false");
   }
 
+  // Play/Pause from controls
+  async function togglePlayFromUser() {
+    try {
+      if (video.paused) {
+        if (video.muted || video.volume === 0) {
+          video.muted = false;
+          video.removeAttribute("muted");
+          const vol = Number(localStorage.getItem("pp:vol") || 1) || 1;
+          video.volume = vol;
+          setMuteUI(false);
+          didFirstSoundRestart = true;
+        }
+        await video.play();
+      } else {
+        await video.pause();
+      }
+    } catch (_) {}
+    setPlayUI(!video.paused);
+    setPausedUI(video.paused);
+    kickHide();
+  }
+
+  btnPlay?.addEventListener("click", togglePlayFromUser);
+  handlers.push(() =>
+    btnPlay?.removeEventListener("click", togglePlayFromUser)
+  );
+
+  // Center button
+  const centerHandler = async () => {
+    const inPlayMode = centerBtn.classList.contains("is-mode-play");
+    if (!inPlayMode) {
+      try {
+        video.muted = false;
+        video.removeAttribute("muted");
+        const vol = Number(localStorage.getItem("pp:vol") || 1) || 1;
+        video.volume = vol;
+        try {
+          "fastSeek" in video
+            ? video.fastSeek(0)
+            : (video.currentTime = 0);
+        } catch (_) {
+          try {
+            video.currentTime = 0;
+          } catch (__) {}
+        }
+        await video.play?.();
+        switchCenterToPlayMode();
+        setMuteUI(false);
+        setPlayUI(true);
+        setPausedUI(false);
+        didFirstSoundRestart = true;
+      } catch (_) {}
+      kickHide();
+      return;
+    }
+    await togglePlayFromUser();
+  };
+
+  centerBtn.addEventListener("click", centerHandler);
+  handlers.push(() =>
+    centerBtn.removeEventListener("click", centerHandler)
+  );
+
+  // Mute button
+  const muteHandler = async () => {
+    const wasMuted = video.muted;
+    video.muted = !video.muted;
+    if (video.muted) {
+      video.setAttribute("muted", "");
+    } else {
+      video.removeAttribute("muted");
+      if (video.volume === 0) {
+        const vol = Number(localStorage.getItem("pp:vol") || 1) || 1;
+        video.volume = vol;
+      }
+      if (wasMuted && !didFirstSoundRestart) {
+        didFirstSoundRestart = true;
+        try {
+          "fastSeek" in video
+            ? video.fastSeek(0)
+            : (video.currentTime = 0);
+        } catch (_) {
+          try {
+            video.currentTime = 0;
+          } catch (__) {}
+        }
+        try {
+          await video.play?.();
+        } catch (_) {}
+        setPlayUI(true);
+        setPausedUI(false);
+      }
+      switchCenterToPlayMode();
+    }
+    localStorage.setItem("pp:muted", video.muted ? "1" : "0");
+    setMuteUI(video.muted);
+    kickHide();
+  };
+
+  btnMute?.addEventListener("click", muteHandler);
+  handlers.push(() =>
+    btnMute?.removeEventListener("click", muteHandler)
+  );
+
   // Fullscreen
   function updateFSLabel() {
     if (!btnFS) return;
     const inFS =
       !!document.fullscreenElement &&
-      (document.fullscreenElement === wrap || wrap.contains(document.fullscreenElement));
+      (document.fullscreenElement === wrap ||
+        wrap.contains(document.fullscreenElement));
     btnFS.textContent = inFS ? "Minimise" : "Fullscreen";
-    btnFS.setAttribute("aria-label", inFS ? "Exit fullscreen" : "Toggle fullscreen");
+    btnFS.setAttribute(
+      "aria-label",
+      inFS ? "Exit fullscreen" : "Toggle fullscreen"
+    );
+  }
+
+  const fsChange = () => updateFSLabel();
+  document.addEventListener("fullscreenchange", fsChange);
+  handlers.push(() =>
+    document.removeEventListener("fullscreenchange", fsChange)
+  );
+
+  const fsHandler = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await wrap.requestFullscreen?.();
+      } else {
+        await document.exitFullscreen?.();
+      }
+    } catch (_) {}
+    kickHide();
+  };
+
+  btnFS?.addEventListener("click", fsHandler);
+  handlers.push(() => btnFS?.removeEventListener("click", fsHandler));
+
+  // Timeline
+  if (tl) {
+    const onDown = (e) => {
+      dragging = true;
+      tl.setPointerCapture?.(e.pointerId);
+      const r = tl.getBoundingClientRect();
+      seekPct(((e.clientX - r.left) / r.width) * 100);
+      kickHide();
+    };
+
+    const onMove = (e) => {
+      if (!dragging) return;
+      const r = tl.getBoundingClientRect();
+      seekPct(((e.clientX - r.left) / r.width) * 100);
+    };
+
+    const endDrag = () => {
+      dragging = false;
+    };
+
+    const onKey = (e) => {
+      const step = e.shiftKey ? 10 : 5;
+      const now = Number(tl.getAttribute("aria-valuenow") || 0);
+      if (e.key === "ArrowRight") {
+        seekPct(now + step);
+        e.preventDefault();
+      }
+      if (e.key === "ArrowLeft") {
+        seekPct(now - step);
+        e.preventDefault();
+      }
+    };
+
+    tl.addEventListener("pointerdown", onDown);
+    tl.addEventListener("pointermove", onMove);
+    tl.addEventListener("pointerup", endDrag);
+    tl.addEventListener("pointercancel", endDrag);
+    tl.addEventListener("keydown", onKey);
+
+    handlers.push(() => {
+      tl.removeEventListener("pointerdown", onDown);
+      tl.removeEventListener("pointermove", onMove);
+      tl.removeEventListener("pointerup", endDrag);
+      tl.removeEventListener("pointercancel", endDrag);
+      tl.removeEventListener("keydown", onKey);
+    });
   }
 
   // Idle show/hide
@@ -214,53 +427,68 @@ function initProjectPlayer(container) {
     wrap.addEventListener(evt, fn, { passive: true });
     handlers.push(() => wrap.removeEventListener(evt, fn));
   });
+
   kickHide();
 
-  // --- Start pipeline ---
+  // Start pipeline
   (async function () {
     await ensureFirstFramePainted(video);
-    try { await video.play(); } catch (_) {}
+    try {
+      await video.play();
+    } catch (_) {}
     setPlayUI(!video.paused);
     setPausedUI(video.paused);
-
     centerBtn.classList.remove("is-mode-play");
     centerBtn.setAttribute("aria-label", "Unmute");
     setMuteUI(true);
-
-    requestAnimationFrame(() => requestAnimationFrame(() => updateTimeUI()));
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => updateTimeUI())
+    );
     raf = requestAnimationFrame(loop);
     updateFSLabel();
-
-    // 🎬 Intro UI animations
-    const controlsBar = wrap.querySelector(".project-player_controls");
-    const introTl = gsap.timeline({ onComplete: () => { kickHide(); } });
-
-    if (controlsBar) {
-      introTl.fromTo(controlsBar,
-        { y: 20, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.6, ease: "power2.out" },
-        0
-      );
-    }
-    if (btnMute) {
-      introTl.fromTo(btnMute,
-        { opacity: 0 },
-        { opacity: 1, duration: 0.6, ease: "power2.out" },
-        0.2
-      );
-    }
-    if (centerBtn) {
-      introTl.fromTo(centerBtn,
-        { opacity: 0, scale: 0.8 },
-        { opacity: 1, scale: 1, duration: 0.6, ease: "back.out(1.4)" },
-        0.1
-      );
-    }
   })();
+
+  // Keep UI in sync
+  const onPlay = () => {
+    setPlayUI(true);
+    setPausedUI(false);
+  };
+  const onPlaying = () => {
+    setPausedUI(false);
+  };
+  const onPause = () => {
+    setPlayUI(false);
+    setPausedUI(true);
+  };
+  const onEnded = () => {
+    setPlayUI(false);
+    setPausedUI(true);
+  };
+  const onTU = () => {
+    if (!dragging) updateTimeUI();
+  };
+
+  video.addEventListener("play", onPlay);
+  video.addEventListener("playing", onPlaying);
+  video.addEventListener("pause", onPause);
+  video.addEventListener("ended", onEnded);
+  video.addEventListener("timeupdate", onTU);
+
+  handlers.push(() => {
+    video.removeEventListener("play", onPlay);
+    video.removeEventListener("playing", onPlaying);
+    video.removeEventListener("pause", onPause);
+    video.removeEventListener("ended", onEnded);
+    video.removeEventListener("timeupdate", onTU);
+  });
 
   // Cleanup
   return () => {
-    try { cancelAnimationFrame(raf); video.pause(); video.muted = true; } catch (_) {}
+    try {
+      cancelAnimationFrame(raf);
+      video.pause();
+      video.muted = true;
+    } catch (_) {}
     handlers.forEach((fn) => fn());
     clearTimeout(hidingTO);
     delete wrap.dataset.scriptInitialized;
