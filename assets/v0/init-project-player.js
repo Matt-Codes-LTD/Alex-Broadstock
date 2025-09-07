@@ -7,10 +7,11 @@ function initProjectPlayer(container) {
   if (wrap.dataset.scriptInitialized) return () => {};
   wrap.dataset.scriptInitialized = "true";
 
-  // ✅ Force visible immediately (overrides CSS opacity:0 at first paint)
-  const controlsEl = wrap.querySelector(".project-player_controls");
-  const btnMuteEl  = wrap.querySelector('[data-role="mute"]');
+  const controlsEl  = wrap.querySelector(".project-player_controls");
+  const btnMuteEl   = wrap.querySelector('[data-role="mute"]');
   const centerBtnEl = wrap.querySelector(".project-player_center-toggle");
+
+  // ✅ Force visible immediately (overrides CSS opacity:0 at first paint)
   gsap.set([wrap, controlsEl, btnMuteEl, centerBtnEl], { opacity: 1 });
 
   const stage  = wrap.querySelector(".project-player_stage") || wrap;
@@ -73,7 +74,147 @@ function initProjectPlayer(container) {
     (wrap.querySelector(".project-player_stage") || wrap).appendChild(centerBtn);
   }
 
-  // (video element setup, event handlers, etc... unchanged)
+  // Video element
+  let video = host?.querySelector("video");
+  if (!video && host && url) {
+    video = document.createElement("video");
+    video.playsInline = true;
+    video.crossOrigin = "anonymous";
+    video.preload = "auto";
+    video.src = url;
+  }
+  if (!video) return () => {};
+
+  if (vtt && !video.querySelector('track[kind="subtitles"], track[kind="captions"]')) {
+    const tr = document.createElement("track");
+    tr.kind = "subtitles";
+    tr.label = "English";
+    tr.srclang = "en";
+    tr.src = vtt;
+    tr.default = false;
+    video.appendChild(tr);
+  }
+  video.className = "project-player_video";
+  video.controls = false;
+  if (poster) video.poster = poster;
+  if (!video.isConnected && host) host.appendChild(video);
+
+  // Autoplay muted
+  video.muted = true;
+  video.setAttribute("muted", "");
+  video.volume = 0;
+
+  // Helpers & state
+  let raf = 0, dragging = false, hidingTO = 0;
+  let didFirstSoundRestart = false;
+  const handlers = [];
+
+  const setPlayUI = (isPlaying) => {
+    const pressed = isPlaying ? "true" : "false";
+    if (btnPlay) {
+      btnPlay.setAttribute("aria-pressed", pressed);
+      btnPlay.classList.toggle("is-playing", isPlaying);
+    }
+    if (centerBtn && centerBtn.classList.contains("is-mode-play")) {
+      centerBtn.setAttribute("aria-pressed", pressed);
+      centerBtn.classList.toggle("is-playing", isPlaying);
+    }
+  };
+
+  const setMuteUI = (muted) => {
+    if (btnMute) {
+      btnMute.setAttribute("aria-pressed", muted ? "true" : "false");
+      if (muteLabel) muteLabel.textContent = muted ? "Sound" : "Mute";
+      else btnMute.textContent = muted ? "Sound" : "Mute";
+    }
+  };
+
+  const setPausedUI = (paused) => {
+    wrap.classList.toggle("is-paused", !!paused);
+  };
+
+  const setIdle = (on) => {
+    wrap.dataset.idle = on ? "1" : "0";
+  };
+
+  const kickHide = () => {
+    clearTimeout(hidingTO);
+    setIdle(false);
+    hidingTO = setTimeout(() => setIdle(true), 1800);
+  };
+
+  async function ensureFirstFramePainted(v) {
+    if (v.readyState < 2) {
+      await new Promise((res) => {
+        const done = () => res();
+        v.addEventListener("loadeddata", done, { once: true });
+        v.addEventListener("canplay", done, { once: true });
+        setTimeout(done, 3000);
+      });
+    }
+    try { "fastSeek" in v ? v.fastSeek(0) : (v.currentTime = Math.max(0.00001, v.currentTime)); } catch (_) {}
+    try {
+      v.muted = true; v.setAttribute("muted", "");
+      const p = v.play?.(); if (p?.then) await p.catch(() => {});
+    } catch (_) {}
+    await new Promise((res) => {
+      let done = false, cap = setTimeout(() => { if (!done) { done = true; res(); } }, 800);
+      const onTU = () => {
+        if (!done) { done = true; clearTimeout(cap); v.removeEventListener("timeupdate", onTU); requestAnimationFrame(res); }
+      };
+      v.addEventListener("timeupdate", onTU, { once: true });
+    });
+    try { v.pause(); } catch (_) {}
+  }
+
+  function updateTimeUI() {
+    if (!isFinite(video.duration)) return;
+    const pct = (video.currentTime / video.duration) * 100;
+    if (tlHandle) tlHandle.style.left = pct + "%";
+    if (tl) tl.setAttribute("aria-valuenow", String(Math.round(pct)));
+    if (video.buffered && video.buffered.length && tlBuf) {
+      const end = video.buffered.end(video.buffered.length - 1);
+      tlBuf.style.width = Math.min(100, (end / video.duration) * 100) + "%";
+    }
+  }
+
+  function loop() {
+    updateTimeUI();
+    raf = requestAnimationFrame(loop);
+  }
+
+  function seekPct(p) {
+    if (!isFinite(video.duration)) return;
+    p = Math.max(0, Math.min(100, p));
+    video.currentTime = (p / 100) * video.duration;
+    updateTimeUI();
+  }
+
+  function switchCenterToPlayMode() {
+    centerBtn.classList.add("is-mode-play");
+    centerBtn.setAttribute("aria-label", "Play/Pause");
+    const isPlaying = !video.paused;
+    centerBtn.classList.toggle("is-playing", isPlaying);
+    centerBtn.setAttribute("aria-pressed", isPlaying ? "true" : "false");
+  }
+
+  // Fullscreen
+  function updateFSLabel() {
+    if (!btnFS) return;
+    const inFS =
+      !!document.fullscreenElement &&
+      (document.fullscreenElement === wrap || wrap.contains(document.fullscreenElement));
+    btnFS.textContent = inFS ? "Minimise" : "Fullscreen";
+    btnFS.setAttribute("aria-label", inFS ? "Exit fullscreen" : "Toggle fullscreen");
+  }
+
+  // Idle show/hide
+  ["mousemove", "pointermove", "touchstart", "keydown"].forEach((evt) => {
+    const fn = () => kickHide();
+    wrap.addEventListener(evt, fn, { passive: true });
+    handlers.push(() => wrap.removeEventListener(evt, fn));
+  });
+  kickHide();
 
   // --- Start pipeline ---
   (async function () {
@@ -117,5 +258,11 @@ function initProjectPlayer(container) {
     }
   })();
 
-  // (rest of function unchanged)
+  // Cleanup
+  return () => {
+    try { cancelAnimationFrame(raf); video.pause(); video.muted = true; } catch (_) {}
+    handlers.forEach((fn) => fn());
+    clearTimeout(hidingTO);
+    delete wrap.dataset.scriptInitialized;
+  };
 }
