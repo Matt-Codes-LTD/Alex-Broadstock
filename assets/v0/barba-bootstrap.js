@@ -15,14 +15,34 @@ function initPageScripts(container) {
 let lenis;
 function initLenis() {
   if (lenis) lenis.destroy();
-  lenis = new Lenis({
-    autoRaf: true,
-    smoothWheel: true,
+  lenis = new Lenis({ autoRaf: true, smoothWheel: true });
+}
+
+/* =========================
+   Helpers
+========================= */
+function tweenPromise(target, vars) {
+  const g = window.gsap;
+  if (!g || !target) return Promise.resolve();
+  return new Promise((resolve) => {
+    const done = () => resolve();
+    const tween = g.to(target, { ...vars, onComplete: done });
+    // if GSAP finishes synchronously (unlikely), ensure resolve still fires
+    if (!tween) resolve();
+  });
+}
+function fromToPromise(target, fromVars, toVars) {
+  const g = window.gsap;
+  if (!g || !target) return Promise.resolve();
+  return new Promise((resolve) => {
+    const done = () => resolve();
+    const tween = g.fromTo(target, fromVars, { ...toVars, onComplete: done });
+    if (!tween) resolve();
   });
 }
 
 /* =========================
-   BOOTSTRAP (Barba + GSAP Crossfade + Scale + Overlap + Blur)
+   BOOTSTRAP (Barba + GSAP)
 ========================= */
 document.addEventListener("DOMContentLoaded", () => {
   try { initCursor(); } catch (e) {}
@@ -32,12 +52,14 @@ document.addEventListener("DOMContentLoaded", () => {
     transitions: [
       {
         name: "gsap-crossfade-scale-blur",
+        sync: true, // run leave & enter together for overlap
 
-        async once({ next }) {
-          const container = next.container;
-          container.__cleanup = initPageScripts(container);
+        // First paint (no transition)
+        once({ next }) {
+          next.container.__cleanup = initPageScripts(next.container);
         },
 
+        // Old page: fade out fast + tiny scale down + blur
         leave({ current }) {
           if (current?.container?.__cleanup) {
             current.container.__cleanup();
@@ -45,25 +67,43 @@ document.addEventListener("DOMContentLoaded", () => {
           }
 
           const oldMain = current.container.querySelector(".page_main");
-          if (oldMain) {
-            // Return a GSAP promise
-            return gsap.to(oldMain, {
-              opacity: 0,
-              scale: 0.98,
-              filter: "blur(8px)",
-              duration: 0.4,
-              ease: "power1.out",
-            }).then(); // 👈 ensures Barba waits
-          }
+          if (!oldMain) return Promise.resolve();
+
+          oldMain.style.willChange = "opacity, transform, filter";
+          oldMain.style.pointerEvents = "none";
+
+          return tweenPromise(oldMain, {
+            opacity: 0,
+            scale: 0.98,
+            filter: "blur(8px)",
+            duration: 0.4,
+            ease: "power1.out",
+            onComplete: () => {
+              oldMain.style.willChange = "";
+            }
+          });
         },
 
-        enter({ next }) {
+        // New page: fade in slower + tiny scale down to 1 + unblur, with 0.1s overlap delay
+        async enter({ next }) {
           const newMain = next.container.querySelector(".page_main");
-          if (newMain) {
-            gsap.set(newMain, { opacity: 0, scale: 1.02, filter: "blur(8px)" });
 
-            // Return a GSAP promise
-            return gsap.to(newMain, {
+          // Initialize page JS for the new container ASAP
+          next.container.__cleanup = initPageScripts(next.container);
+
+          if (!newMain) return;
+
+          window.gsap && gsap.set(newMain, {
+            opacity: 0,
+            scale: 1.02,
+            filter: "blur(8px)",
+            willChange: "opacity, transform, filter"
+          });
+
+          await fromToPromise(
+            newMain,
+            { opacity: 0, scale: 1.02, filter: "blur(8px)" },
+            {
               opacity: 1,
               scale: 1,
               filter: "blur(0px)",
@@ -71,11 +111,11 @@ document.addEventListener("DOMContentLoaded", () => {
               delay: 0.1,
               ease: "power2.out",
               onComplete: () => {
-                next.container.__cleanup = initPageScripts(next.container);
+                newMain.style.willChange = "";
                 window.scrollTo(0, 0);
-              },
-            }).then(); // 👈 ensures Barba waits
-          }
+              }
+            }
+          );
         },
       },
     ],
