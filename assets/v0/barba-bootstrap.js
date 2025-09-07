@@ -29,13 +29,8 @@ document.addEventListener("DOMContentLoaded", () => {
         async once({ next }) {
           const main = next.container.querySelector(".page_main");
           if (main) {
-            gsap.set(main, { opacity: 0, scale: 0.98 });
-            await tweenPromise(main, {
-              opacity: 1,
-              scale: 1,
-              duration: 0.8,
-              ease: "power2.out",
-            });
+            // Start visible
+            gsap.set(main, { opacity: 1, scale: 1 });
             initPageScripts(next.container);
           }
         },
@@ -58,7 +53,7 @@ document.addEventListener("DOMContentLoaded", () => {
               opacity: 1,
               scale: 1,
               duration: 0.8,
-              ease: "power2.inOut",
+              ease: "power2.out",
             });
             initPageScripts(next.container);
           }
