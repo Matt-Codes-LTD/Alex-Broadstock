@@ -24,13 +24,13 @@ document.addEventListener("DOMContentLoaded", () => {
   barba.init({
     transitions: [
       {
-        name: "dramatic-crossfade",
+        name: "cinematic-crossfade",
 
         /* First load */
         once({ next }) {
           const main = next.container;
           main.__cleanup = initPageScripts(main);
-          gsap.set(main, { opacity: 1, scale: 1, rotate: 0, y: 0, filter: "blur(0px)" });
+          gsap.set(main, { opacity: 1, scale: 1, y: 0, filter: "blur(0px)" });
         },
 
         /* Leave */
@@ -61,18 +61,16 @@ document.addEventListener("DOMContentLoaded", () => {
           newMain.style.inset = "0";
           newMain.style.zIndex = "2";
 
-          // New page starting state (dramatic entrance)
+          // New page starting state
           gsap.set(newMain, {
             opacity: 0,
-            scale: 1.15,
-            rotate: 3,
-            y: 50,
-            filter: "blur(20px)",
-            transformOrigin: "50% 50%",
+            scale: 1.02,
+            y: 20,
+            filter: "blur(6px)",
           });
 
           const tl = gsap.timeline({
-            defaults: { ease: "power4.inOut" },
+            defaults: { ease: "power2.inOut" },
             onComplete: () => {
               // Reset newMain
               newMain.style.position = "";
@@ -83,25 +81,23 @@ document.addEventListener("DOMContentLoaded", () => {
             },
           });
 
-          // Old page exit: shrink, tilt back, fade out
+          // Old page exit
           tl.to(oldMain, {
             opacity: 0,
-            scale: 0.9,
-            rotate: -5,
-            y: -60,
-            filter: "blur(20px)",
-            duration: 0.9,
+            scale: 0.98,
+            y: -20,
+            filter: "blur(6px)",
+            duration: 0.6,
           }, 0);
 
-          // New page enter: zoom/tilt in with overshoot
+          // New page enter
           tl.to(newMain, {
             opacity: 1,
             scale: 1,
-            rotate: 0,
             y: 0,
             filter: "blur(0px)",
-            duration: 1.2,
-          }, "-=0.6"); // overlap so it feels fluid
+            duration: 0.8,
+          }, "-=0.4"); // overlap for smoothness
 
           return tl;
         },
