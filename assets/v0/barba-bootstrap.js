@@ -1,4 +1,13 @@
 /* =========================
+   HELPERS
+========================= */
+function tweenPromise(target, vars) {
+  return new Promise((resolve) => {
+    gsap.to(target, { ...vars, onComplete: resolve });
+  });
+}
+
+/* =========================
    PAGE SCRIPTS (per Barba container)
 ========================= */
 function initPageScripts(container) {
@@ -10,7 +19,7 @@ function initPageScripts(container) {
 }
 
 /* =========================
-   BOOTSTRAP
+   BARBA BOOTSTRAP
 ========================= */
 document.addEventListener("DOMContentLoaded", () => {
   console.log("[Barba] init starting…");
@@ -22,88 +31,71 @@ document.addEventListener("DOMContentLoaded", () => {
     console.warn("[Cursor] init error", e);
   }
 
-  // GSAP tween helpers
-  const tweenPromise = (target, vars) =>
-    new Promise((resolve) => gsap.to(target, { ...vars, onComplete: resolve }));
-  const fromToPromise = (target, fromVars, toVars) =>
-    new Promise((resolve) =>
-      gsap.fromTo(target, fromVars, { ...toVars, onComplete: resolve })
-    );
-
   barba.init({
     transitions: [
       {
-        name: "fade-blur",
+        name: "fade-blur-scale",
+        sync: true, // run leave + enter together
 
+        /* First page load */
         once({ next }) {
-          console.log("[Barba] once()", next.container);
-          next.container.__cleanup = initPageScripts(next.container);
-          gsap.set(next.container, { opacity: 1 });
+          const main = next.container;
+          main.__cleanup = initPageScripts(main);
+
+          gsap.set(main, { opacity: 1, scale: 1, filter: "blur(0px)" });
         },
 
+        /* Leaving page */
         leave({ current }) {
-          console.log("[Barba] leave() fired", current);
-
           if (current?.container?.__cleanup) {
             current.container.__cleanup();
             delete current.container.__cleanup;
           }
 
-          const oldMain = current.container; // container IS .page_main
-          if (!oldMain) {
-            console.warn("[Barba] leave() → no container found!");
-            return Promise.resolve();
-          }
+          const oldMain = current.container;
+          if (!oldMain) return Promise.resolve();
 
           oldMain.style.willChange = "opacity, transform, filter";
           oldMain.style.pointerEvents = "none";
 
-          return tweenPromise(oldMain, {
+          return gsap.to(oldMain, {
             opacity: 0,
-            scale: 0.98,
-            filter: "blur(8px)",
-            duration: 0.4,
-            ease: "power1.out",
-            onStart: () => console.log("[GSAP] leave animation start"),
+            scale: 0.95,          // shrink slightly
+            y: -20,               // lift upward just a touch
+            filter: "blur(12px)", // stronger blur on exit
+            duration: 0.7,
+            ease: "power3.inOut",
           });
         },
 
+        /* Entering page */
         enter({ next }) {
-          console.log("[Barba] enter() fired", next);
+          const newMain = next.container;
+          newMain.__cleanup = initPageScripts(newMain);
 
-          const newMain = next.container; // container IS .page_main
-          next.container.__cleanup = initPageScripts(next.container);
-
-          if (!newMain) {
-            console.warn("[Barba] enter() → no container found!");
-            return;
-          }
+          if (!newMain) return;
 
           gsap.set(newMain, {
             opacity: 0,
-            scale: 1.02,
-            filter: "blur(8px)",
+            scale: 1.05,          // start slightly larger
+            y: 20,                // start slightly lower
+            filter: "blur(12px)",
             willChange: "opacity, transform, filter",
           });
 
-          return fromToPromise(
-            newMain,
-            { opacity: 0, scale: 1.02, filter: "blur(8px)" },
-            {
-              opacity: 1,
-              scale: 1,
-              filter: "blur(0px)",
-              duration: 0.7,
-              delay: 0.1,
-              ease: "power2.out",
-              onStart: () => console.log("[GSAP] enter animation start"),
-              onComplete: () => {
-                console.log("[GSAP] enter animation complete");
-                newMain.style.willChange = "";
-                window.scrollTo(0, 0);
-              },
-            }
-          );
+          return gsap.to(newMain, {
+            opacity: 1,
+            scale: 1,
+            y: 0,
+            filter: "blur(0px)",
+            duration: 0.9,
+            delay: 0.1,           // 👈 overlap offset (starts before old fully gone)
+            ease: "power3.out",
+            onComplete: () => {
+              newMain.style.willChange = "";
+              window.scrollTo(0, 0);
+            },
+          });
         },
       },
     ],
