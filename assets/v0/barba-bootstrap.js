@@ -1,4 +1,4 @@
-<script>
+
 /* =========================
    Curtain helpers (global)
 ========================= */
@@ -151,4 +151,4 @@ document.addEventListener("DOMContentLoaded", () => {
     firstContainer.__cleanup = initPageScripts(firstContainer);
   }
 });
-</script>
+
