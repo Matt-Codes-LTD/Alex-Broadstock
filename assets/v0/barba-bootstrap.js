@@ -1,11 +1,8 @@
 
-/* =========================
-   Curtain helpers (global)
-========================= */
+/* ========= Helpers ========= */
 function ensureCurtain() {
   let wrap = document.querySelector(".curtain_wrap");
   if (!wrap) {
-    // In case HTML wasn't added to the document
     wrap = document.createElement("div");
     wrap.className = "curtain_wrap";
     wrap.innerHTML = `
@@ -13,14 +10,12 @@ function ensureCurtain() {
       <div class="curtain_panel curtain_panel--bottom"></div>
     `;
     document.body.appendChild(wrap);
+    console.log("[Curtain] created");
   }
   const top = wrap.querySelector(".curtain_panel--top");
   const bottom = wrap.querySelector(".curtain_panel--bottom");
-
-  // Reset to the "open/hidden" state
-  gsap.set(top, { yPercent: -100 });
-  gsap.set(bottom, { yPercent: 100 });
-
+  gsap.set(top,    { yPercent: -100 });
+  gsap.set(bottom, { yPercent:  100 });
   return { wrap, top, bottom };
 }
 
@@ -29,126 +24,123 @@ function lockScroll(lock) {
   document.body.style.overflow = lock ? "hidden" : "";
 }
 
-/* =========================
-   PAGE SCRIPTS (per Barba container)
-========================= */
+/* ========= Page scripts (per container) ========= */
 function initPageScripts(container) {
   const cleanups = [];
-  cleanups.push(initSplitChars?.(container));
-  cleanups.push(initHomeHero?.(container));
-  cleanups.push(initProjectPlayer?.(container));
-  return () => cleanups.forEach((fn) => fn && fn());
+  try { cleanups.push(initSplitChars?.(container)); } catch(e){ console.warn("[initSplitChars] failed", e); }
+  try { cleanups.push(initHomeHero?.(container)); }  catch(e){ console.warn("[initHomeHero] failed", e); }
+  try { cleanups.push(initProjectPlayer?.(container)); } catch(e){ console.warn("[initProjectPlayer] failed", e); }
+  return () => {
+    cleanups.forEach(fn => { try { fn && fn(); } catch(e){ console.warn("[cleanup] error", e); } });
+  };
 }
 
-/* =========================
-   BARBA BOOTSTRAP with CURTAIN
-========================= */
+/* ========= Barba + Curtain ========= */
 document.addEventListener("DOMContentLoaded", () => {
   const prefersReducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-  try { initCursor?.(); } catch (e) { console.warn("[Cursor] init error", e); }
+  try { initCursor?.(); } catch(e) { console.warn("[Cursor] init error", e); }
 
   const curtain = ensureCurtain();
 
+  // Extra logging to catch Barba lifecycle issues
+  try {
+    barba.hooks.before((data) => console.log("[Barba] before", data.trigger));
+    barba.hooks.leave((data)  => console.log("[Barba] hook leave", data.current?.namespace));
+    barba.hooks.enter((data)  => console.log("[Barba] hook enter", data.next?.namespace));
+    barba.hooks.after(() => console.log("[Barba] after"));
+  } catch(e) {
+    console.warn("[Barba] hooks not available (is barba loaded?)", e);
+  }
+
   barba.init({
-    transitions: [
-      {
-        name: "curtain-close-open",
+    transitions: [{
+      name: "curtain-close-open",
 
-        /* First load */
-        once({ next }) {
-          const main = next.container;
-          main.__cleanup = initPageScripts(main);
-          gsap.set(main, { opacity: 1 });
-          // Ensure curtain is open/hidden
-          gsap.set([curtain.top, curtain.bottom], { yPercent: (i) => (i === 0 ? -100 : 100) });
-        },
+      once({ next }) {
+        const main = next.container;
+        main.__cleanup = initPageScripts(main);
+        gsap.set(main, { opacity: 1 });
+        gsap.set(curtain.top,    { yPercent: -100 });
+        gsap.set(curtain.bottom, { yPercent:  100 });
+        console.log("[Barba] once() complete");
+      },
 
-        /* Leave: close the curtain over the CURRENT page */
-        leave({ current }) {
-          if (prefersReducedMotion) return Promise.resolve();
-          const { top, bottom } = curtain;
-
-          // Make sure we start from open
-          gsap.set(top, { yPercent: -100 });
-          gsap.set(bottom, { yPercent: 100 });
-
-          // Prevent scroll during the blackout
-          lockScroll(true);
-
-          // Close to meet at 0%
-          const tl = gsap.timeline();
-          tl.to([top, bottom], {
-            yPercent: 0,
-            duration: 0.45,
-            ease: "power3.out"
-          }, 0);
-
-          // Run per-page cleanup right at the end of leave
-          tl.add(() => {
-            if (current?.container?.__cleanup) {
-              current.container.__cleanup();
-              delete current.container.__cleanup;
-            }
-          });
-
-          return tl;
-        },
-
-        /* Enter: stack containers, init the NEW page behind the closed curtain, then open */
-        enter({ current, next }) {
-          const oldMain = current.container;
-          const newMain = next.container;
-
-          // Stack containers (same as your current setup)
-          oldMain.style.position = "absolute";
-          oldMain.style.inset = "0";
-          oldMain.style.zIndex = "1";
-
-          newMain.style.position = "absolute";
-          newMain.style.inset = "0";
-          newMain.style.zIndex = "2";
-
-          // Init new page while hidden by the closed curtain
-          newMain.__cleanup = initPageScripts(newMain);
-
-          // No fade needed—curtain covers the swap.
-          gsap.set(newMain, { opacity: 1 });
-
-          // Open curtain to reveal the new page
-          const tl = gsap.timeline({
-            onComplete: () => {
-              // Reset new page inline styles, remove old page
-              newMain.style.position = "";
-              newMain.style.inset = "";
-              newMain.style.zIndex = "";
-              if (oldMain && oldMain.parentNode) oldMain.remove();
-
-              // Return curtain to open/hidden state & re-enable scroll
-              gsap.set(curtain.top, { yPercent: -100 });
-              gsap.set(curtain.bottom, { yPercent: 100 });
-              lockScroll(false);
-
-              // Ensure we start at the top of the new page
-              window.scrollTo(0, 0);
-            }
-          });
-
-          if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
-            tl.to(curtain.top,    { yPercent: -100, duration: 0.55, ease: "power3.inOut" }, 0);
-            tl.to(curtain.bottom, { yPercent:  100, duration: 0.55, ease: "power3.inOut" }, 0.02); // tiny offset feels nice
+      // Close over CURRENT page
+      leave({ current }) {
+        if (prefersReducedMotion) return Promise.resolve();
+        console.log("[Curtain] closing");
+        const tl = gsap.timeline({
+          defaults: { ease: "power3.out" },
+          onComplete: () => {
+            try {
+              current?.container?.__cleanup?.();
+              delete current?.container?.__cleanup;
+            } catch(e){ console.warn("[leave cleanup] error", e); }
           }
+        });
 
-          return tl;
+        // Start from open state, then close to meet in middle
+        tl.set(curtain.top,    { yPercent: -100 }, 0);
+        tl.set(curtain.bottom, { yPercent:  100 }, 0);
+        lockScroll(true);
+        tl.to([curtain.top, curtain.bottom], { yPercent: 0, duration: 0.45 }, 0);
+
+        return tl;
+      },
+
+      // Stack, init new page behind closed curtain, then open
+      enter({ current, next }) {
+        console.log("[Curtain] opening & swapping");
+        const oldMain = current.container;
+        const newMain = next.container;
+
+        // Absolute stack (your existing pattern)
+        Object.assign(oldMain.style, { position:"absolute", inset:"0", zIndex:"1" });
+        Object.assign(newMain.style, { position:"absolute", inset:"0", zIndex:"2" });
+
+        // Init new page while covered
+        newMain.__cleanup = initPageScripts(newMain);
+        gsap.set(newMain, { opacity: 1 });
+
+        const tl = gsap.timeline({
+          onComplete: () => {
+            // Reset new page & remove old
+            newMain.style.position = ""; newMain.style.inset = ""; newMain.style.zIndex = "";
+            if (oldMain && oldMain.parentNode) oldMain.remove();
+
+            // Re-open (off-screen) & unlock scroll
+            gsap.set(curtain.top,    { yPercent: -100 });
+            gsap.set(curtain.bottom, { yPercent:  100 });
+            lockScroll(false);
+
+            window.scrollTo(0, 0);
+            console.log("[Curtain] done");
+          }
+        });
+
+        if (!prefersReducedMotion) {
+          tl.to(curtain.top,    { yPercent: -100, duration: 0.55, ease: "power3.inOut" }, 0);
+          tl.to(curtain.bottom, { yPercent:  100, duration: 0.55, ease: "power3.inOut" }, 0.02);
         }
+
+        return tl;
       }
-    ]
+    }]
   });
 
-  // Run page scripts for the very first container (no transition)
-  const firstContainer = document.querySelector('[data-barba="container"]');
-  if (firstContainer && !firstContainer.__cleanup) {
-    firstContainer.__cleanup = initPageScripts(firstContainer);
-  }
+  // Make sure first container is initialized (no transition)
+  const first = document.querySelector('[data-barba="container"]');
+  if (first && !first.__cleanup) first.__cleanup = initPageScripts(first);
+
+  // Optional: press "C" to test curtains without navigating
+  window.addEventListener("keydown", (e) => {
+    if (e.key.toLowerCase() === "c") {
+      const tl = gsap.timeline();
+      tl.set([curtain.top, curtain.bottom], { yPercent: (i)=> i===0 ? -100 : 100 });
+      tl.to([curtain.top, curtain.bottom], { yPercent: 0, duration: 0.4, ease: "power3.out" })
+        .to(curtain.top,    { yPercent: -100, duration: 0.5, ease: "power3.inOut" }, "+=0.05")
+        .to(curtain.bottom, { yPercent:  100, duration: 0.5, ease: "power3.inOut" }, "<+0.02");
+    }
+  });
 });
 
