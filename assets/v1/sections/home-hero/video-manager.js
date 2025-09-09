@@ -1,7 +1,7 @@
 // video-manager.js
 export function createVideoManager(stage, prefersReducedMotion, prefersReducedData) {
   const videoBySrc = new Map();
-  let activeVideo = null;
+  let activeVideo = null, activeLink = null;
 
   function createVideo(src) {
     if (!src) return null;
@@ -10,8 +10,11 @@ export function createVideoManager(stage, prefersReducedMotion, prefersReducedDa
     v = document.createElement("video");
     v.className = "home-hero_video_el";
     v.src = src;
-    v.muted = true; v.loop = true; v.playsInline = true;
-    v.preload = "auto"; v.crossOrigin = "anonymous";
+    v.muted = true;
+    v.loop = true;
+    v.playsInline = true;
+    v.preload = "auto";
+    v.crossOrigin = "anonymous";
     stage.appendChild(v);
     videoBySrc.set(src, v);
     return v;
@@ -21,17 +24,45 @@ export function createVideoManager(stage, prefersReducedMotion, prefersReducedDa
     if (!v || v.__warmed || prefersReducedData) return;
     v.__warmed = true;
     const start = () => {
-      v.play().then(() => {
-        setTimeout(() => { if (!v.__keepAlive) v.pause?.(); }, 250);
-      }).catch(() => {});
+      v.play()
+        .then(() =>
+          setTimeout(() => {
+            if (!v.__keepAlive) v.pause?.();
+          }, 250)
+        )
+        .catch(() => {});
     };
     v.readyState >= 2
       ? start()
       : v.addEventListener("canplaythrough", start, { once: true });
   }
 
+  function fadeTargetsFor(link) {
+    const defaultFadeSel =
+      ".home-category_ref_text, .home-hero_title, .home-hero_name, .home-hero_heading";
+    return (
+      link?.querySelectorAll(
+        link.getAttribute("data-fade-target") || defaultFadeSel
+      ) || []
+    );
+  }
+
+  function updateLinkState(prev, next) {
+    if (prev && prev !== next) {
+      prev.setAttribute("aria-current", "false");
+      fadeTargetsFor(prev).forEach((n) => n.classList.add("u-color-faded"));
+    }
+    if (next) {
+      next.setAttribute("aria-current", "true");
+      fadeTargetsFor(next).forEach((n) => n.classList.remove("u-color-faded"));
+    }
+  }
+
   function restart(v) {
-    try { "fastSeek" in v ? v.fastSeek(0) : (v.currentTime = 0); v.play?.(); } catch {}
+    try {
+      "fastSeek" in v ? v.fastSeek(0) : (v.currentTime = 0);
+      v.play?.();
+    } catch {}
   }
 
   function setActive(src, linkEl) {
@@ -46,7 +77,11 @@ export function createVideoManager(stage, prefersReducedMotion, prefersReducedDa
       activeVideo = next;
     }
 
-    // Active link state is managed outside (state.js via index.js)
+    if (linkEl && linkEl !== activeLink) {
+      updateLinkState(activeLink, linkEl); // 🔑 fade toggle here
+      activeLink = linkEl;
+    }
+
     if (!prefersReducedMotion) restart(next);
   }
 
