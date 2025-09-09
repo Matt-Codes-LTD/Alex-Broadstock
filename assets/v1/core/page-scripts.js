@@ -17,7 +17,8 @@ export function initPageScripts(container) {
   cleanups.push(initProjectPlayer(container));
 
   // ✅ Home-only preloader
-  if (container.dataset.namespace === "home") {
+  if (container.dataset.barbaNamespace === "home") {
+    console.log("[SiteLoader] Init on home page");
     cleanups.push(initSiteLoader(container));
   }
 
