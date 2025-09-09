@@ -28,12 +28,16 @@ jobs:
             -H "AccessKey: $BUNNY_ACCESS_KEY" \
             "https://storage.bunnycdn.com/$BUNNY_STORAGE_ZONE/assets/$SHORT_SHA/"
 
-      # Create stable "live" dir
-      - name: Ensure /assets/live/ directory exists
+      # 🚨 Clean the live directory before re-upload
+      - name: Wipe live assets directory
         env:
           BUNNY_STORAGE_ZONE: ${{ secrets.BUNNY_STORAGE_ZONE }}
           BUNNY_ACCESS_KEY:  ${{ secrets.BUNNY_ACCESS_KEY }}
         run: |
+          echo "Wiping live assets directory..."
+          curl -sS -X DELETE \
+            -H "AccessKey: $BUNNY_ACCESS_KEY" \
+            "https://storage.bunnycdn.com/$BUNNY_STORAGE_ZONE/assets/live/" || true
           curl -sS -X PUT \
             -H "AccessKey: $BUNNY_ACCESS_KEY" \
             "https://storage.bunnycdn.com/$BUNNY_STORAGE_ZONE/assets/live/"
