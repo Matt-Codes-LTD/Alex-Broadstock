@@ -3,7 +3,7 @@ export default function initSiteLoader(container) {
   // ✅ Only run on Home page
   if (container.dataset.namespace !== "home") return () => {};
 
-  const loaderEl = document.querySelector(".site-loader_wrap");
+  const loaderEl = container.querySelector(".site-loader_wrap");
   if (!loaderEl || loaderEl.dataset.scriptInitialized) return () => {};
   loaderEl.dataset.scriptInitialized = "true";
 
@@ -18,6 +18,13 @@ export default function initSiteLoader(container) {
   if (window.CustomEase && !gsap.parseEase("hop")) {
     window.CustomEase.create("hop", "0.9, 0, 0.1, 1");
   }
+
+  // ✅ Ensure start states (prevents flashes)
+  gsap.set(loaderEl.querySelectorAll(".site-loader_digit h1"), { y: "120%" });
+  gsap.set(loaderEl.querySelector("#word-1 h1"), { y: "-120%" });
+  gsap.set(loaderEl.querySelector("#word-2 h1"), { y: "120%" });
+  gsap.set(loaderEl.querySelectorAll(".site-loader_divider"), { scaleY: 0 });
+  gsap.set(loaderEl.querySelectorAll(".site-loader_spinner"), { opacity: 1 });
 
   const tl = gsap.timeline({ delay: 0.3, defaults: { ease: "hop" } });
 
@@ -39,7 +46,7 @@ export default function initSiteLoader(container) {
 
   // Divider grow/fade
   tl.to(loaderEl.querySelectorAll(".site-loader_divider"), {
-    scaleY: "100%", duration: 1,
+    scaleY: 1, duration: 1,
     onComplete: () => gsap.to(loaderEl.querySelectorAll(".site-loader_divider"), {
       opacity: 0, duration: 0.3, delay: 0.3
     })
