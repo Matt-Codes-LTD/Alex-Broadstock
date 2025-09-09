@@ -1,7 +1,5 @@
 import { createVideoManager } from "./video-manager.js";
-import { applyFilterFLIP } from "./category-filter.js";
-import { normalize, prefersReducedMotion } from "./utils.js";
-
+import { initCategoryFilter } from "./category-filter.js";
 
 export default function initHomeHero(container) {
   const section = container.querySelector(".home-hero_wrap");
@@ -13,7 +11,7 @@ export default function initHomeHero(container) {
   if (!stage || !listParent) return () => {};
 
   const links = Array.from(section.querySelectorAll(".home-hero_link"));
-  const videoManager = createVideoManager(stage, prefersReducedMotion, prefersReducedData);
+  const videoManager = createVideoManager(stage);
 
   // Preload eager videos
   const MAX_EAGER = Number(section.getAttribute("data-warm-eager") || 3);
@@ -35,26 +33,8 @@ export default function initHomeHero(container) {
     videoManager.setActive(first.dataset.video, first);
   }
 
-  // Category buttons
-  const catWrap = document.querySelector(".home_hero_categories");
-  function setActiveCat(label) {
-    const key = normalize(label);
-    catWrap.querySelectorAll(".home-category_text").forEach((b) => {
-      const isActive = normalize(b.textContent) === key;
-      b.setAttribute("aria-current", isActive ? "true" : "false");
-      b.classList.toggle("u-color-faded", !isActive);
-    });
-  }
-  function onClick(e) {
-    const btn = e.target.closest(".home-category_text");
-    if (!btn || !catWrap.contains(btn)) return;
-    e.preventDefault();
-    const label = btn.textContent || "All";
-    setActiveCat(label);
-    applyFilterFLIP(section, label, videoManager, prefersReducedMotion);
-  }
-  catWrap?.addEventListener("click", onClick, { passive: false });
-  section.__catCleanup = () => catWrap?.removeEventListener("click", onClick);
+  // ✅ Single call for categories
+  const cleanupCat = initCategoryFilter(section, videoManager);
 
   // Hover/focus videos
   function onPointerOver(e) {
@@ -78,7 +58,7 @@ export default function initHomeHero(container) {
     listParent.removeEventListener("focusin", onPointerOver);
     listParent.removeEventListener("touchstart", onPointerOver);
     document.removeEventListener("visibilitychange", visHandler);
-    section.__catCleanup?.();
+    cleanupCat?.();
     delete section.dataset.scriptInitialized;
   };
 }

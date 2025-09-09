@@ -1,22 +1,67 @@
-// assets/v1/sections/home-hero/category-filter.js
 import { normalize, prefersReducedMotion } from "./utils.js";
 
+/**
+ * Initialize and bind category filtering
+ */
+export function initCategoryFilter(section, videoManager) {
+  const catWrap = document.querySelector(".home_hero_categories");
+  if (!catWrap) return () => {};
+
+  // Build data-cats for each project list
+  cacheCats(section);
+
+  function setActiveCat(label) {
+    const key = normalize(label);
+    catWrap.querySelectorAll(".home-category_text").forEach((b) => {
+      const isActive = normalize(b.textContent) === key;
+      b.setAttribute("aria-current", isActive ? "true" : "false");
+      b.classList.toggle("u-color-faded", !isActive);
+    });
+  }
+
+  function onClick(e) {
+    const btn = e.target.closest(".home-category_text");
+    if (!btn || !catWrap.contains(btn)) return;
+    e.preventDefault();
+    const label = btn.textContent || "All";
+    setActiveCat(label);
+    applyFilterFLIP(section, label, videoManager);
+  }
+
+  // Default state = "All"
+  setActiveCat("All");
+  applyFilterFLIP(section, "All", videoManager);
+
+  catWrap.addEventListener("click", onClick, { passive: false });
+
+  return () => catWrap.removeEventListener("click", onClick);
+}
+
+/**
+ * Apply FLIP filtering animation
+ */
 export function applyFilterFLIP(section, label, videoManager) {
   const items = Array.from(section.querySelectorAll(".home-hero_list"));
   const listParent = section.querySelector(".home-hero_list_parent");
   const key = normalize(label) || "all";
 
   const visibleBefore = items.filter((it) => it.style.display !== "none");
-  const rectBefore = new Map(visibleBefore.map((it) => [it, it.getBoundingClientRect()]));
+  const rectBefore = new Map(
+    visibleBefore.map((it) => [it, it.getBoundingClientRect()])
+  );
 
-  const toStayOrEnter = [], toExit = [];
+  const toStayOrEnter = [];
+  const toExit = [];
   items.forEach((it) => {
-    const match = key === "all" ? true : (it.dataset.cats || "").split("|").includes(key);
+    const match =
+      key === "all"
+        ? true
+        : (it.dataset.cats || "").split("|").includes(key);
     if (match) toStayOrEnter.push(it);
     else if (it.style.display !== "none") toExit.push(it);
   });
 
-  // Ghosts for exiting items
+  // Exit items → ghosts
   const ghosts = [];
   toExit.forEach((el) => {
     const r = rectBefore.get(el);
@@ -35,7 +80,9 @@ export function applyFilterFLIP(section, label, videoManager) {
         it.style.display = "";
         it.style.opacity = "0";
       }
-      if (!firstVisibleLink) firstVisibleLink = it.querySelector(".home-hero_link");
+      if (!firstVisibleLink) {
+        firstVisibleLink = it.querySelector(".home-hero_link");
+      }
     } else if (!toExit.includes(it)) {
       it.style.display = "none";
     }
@@ -47,7 +94,7 @@ export function applyFilterFLIP(section, label, videoManager) {
     });
   });
 
-  // Hide the word "selected"
+  // Always hide "Selected"
   section.querySelectorAll(".home-category_ref_text").forEach((n) => {
     if (normalize(n.textContent) === "selected") n.setAttribute("hidden", "");
   });
@@ -55,8 +102,12 @@ export function applyFilterFLIP(section, label, videoManager) {
   listParent.style.pointerEvents = "none";
 
   requestAnimationFrame(() => {
-    const visibleAfter = toStayOrEnter.filter((el) => el.style.display !== "none");
-    const rectAfter = new Map(visibleAfter.map((el) => [el, el.getBoundingClientRect()]));
+    const visibleAfter = toStayOrEnter.filter(
+      (el) => el.style.display !== "none"
+    );
+    const rectAfter = new Map(
+      visibleAfter.map((el) => [el, el.getBoundingClientRect()])
+    );
 
     const MOVE_DUR = prefersReducedMotion ? 0 : 0.36;
     const ENTER_DUR = prefersReducedMotion ? 0 : 0.32;
@@ -69,7 +120,8 @@ export function applyFilterFLIP(section, label, videoManager) {
     const anims = [];
 
     visibleAfter.forEach((el, i) => {
-      const before = rectBefore.get(el), after = rectAfter.get(el);
+      const before = rectBefore.get(el),
+        after = rectAfter.get(el);
       if (!before) {
         if (ENTER_DUR) {
           anims.push(
@@ -78,7 +130,12 @@ export function applyFilterFLIP(section, label, videoManager) {
                 { opacity: 0, transform: "translateY(12px) translateZ(0)" },
                 { opacity: 1, transform: "translateY(0px) translateZ(0)" },
               ],
-              { duration: ENTER_DUR * 1000, easing: EASE_ENTER, delay: i * STAGGER, fill: "both" }
+              {
+                duration: ENTER_DUR * 1000,
+                easing: EASE_ENTER,
+                delay: i * STAGGER,
+                fill: "both",
+              }
             ).finished.catch(() => {})
           );
         } else {
@@ -92,10 +149,17 @@ export function applyFilterFLIP(section, label, videoManager) {
           anims.push(
             el.animate(
               [
-                { transform: `translate(${dx}px, ${dy}px) translateZ(0)` },
+                {
+                  transform: `translate(${dx}px, ${dy}px) translateZ(0)`,
+                },
                 { transform: "translate(0,0) translateZ(0)" },
               ],
-              { duration: MOVE_DUR * 1000, easing: EASE_MOVE, delay: i * STAGGER, fill: "both" }
+              {
+                duration: MOVE_DUR * 1000,
+                easing: EASE_MOVE,
+                delay: i * STAGGER,
+                fill: "both",
+              }
             ).finished.catch(() => {})
           );
         } else {
@@ -111,7 +175,12 @@ export function applyFilterFLIP(section, label, videoManager) {
             { opacity: 1, transform: "translateY(0px) translateZ(0)" },
             { opacity: 0, transform: "translateY(-10px) translateZ(0)" },
           ],
-          { duration: EXIT_DUR * 1000, easing: EASE_EXIT, delay: i * STAGGER, fill: "both" }
+          {
+            duration: EXIT_DUR * 1000,
+            easing: EASE_EXIT,
+            delay: i * STAGGER,
+            fill: "both",
+          }
         ).finished.then(() => g.remove()).catch(() => g.remove())
       )
     );
@@ -125,21 +194,43 @@ export function applyFilterFLIP(section, label, videoManager) {
       });
       listParent.style.pointerEvents = "";
 
-      // 🔑 Re-apply active link state (fix fade classes after filtering)
-      const active = section.querySelector(".home-hero_link[aria-current='true']");
-      if (active) {
-        videoManager.setActive(active.dataset.video, active);
+      // Ensure active state
+      if (videoManager.activeLink) {
+        videoManager.setActive(
+          videoManager.activeLink.dataset.video,
+          videoManager.activeLink
+        );
+      } else if (firstVisibleLink) {
+        videoManager.setActive(
+          firstVisibleLink.dataset.video,
+          firstVisibleLink
+        );
       }
     });
   });
 }
 
-// helper: makeGhost
+/* Helpers */
+function cacheCats(section) {
+  const items = Array.from(section.querySelectorAll(".home-hero_list"));
+  for (const it of items) {
+    const cats = new Set();
+    it.querySelectorAll(".home-category_ref_text").forEach((n) => {
+      const t = normalize(n.textContent);
+      if (t === "selected") n.setAttribute("hidden", "");
+      if (t) cats.add(t);
+    });
+    it.dataset.cats = Array.from(cats).join("|");
+  }
+}
+
 function stripArtifacts(root) {
-  root.querySelectorAll("[data-animate-chars],[data-animate-chars-inner]").forEach((n) => {
-    n.removeAttribute("data-animate-chars");
-    n.removeAttribute("data-animate-chars-inner");
-  });
+  root
+    .querySelectorAll("[data-animate-chars],[data-animate-chars-inner]")
+    .forEach((n) => {
+      n.removeAttribute("data-animate-chars");
+      n.removeAttribute("data-animate-chars-inner");
+    });
   [...[root], ...root.querySelectorAll("*")].forEach((n) => {
     Object.assign(n.style, {
       background: "transparent",
@@ -150,6 +241,7 @@ function stripArtifacts(root) {
     });
   });
 }
+
 function makeGhost(el, rect) {
   const g = el.cloneNode(true);
   g.setAttribute("aria-hidden", "true");
@@ -169,6 +261,6 @@ function makeGhost(el, rect) {
     background: "transparent",
   });
   stripArtifacts(g);
-  document.body.querySelector(".ghost-exit-layer")?.appendChild(g);
+  (document.body.querySelector(".ghost-exit-layer") || document.body).appendChild(g);
   return g;
 }

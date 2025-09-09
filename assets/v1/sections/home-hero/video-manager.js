@@ -87,5 +87,6 @@ export function createVideoManager(stage) {
     if (!prefersReducedMotion) restart(next);
   }
 
-  return { createVideo, warmVideo, setActive };
+  // 🔑 Expose activeVideo + activeLink for category-filter.js
+  return { createVideo, warmVideo, setActive, get activeLink() { return activeLink; }, get activeVideo() { return activeVideo; } };
 }
