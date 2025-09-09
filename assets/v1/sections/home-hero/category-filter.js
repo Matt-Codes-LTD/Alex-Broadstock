@@ -7,6 +7,9 @@ export function initCategoryFilter(section, videoManager) {
   const catWrap = document.querySelector(".home_hero_categories");
   if (!catWrap) return () => {};
 
+  // ✅ Ensure "All" button exists
+  ensureAllButton(catWrap);
+
   // Build data-cats for each project list
   cacheCats(section);
 
@@ -263,4 +266,31 @@ function makeGhost(el, rect) {
   stripArtifacts(g);
   (document.body.querySelector(".ghost-exit-layer") || document.body).appendChild(g);
   return g;
+}
+
+function ensureAllButton(catWrap) {
+  const BTN_SEL = ".home-category_text";
+  const buttons = Array.from(catWrap.querySelectorAll(BTN_SEL));
+  let allBtn = buttons.find((b) => normalize(b.textContent) === "all") || null;
+  if (!allBtn) {
+    const item = document.createElement("div");
+    item.setAttribute("role", "listitem");
+    item.className = "home-hero_category u-text-style-main w-dyn-item";
+
+    const a = document.createElement("a");
+    a.href = "#";
+    a.className = "home-category_text u-text-style-main";
+    a.textContent = "All";
+    a.setAttribute("data-animate-chars", "");
+    a.setAttribute("aria-current", "true");
+    a.setAttribute(
+      "data-animate-delay",
+      catWrap.getAttribute("data-animate-delay") || "0.012"
+    );
+
+    item.appendChild(a);
+    catWrap.insertBefore(item, catWrap.firstChild);
+    allBtn = a;
+  }
+  return allBtn;
 }
