@@ -1,8 +1,9 @@
-// assets/v1/sections/site-loader/index.js
 export default function initSiteLoader(container) {
   const loader = container.querySelector(".site-loader_wrap");
   if (!loader || loader.dataset.scriptInitialized) return () => {};
   loader.dataset.scriptInitialized = "true";
+
+  console.log("[Loader] starting…");
 
   // Scroll lock
   document.documentElement.classList.add("is-preloading");
@@ -11,11 +12,21 @@ export default function initSiteLoader(container) {
   document.head.appendChild(lock);
 
   const { gsap } = window;
-  if (!gsap) return () => {};
+  if (!gsap) {
+    console.warn("[Loader] GSAP not found");
+    return () => {};
+  }
 
   if (window.CustomEase && !gsap.parseEase("hop")) {
     window.CustomEase.create("hop", "0.9, 0, 0.1, 1");
   }
+
+  // ✅ Ensure start states
+  gsap.set(loader.querySelectorAll(".site-loader_digit h1"), { y: "120%" });
+  gsap.set(loader.querySelector("#site-loader_word-1 h1"), { y: "-120%" });
+  gsap.set(loader.querySelector("#site-loader_word-2 h1"), { y: "120%" });
+  gsap.set(loader.querySelector(".site-loader_divider"), { scaleY: 0, opacity: 1 });
+  gsap.set(loader.querySelector(".site-loader_spinner"), { opacity: 1 });
 
   const tl = gsap.timeline({ delay: 0.3, defaults: { ease: "hop" } });
 
@@ -37,15 +48,15 @@ export default function initSiteLoader(container) {
 
   // Divider grow + fade
   tl.to(loader.querySelector(".site-loader_divider"), {
-    scaleY: "100%",
+    scaleY: 1,
     duration: 1,
     onComplete: () =>
       gsap.to(loader.querySelector(".site-loader_divider"), {
-        opacity: 0, duration: 0.3, delay: 0.3
+        opacity: 0, duration: 0.3, delay: 0.3,
       }),
   });
 
-  // Words out (opposite dirs)
+  // Words out
   tl.to(loader.querySelector("#site-loader_word-1 h1"), { y: "100%", duration: 1, delay: 0.3 });
   tl.to(loader.querySelector("#site-loader_word-2 h1"), { y: "-100%", duration: 1 }, "<");
 
@@ -59,6 +70,7 @@ export default function initSiteLoader(container) {
       loader.style.display = "none";
       loader.style.pointerEvents = "none";
       document.documentElement.classList.remove("is-preloading");
+      console.log("[Loader] finished");
     },
   }, "<");
 
