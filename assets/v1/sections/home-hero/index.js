@@ -140,3 +140,4 @@ function cacheCats(section) {
     it.dataset.cats = Array.from(cats).join("|");
   }
 }
+// --- Helpers
