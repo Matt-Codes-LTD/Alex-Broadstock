@@ -10,10 +10,17 @@ import initSiteLoader from "../sections/site-loader/index.js"; // ✅ new
 ========================= */
 export function initPageScripts(container) {
   const cleanups = [];
+
+  // Global-ish sections (safe everywhere)
   cleanups.push(initSplitChars(container));
   cleanups.push(initHomeHero(container));
   cleanups.push(initProjectPlayer(container));
-  cleanups.push(initSiteLoader(container)); // ✅ loader scoped to home
+
+  // ✅ Home-only preloader
+  if (container.dataset.namespace === "home") {
+    cleanups.push(initSiteLoader(container));
+  }
+
   return () => cleanups.forEach((fn) => fn && fn());
 }
 
