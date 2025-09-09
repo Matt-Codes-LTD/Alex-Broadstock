@@ -1,9 +1,7 @@
-// category-filter.js
-function normalize(t) {
-  return (t || "").trim().toLowerCase();
-}
+// assets/v1/sections/home-hero/category-filter.js
+import { normalize, prefersReducedMotion } from "./utils.js";
 
-export function applyFilterFLIP(section, label, videoManager, prefersReducedMotion) {
+export function applyFilterFLIP(section, label, videoManager) {
   const items = Array.from(section.querySelectorAll(".home-hero_list"));
   const listParent = section.querySelector(".home-hero_list_parent");
   const key = normalize(label) || "all";
@@ -136,7 +134,7 @@ export function applyFilterFLIP(section, label, videoManager, prefersReducedMoti
   });
 }
 
-// helper: makeGhost (copied from original)
+// helper: makeGhost
 function stripArtifacts(root) {
   root.querySelectorAll("[data-animate-chars],[data-animate-chars-inner]").forEach((n) => {
     n.removeAttribute("data-animate-chars");

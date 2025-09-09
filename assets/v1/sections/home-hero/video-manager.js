@@ -1,5 +1,7 @@
-// video-manager.js
-export function createVideoManager(stage, prefersReducedMotion, prefersReducedData) {
+// assets/v1/sections/home-hero/video-manager.js
+import { prefersReducedMotion, prefersReducedData } from "./utils.js";
+
+export function createVideoManager(stage) {
   const videoBySrc = new Map();
   let activeVideo = null, activeLink = null;
 
@@ -78,7 +80,7 @@ export function createVideoManager(stage, prefersReducedMotion, prefersReducedDa
     }
 
     if (linkEl && linkEl !== activeLink) {
-      updateLinkState(activeLink, linkEl); // 🔑 fade toggle here
+      updateLinkState(activeLink, linkEl);
       activeLink = linkEl;
     }
 
