@@ -1,5 +1,3 @@
-import gsap from "gsap";
-
 export default function initSiteLoader(container) {
   const loaderEl = container.querySelector(".site-loader_wrap");
   if (!loaderEl || loaderEl.dataset.scriptInitialized) return;
