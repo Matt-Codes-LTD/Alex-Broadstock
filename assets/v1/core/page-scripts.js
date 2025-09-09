@@ -3,6 +3,7 @@ import initCursor from "../../globals/cursor/index.js";
 import initSplitChars from "../sections/split-chars/index.js";
 import initHomeHero from "../sections/home-hero/index.js";
 import initProjectPlayer from "../sections/project-player/index.js";
+import initSiteLoader from "../sections/site-loader/index.js"; // ✅ new
 
 /* =========================
    PAGE SCRIPTS (per Barba container)
@@ -12,6 +13,7 @@ export function initPageScripts(container) {
   cleanups.push(initSplitChars(container));
   cleanups.push(initHomeHero(container));
   cleanups.push(initProjectPlayer(container));
+  cleanups.push(initSiteLoader(container)); // ✅ loader scoped to home
   return () => cleanups.forEach((fn) => fn && fn());
 }
 
