@@ -1,8 +1,8 @@
 // Core + sections
-import initCursor from "./cursor.js";
-import initSplitChars from "../sections/split-chars.js";
-import initHomeHero from "../sections/home-hero.js";
-import initProjectPlayer from "../sections/project-player.js";
+import initCursor from "../../globals/cursor/index.js";
+import initSplitChars from "../sections/split-chars/index.js";
+import initHomeHero from "../sections/home-hero/index.js";
+import initProjectPlayer from "../sections/project-player/index.js";
 
 /* =========================
    PAGE SCRIPTS (per Barba container)
