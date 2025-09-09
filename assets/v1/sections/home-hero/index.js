@@ -1,6 +1,7 @@
 import { createVideoManager } from "./video-manager.js";
 import { applyFilterFLIP } from "./category-filter.js";
-import { normalize, prefersReducedMotion, prefersReducedData } from "./utils.js";
+import { normalize, prefersReducedMotion } from "./utils.js";
+
 
 export default function initHomeHero(container) {
   const section = container.querySelector(".home-hero_wrap");
