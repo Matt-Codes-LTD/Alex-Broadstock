@@ -1,26 +1,30 @@
-// sync.js
-export function initVideoSync(video, state) {
-  const handlers = [];
+import { setPlayUI, setPausedUI } from "./utils.js";
 
-  const onPlay = () => { state.setPlayUI(true); state.setPausedUI(false); };
-  const onPlaying = () => state.setPausedUI(false);
-  const onPause = () => { state.setPlayUI(false); state.setPausedUI(true); };
-  const onEnded = () => { state.setPlayUI(false); state.setPausedUI(true); };
-  const onTimeUpdate = () => { /* timeline loop handles visuals, so this can stay empty */ };
+export function initSync(video, wrap, state) {
+  const btnPlay = wrap.querySelector('[data-role="play"]');
+  const centerBtn = wrap.querySelector(".project-player_center-toggle");
 
-  video.addEventListener("play", onPlay);
-  video.addEventListener("playing", onPlaying);
-  video.addEventListener("pause", onPause);
-  video.addEventListener("ended", onEnded);
-  video.addEventListener("timeupdate", onTimeUpdate);
-
-  handlers.push(() => {
-    video.removeEventListener("play", onPlay);
-    video.removeEventListener("playing", onPlaying);
-    video.removeEventListener("pause", onPause);
-    video.removeEventListener("ended", onEnded);
-    video.removeEventListener("timeupdate", onTimeUpdate);
+  video.addEventListener("play", () => {
+    setPlayUI(video, btnPlay, centerBtn, true);
+    setPausedUI(wrap, false);
+  });
+  video.addEventListener("playing", () => setPausedUI(wrap, false));
+  video.addEventListener("pause", () => {
+    setPlayUI(video, btnPlay, centerBtn, false);
+    setPausedUI(wrap, true);
+  });
+  video.addEventListener("ended", () => {
+    setPlayUI(video, btnPlay, centerBtn, false);
+    setPausedUI(wrap, true);
   });
 
-  return handlers;
+  // Idle hide/show
+  ["mousemove", "pointermove", "touchstart", "keydown"].forEach((evt) => {
+    const fn = () => state.kickHide();
+    wrap.addEventListener(evt, fn, { passive: true });
+    state.handlers.push(() => wrap.removeEventListener(evt, fn));
+  });
+  state.kickHide();
+
+  return () => {};
 }

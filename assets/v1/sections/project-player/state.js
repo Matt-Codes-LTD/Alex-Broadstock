@@ -1,40 +1,59 @@
-// state.js
-export function createState(wrap, video, btnPlay, btnMute, muteLabel, btnFS, centerBtn) {
+export function createState(video, wrap, centerBtn) {
+  let raf = 0;
   let hidingTO = 0;
+  let dragging = false;
+  let didFirstSoundRestart = false;
+  const handlers = [];
 
-  const setPlayUI = (isPlaying) => {
-    btnPlay?.setAttribute("aria-pressed", isPlaying ? "true" : "false");
-    btnPlay?.classList.toggle("is-playing", isPlaying);
-    if (centerBtn.classList.contains("is-mode-play")) {
-      centerBtn.setAttribute("aria-pressed", isPlaying ? "true" : "false");
-      centerBtn.classList.toggle("is-playing", isPlaying);
-    }
-  };
+  function setIdle(on) {
+    wrap.dataset.idle = on ? "1" : "0";
+  }
 
-  const setMuteUI = (muted) => {
-    if (btnMute) {
-      btnMute.setAttribute("aria-pressed", muted ? "true" : "false");
-      if (muteLabel) muteLabel.textContent = muted ? "Sound" : "Mute";
-      else btnMute.textContent = muted ? "Sound" : "Mute";
-    }
-  };
-
-  const setPausedUI = (paused) => wrap.classList.toggle("is-paused", !!paused);
-  const setIdle = (on) => { wrap.dataset.idle = on ? "1" : "0"; };
-
-  const kickHide = () => {
+  function kickHide() {
     clearTimeout(hidingTO);
     setIdle(false);
     hidingTO = setTimeout(() => setIdle(true), 1800);
-  };
-
-  function updateFSLabel() {
-    if (!btnFS) return;
-    const inFS = !!document.fullscreenElement &&
-      (document.fullscreenElement === wrap || wrap.contains(document.fullscreenElement));
-    btnFS.textContent = inFS ? "Minimise" : "Fullscreen";
-    btnFS.setAttribute("aria-label", inFS ? "Exit fullscreen" : "Toggle fullscreen");
   }
 
-  return { setPlayUI, setMuteUI, setPausedUI, kickHide, updateFSLabel };
+  function startLoop(loopFn) {
+    const step = () => {
+      loopFn();
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+  }
+
+  function stopLoop() {
+    if (raf) cancelAnimationFrame(raf);
+    raf = 0;
+  }
+
+  function cleanup() {
+    stopLoop();
+    clearTimeout(hidingTO);
+    handlers.forEach((fn) => fn());
+  }
+
+  return {
+    video,
+    wrap,
+    centerBtn,
+    handlers,
+    kickHide,
+    startLoop,
+    stopLoop,
+    cleanup,
+    get dragging() {
+      return dragging;
+    },
+    set dragging(v) {
+      dragging = v;
+    },
+    get didFirstSoundRestart() {
+      return didFirstSoundRestart;
+    },
+    set didFirstSoundRestart(v) {
+      didFirstSoundRestart = v;
+    },
+  };
 }

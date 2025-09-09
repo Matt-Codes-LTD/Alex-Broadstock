@@ -1,71 +1,105 @@
-// controls.js
-export function initControls({ wrap, video, btnPlay, btnMute, muteLabel, btnFS, centerBtn, tl, state }) {
-  const handlers = [];
+import { setPlayUI, setMuteUI, setPausedUI, switchCenterToPlayMode } from "./utils.js";
 
+export function initControls(video, wrap, centerBtn, state) {
+  const btnPlay = wrap.querySelector('[data-role="play"]');
+  const btnMute = wrap.querySelector('[data-role="mute"]');
+  const muteLabel = wrap.querySelector('[data-role="mute-label"]');
+  const btnFS = wrap.querySelector('[data-role="fs"]');
+
+  // Play/Pause
   async function togglePlayFromUser() {
     try {
       if (video.paused) {
         if (video.muted || video.volume === 0) {
-          video.muted = false; video.removeAttribute("muted");
+          video.muted = false;
+          video.removeAttribute("muted");
           video.volume = Number(localStorage.getItem("pp:vol") || 1) || 1;
-          state.setMuteUI(false);
+          setMuteUI(btnMute, muteLabel, false);
+          state.didFirstSoundRestart = true;
         }
         await video.play();
-      } else await video.pause();
+      } else {
+        await video.pause();
+      }
     } catch {}
-    state.setPlayUI(!video.paused);
-    state.setPausedUI(video.paused);
+    setPlayUI(video, btnPlay, centerBtn, !video.paused);
+    setPausedUI(wrap, video.paused);
     state.kickHide();
   }
 
   btnPlay?.addEventListener("click", togglePlayFromUser);
-  handlers.push(() => btnPlay?.removeEventListener("click", togglePlayFromUser));
+  state.handlers.push(() => btnPlay?.removeEventListener("click", togglePlayFromUser));
 
-  centerBtn.addEventListener("click", async () => {
+  // Center button
+  const centerHandler = async () => {
     const inPlayMode = centerBtn.classList.contains("is-mode-play");
     if (!inPlayMode) {
       try {
-        video.muted = false; video.removeAttribute("muted");
+        video.muted = false;
+        video.removeAttribute("muted");
         video.volume = Number(localStorage.getItem("pp:vol") || 1) || 1;
         video.currentTime = 0;
         await video.play?.();
-        centerBtn.classList.add("is-mode-play");
-        state.setMuteUI(false);
-        state.setPlayUI(true);
-        state.setPausedUI(false);
+        switchCenterToPlayMode(centerBtn, video);
+        setMuteUI(btnMute, muteLabel, false);
+        setPlayUI(video, btnPlay, centerBtn, true);
+        setPausedUI(wrap, false);
+        state.didFirstSoundRestart = true;
       } catch {}
       state.kickHide();
       return;
     }
     await togglePlayFromUser();
-  });
-  handlers.push(() => centerBtn.removeEventListener("click", togglePlayFromUser));
+  };
+  centerBtn.addEventListener("click", centerHandler);
+  state.handlers.push(() => centerBtn.removeEventListener("click", centerHandler));
 
-  btnMute?.addEventListener("click", async () => {
+  // Mute
+  const muteHandler = async () => {
+    const wasMuted = video.muted;
     video.muted = !video.muted;
-    video.muted ? video.setAttribute("muted", "") : video.removeAttribute("muted");
+    if (video.muted) {
+      video.setAttribute("muted", "");
+    } else {
+      video.removeAttribute("muted");
+      if (video.volume === 0) video.volume = Number(localStorage.getItem("pp:vol") || 1) || 1;
+      if (wasMuted && !state.didFirstSoundRestart) {
+        state.didFirstSoundRestart = true;
+        video.currentTime = 0;
+        await video.play?.();
+        setPlayUI(video, btnPlay, centerBtn, true);
+        setPausedUI(wrap, false);
+        switchCenterToPlayMode(centerBtn, video);
+      }
+    }
     localStorage.setItem("pp:muted", video.muted ? "1" : "0");
-    state.setMuteUI(video.muted);
+    setMuteUI(btnMute, muteLabel, video.muted);
     state.kickHide();
-  });
-  handlers.push(() => btnMute?.removeEventListener("click", () => {}));
+  };
+  btnMute?.addEventListener("click", muteHandler);
+  state.handlers.push(() => btnMute?.removeEventListener("click", muteHandler));
+
+  // Fullscreen
+  function updateFSLabel() {
+    if (!btnFS) return;
+    const inFS =
+      !!document.fullscreenElement &&
+      (document.fullscreenElement === wrap || wrap.contains(document.fullscreenElement));
+    btnFS.textContent = inFS ? "Minimise" : "Fullscreen";
+    btnFS.setAttribute("aria-label", inFS ? "Exit fullscreen" : "Toggle fullscreen");
+  }
+  document.addEventListener("fullscreenchange", updateFSLabel);
+  state.handlers.push(() => document.removeEventListener("fullscreenchange", updateFSLabel));
 
   btnFS?.addEventListener("click", async () => {
-    try { !document.fullscreenElement ? await wrap.requestFullscreen?.() : await document.exitFullscreen?.(); } catch {}
+    try {
+      !document.fullscreenElement
+        ? await wrap.requestFullscreen?.()
+        : await document.exitFullscreen?.();
+    } catch {}
     state.kickHide();
   });
-  handlers.push(() => btnFS?.removeEventListener("click", () => {}));
+  state.handlers.push(() => btnFS?.removeEventListener("click", () => {}));
 
-  if (tl) {
-    const onDown = (e) => {
-      const r = tl.getBoundingClientRect();
-      const pct = ((e.clientX - r.left) / r.width) * 100;
-      video.currentTime = (pct / 100) * video.duration;
-      state.kickHide();
-    };
-    tl.addEventListener("pointerdown", onDown);
-    handlers.push(() => tl.removeEventListener("pointerdown", onDown));
-  }
-
-  return handlers;
+  return () => {};
 }
