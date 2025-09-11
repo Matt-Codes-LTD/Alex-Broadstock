@@ -42,6 +42,16 @@ export default function initHomeHero(container) {
     if (!a || !listParent.contains(a)) return;
     videoManager.setActive(a.dataset.video, a);
   }
+  
+  // ADD THIS: Prevent FLIP animation when clicking project links
+  function onProjectClick(e) {
+    const projectUrl = e.target.closest(".home-hero_url");
+    if (projectUrl) {
+      e.stopPropagation(); // Prevents bubbling to category filter
+    }
+  }
+  
+  listParent.addEventListener("click", onProjectClick, { capture: true });
   listParent.addEventListener("pointerover", onPointerOver, { passive: true });
   listParent.addEventListener("focusin", onPointerOver);
   listParent.addEventListener("touchstart", onPointerOver, { passive: true });
@@ -54,6 +64,7 @@ export default function initHomeHero(container) {
 
   // Cleanup
   return () => {
+    listParent.removeEventListener("click", onProjectClick, { capture: true });
     listParent.removeEventListener("pointerover", onPointerOver);
     listParent.removeEventListener("focusin", onPointerOver);
     listParent.removeEventListener("touchstart", onPointerOver);
