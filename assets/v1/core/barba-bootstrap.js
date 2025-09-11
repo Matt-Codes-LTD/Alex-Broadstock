@@ -66,6 +66,9 @@ document.addEventListener("DOMContentLoaded", () => {
         },
 
         leave({ current }) {
+          // ADD: Mark as navigating when transition starts
+          document.body.classList.add('barba-navigating');
+          
           if (current?.container?.__cleanup) {
             current.container.__cleanup();
             delete current.container.__cleanup;
@@ -147,6 +150,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     window.scrollTo(0, 0);
                     document.body.style.cursor = 'default';
                     transitionGrid.style.pointerEvents = 'none';
+                    
+                    // ADD: Remove navigation class when complete
+                    document.body.classList.remove('barba-navigating');
                     
                     resolve();
                   }
