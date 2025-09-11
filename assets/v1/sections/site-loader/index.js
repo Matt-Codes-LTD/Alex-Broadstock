@@ -1,105 +1,178 @@
-export default function initSiteLoader(container) {
-  const loaderEl = container.querySelector(".loader");
-  if (!loaderEl || loaderEl.dataset.scriptInitialized) return () => {};
-  loaderEl.dataset.scriptInitialized = "true";
+// gridTransition.js - Drop-in replacement for your current loader
+export default function initGridTransition(container) {
+  // Check if already initialized
+  const existingGrid = container.querySelector('.grid-transition');
+  if (existingGrid && existingGrid.dataset.scriptInitialized) return () => {};
+  
+  console.log("[GridTransition] init");
 
-  console.log("[SiteLoader] init");
+  // Create or get grid container
+  let gridEl = existingGrid;
+  if (!gridEl) {
+    gridEl = document.createElement('div');
+    gridEl.className = 'grid-transition';
+    container.appendChild(gridEl);
+  }
+  gridEl.dataset.scriptInitialized = "true";
+
+  // Create 110 grid tiles
+  for (let i = 0; i < 110; i++) {
+    const div = document.createElement('div');
+    gridEl.appendChild(div);
+  }
+
+  const tiles = gridEl.querySelectorAll('div');
+  const centerColumn = 5;
 
   // Lock scroll during preload
-  document.documentElement.classList.add("is-preloading");
-  const lock = document.createElement("style");
+  document.documentElement.classList.add('is-preloading');
+  const lock = document.createElement('style');
   lock.textContent = `html.is-preloading, html.is-preloading body { overflow:hidden!important }`;
   document.head.appendChild(lock);
-
-  // CustomEase setup
-  if (window.CustomEase && !gsap.parseEase("hop")) {
-    window.CustomEase.create("hop", "0.68, -0.55, 0.265, 1.55");
-  }
 
   // Check for reduced motion preference
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   
-  // Minimum display time to prevent loader from disappearing too quickly
-  const minDisplayTime = 2000; // 2 seconds minimum
+  // Minimum display time
+  const minDisplayTime = 2000;
   const startTime = Date.now();
 
-  // Reset initial states
-  gsap.set(loaderEl, { pointerEvents: "all", display: "block" });
-  gsap.set("#word-1 h1", { y: "-120%" });
-  gsap.set("#word-2 h1", { y: "120%" });
-  gsap.set(".block", { clipPath: "polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)" });
+  // Show grid
+  gsap.set(gridEl, { opacity: 1, pointerEvents: 'all' });
+  document.body.style.cursor = 'wait';
+
+  // Stagger function matching original
+  const getStagger = (index) => {
+    const row = Math.floor(index / 11);
+    const col = index % 11;
+    const distanceFromCenter = Math.abs(col - centerColumn);
+    const baseDelay = (9 - row + distanceFromCenter) * 0.05;
+    const randomOffset = 0.3 * (Math.random() - 0.5);
+    return baseDelay + randomOffset;
+  };
 
   const tl = gsap.timeline({
-    delay: 1.5, // Short delay before animation starts
-    defaults: { ease: "hop" },
+    delay: 0.5,
     onComplete: () => {
-      // Ensure minimum display time
       const elapsed = Date.now() - startTime;
       const remaining = Math.max(0, minDisplayTime - elapsed);
       
       setTimeout(() => {
-        // Smooth backdrop filter fade before hiding loader
-        gsap.to(loaderEl.querySelector(".overlay"), {
-          backdropFilter: "blur(0px)",
-          webkitBackdropFilter: "blur(0px)",
-          duration: 0.4,
-          ease: "power2.out",
-          onComplete: () => {
-            loaderEl.style.pointerEvents = "none";
-            loaderEl.style.display = "none";
-            document.documentElement.classList.remove("is-preloading");
-            lock.remove();
-            console.log("[SiteLoader] done");
-          }
-        });
+        gridEl.style.opacity = '0';
+        gridEl.style.pointerEvents = 'none';
+        document.body.style.cursor = 'default';
+        document.documentElement.classList.remove('is-preloading');
+        lock.remove();
+        console.log("[GridTransition] done");
       }, remaining);
-    },
+    }
   });
 
-  // Apply reduced motion if user prefers it
   if (prefersReducedMotion) {
-    tl.timeScale(10); // Much faster for users who prefer reduced motion
+    tl.timeScale(10);
   }
 
-  // === WORDS IN ===
-  tl.to(
-    ".word h1",
-    { y: "0%", duration: 1 },
-    0 // Start immediately when timeline begins
-  );
-
-  // === WORDS OUT ===
-  tl.to(loaderEl.querySelectorAll("#word-1 h1"), { 
-    y: "100%", 
-    duration: 1, 
-    delay: 1.5 // Let words stay visible for 1.5 seconds
+  // Phase 1: Tiles scale up (enter)
+  tl.to(tiles, {
+    scaleY: 1,
+    transformOrigin: '0% 100%',
+    duration: 0.5,
+    ease: 'power4.inOut',
+    stagger: getStagger,
   });
-  
-  tl.to(
-    loaderEl.querySelectorAll("#word-2 h1"),
-    { y: "-100%", duration: 1 },
-    "<" // Start at same time as word-1
-  );
 
-  // === PANELS CLOSE (REVEAL CONTENT BEHIND) ===
-  tl.to(
-    loaderEl.querySelectorAll(".block"),
-    {
-      clipPath: "polygon(0% 0%, 100% 0%, 100% 0%, 0% 0%)",
-      duration: 1,
-      stagger: 0.05,
-      delay: 0.75,
-    },
-    "<" // Start with words out animation
-  );
+  // Phase 2: Hold briefly
+  tl.set({}, {}, "+=0.3");
+
+  // Phase 3: Tiles scale down (exit)
+  tl.to(tiles, {
+    scaleY: 0,
+    transformOrigin: '0% 0%',
+    duration: 0.5,
+    ease: 'power4.inOut',
+    stagger: getStagger,
+  });
 
   // Cleanup
   return () => {
-    console.log("[SiteLoader] cleanup");
-    gsap.killTweensOf(loaderEl.querySelectorAll("*"));
+    console.log("[GridTransition] cleanup");
+    gsap.killTweensOf(tiles);
     if (lock && lock.parentNode) {
       lock.remove();
     }
-    delete loaderEl.dataset.scriptInitialized;
+    delete gridEl.dataset.scriptInitialized;
   };
+}
+
+// For page-to-page transitions (if using client-side routing)
+export class GridPageTransition {
+  constructor(container = document.body) {
+    this.container = container;
+    this.gridEl = null;
+    this.isTransitioning = false;
+    this.centerColumn = 5;
+    this.init();
+  }
+
+  init() {
+    // Create grid container
+    this.gridEl = document.createElement('div');
+    this.gridEl.className = 'grid-transition';
+    this.container.appendChild(this.gridEl);
+
+    // Create 110 tiles
+    for (let i = 0; i < 110; i++) {
+      const div = document.createElement('div');
+      this.gridEl.appendChild(div);
+    }
+
+    this.tiles = this.gridEl.querySelectorAll('div');
+    gsap.set(this.gridEl, { opacity: 0, pointerEvents: 'none' });
+  }
+
+  getStagger(index) {
+    const row = Math.floor(index / 11);
+    const col = index % 11;
+    const distanceFromCenter = Math.abs(col - this.centerColumn);
+    const baseDelay = (9 - row + distanceFromCenter) * 0.05;
+    const randomOffset = 0.3 * (Math.random() - 0.5);
+    return baseDelay + randomOffset;
+  }
+
+  async transition(beforeSwitch, afterSwitch) {
+    if (this.isTransitioning) return;
+    this.isTransitioning = true;
+
+    // Show grid
+    gsap.set(this.gridEl, { opacity: 1, pointerEvents: 'all' });
+    document.body.style.cursor = 'wait';
+
+    // Phase 1: Cover screen
+    await gsap.to(this.tiles, {
+      scaleY: 1,
+      transformOrigin: '0% 100%',
+      duration: 0.5,
+      ease: 'power4.inOut',
+      stagger: this.getStagger.bind(this),
+    });
+
+    // Execute page switch
+    if (beforeSwitch) await beforeSwitch();
+    window.scrollTo(0, 0);
+    if (afterSwitch) await afterSwitch();
+
+    // Phase 2: Reveal new content
+    await gsap.to(this.tiles, {
+      scaleY: 0,
+      transformOrigin: '0% 0%',
+      duration: 0.5,
+      ease: 'power4.inOut',
+      stagger: this.getStagger.bind(this),
+    });
+
+    // Hide grid
+    gsap.set(this.gridEl, { opacity: 0, pointerEvents: 'none' });
+    document.body.style.cursor = 'default';
+    this.isTransitioning = false;
+  }
 }
