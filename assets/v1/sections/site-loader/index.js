@@ -101,17 +101,19 @@ export default function initSiteLoader(container) {
   }, "<"); // Start at same time for synchronized exit
 
   // === PANELS CLOSE - Refined reveal ===
-  // Use a more elegant easing for the clip-path animation
-  tl.to(".block", {
+  // Now targeting each block individually for clear stagger
+  tl.to(".block:first-child", {
     clipPath: "polygon(0% 0%, 100% 0%, 100% 0%, 0% 0%)",
     duration: 0.8,
-    stagger: {
-      each: 0.08, // Slightly longer stagger for smoother transition
-      from: "center", // Start from center for symmetrical feel
-      ease: "power2.inOut"
-    },
-    ease: "power3.inOut" // Smooth S-curve for panel animation
-  }, "-=0.3"); // Start slightly before words are fully out
+    ease: "power3.inOut"
+  }, "-=0.3");
+  
+  // Second panel closes with stagger delay
+  tl.to(".block:last-child", {
+    clipPath: "polygon(0% 0%, 100% 0%, 100% 0%, 0% 0%)",
+    duration: 0.8,
+    ease: "power3.inOut"
+  }, "-=0.7"); // Overlap by 0.7s, creating a 0.1s stagger
 
   // Optional: Add subtle scale animation to panels for depth
   tl.to(".block", {
