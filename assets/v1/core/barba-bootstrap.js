@@ -97,7 +97,7 @@ document.addEventListener("DOMContentLoaded", () => {
           const C = Math.floor(5.5); // Matching the original centerColumn variable
           
           // Enable grid interaction
-          document.body.style.cursor = 'wait';
+          document.body.style.cursor = 'none';
           transitionGrid.style.pointerEvents = 'all';
 
           // Create a promise-based animation sequence matching the original
