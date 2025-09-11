@@ -43,11 +43,16 @@ export default function initHomeHero(container) {
     videoManager.setActive(a.dataset.video, a);
   }
   
-  // ADD THIS: Prevent FLIP animation when clicking project links
+  // ADD THIS: Mark project clicks to skip FLIP animation
   function onProjectClick(e) {
     const projectUrl = e.target.closest(".home-hero_url");
-    if (projectUrl) {
-      e.stopPropagation(); // Prevents bubbling to category filter
+    const categoryBtn = e.target.closest(".home-category_text");
+    
+    // Only mark as navigating if it's a project link, not a category button
+    if (projectUrl && !categoryBtn) {
+      section.dataset.navigating = "true";
+      // Longer timeout to ensure FLIP doesn't trigger during Barba init
+      setTimeout(() => delete section.dataset.navigating, 500);
     }
   }
   

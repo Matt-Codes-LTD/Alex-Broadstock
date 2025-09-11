@@ -44,8 +44,8 @@ export function initCategoryFilter(section, videoManager) {
  * Apply FLIP filtering animation
  */
 export function applyFilterFLIP(section, label, videoManager) {
-  // SKIP animation if navigating to a project page or during Barba transition
-  if (section.dataset.navigating === "true" || document.body.classList.contains('barba-navigating')) return;
+  // SKIP animation if navigating to a project page
+  if (section.dataset.navigating === "true") return;
   
   const items = Array.from(section.querySelectorAll(".home-hero_list"));
   const listParent = section.querySelector(".home-hero_list_parent");
