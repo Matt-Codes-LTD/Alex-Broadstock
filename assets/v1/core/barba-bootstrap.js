@@ -1,4 +1,4 @@
-// barba-bootstrap.js - Grid transition adapted from Next.js
+// barba-bootstrap.js - Grid transition exactly matching Next.js reference
 
 import { initPageScripts, initGlobal } from "./page-scripts.js";
 
@@ -7,7 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   initGlobal();
 
-  // Create the transition grid overlay once
+  // Create the transition grid overlay - matching the exact structure
   const createTransitionGrid = () => {
     const grid = document.createElement('div');
     grid.className = 'transition-grid';
@@ -23,7 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
       z-index: 1000;
     `;
     
-    // Create 110 divs (11 columns x 10 rows)
+    // Create exactly 110 divs as in the original (matching the JSX)
     for (let i = 0; i < 110; i++) {
       const div = document.createElement('div');
       div.style.cssText = `
@@ -33,7 +33,7 @@ document.addEventListener("DOMContentLoaded", () => {
         margin-top: -1px;
         transform: scaleY(0);
         transform-origin: 0% 100%;
-        background: #fff;
+        background: #000;
       `;
       grid.appendChild(div);
     }
@@ -44,6 +44,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Initialize the grid but keep it hidden
   const transitionGrid = createTransitionGrid();
+
+  // Register custom ease that matches 'o4' from the original
+  gsap.registerEase("o4", function(progress) {
+    return 1 - Math.pow(1 - progress, 4);
+  });
 
   barba.init({
     transitions: [
@@ -65,41 +70,16 @@ document.addEventListener("DOMContentLoaded", () => {
             current.container.__cleanup();
             delete current.container.__cleanup;
           }
-          
-          // Start the grid animation entering
-          document.body.style.cursor = 'wait';
-          transitionGrid.style.pointerEvents = 'all';
-          
-          const gridDivs = transitionGrid.querySelectorAll('div');
-          const centerColumn = Math.floor(5.5); // Center reference for stagger calculation
-          
-          return gsap.to(gridDivs, {
-            scaleY: 1,
-            transformOrigin: '0% 100%',
-            duration: 0.5,
-            ease: 'power4.out',
-            stagger: {
-              each: (index) => {
-                // Calculate stagger based on distance from center, matching original logic
-                const row = Math.floor(index / 11);
-                const col = index % 11;
-                const distanceFromCenter = Math.abs(col - centerColumn);
-                const rowFactor = 9 - row;
-                
-                // Base stagger with some randomness
-                return (rowFactor + distanceFromCenter) * 0.05 + 0.3 * (Math.random() - 0.5);
-              }
-            }
-          });
+          return Promise.resolve();
         },
 
-        enter({ current, next }) {
+        async enter({ current, next }) {
           const oldMain = current.container;
           const newMain = next.container;
           
           newMain.__cleanup = initPageScripts(newMain);
 
-          // Position containers
+          // Position containers exactly as original
           Object.assign(oldMain.style, { 
             position: 'absolute', 
             inset: '0', 
@@ -110,63 +90,72 @@ document.addEventListener("DOMContentLoaded", () => {
             position: 'absolute', 
             inset: '0', 
             zIndex: '2',
-            opacity: '0' // Start hidden
+            opacity: '0'
           });
 
           const gridDivs = transitionGrid.querySelectorAll('div');
-          const centerColumn = Math.floor(5.5);
+          const C = Math.floor(5.5); // Matching the original centerColumn variable
           
-          const tl = gsap.timeline({
-            onComplete: () => {
-              // Reset styles
-              newMain.style.position = '';
-              newMain.style.inset = '';
-              newMain.style.zIndex = '';
-              newMain.style.opacity = '';
-              
-              if (oldMain && oldMain.parentNode) {
-                oldMain.remove();
-              }
-              
-              // Reset cursor and pointer events
-              document.body.style.cursor = 'default';
-              transitionGrid.style.pointerEvents = 'none';
-              
-              window.scrollTo(0, 0);
-            }
-          });
+          // Enable grid interaction
+          document.body.style.cursor = 'wait';
+          transitionGrid.style.pointerEvents = 'all';
 
-          // At the peak of the transition, swap content visibility
-          tl.set(oldMain, { opacity: 0 }, 0.4)
-            .set(newMain, { opacity: 1 }, 0.4);
-
-          // Animate grid out from top
-          tl.to(gridDivs, {
-            scaleY: 0,
-            transformOrigin: '0% 0%',
-            duration: 0.5,
-            ease: 'power4.out',
-            stagger: {
-              each: (index) => {
+          // Create a promise-based animation sequence matching the original
+          return new Promise((resolve) => {
+            // PHASE 1: onEnter - Grid scales up from bottom
+            gsap.to(gridDivs, {
+              scaleY: 1,
+              transformOrigin: '0% 100%',
+              duration: 0.5,
+              ease: 'o4',
+              stagger: function(index) {
+                // Exact stagger function from original
                 const row = Math.floor(index / 11);
                 const col = index % 11;
-                const distanceFromCenter = Math.abs(col - centerColumn);
-                const rowFactor = 9 - row;
+                return (9 - row + Math.abs(col - C)) * 0.05 + 0.3 * (Math.random() - 0.5);
+              },
+              onComplete: () => {
+                // PHASE 2: onEntered - Swap content and grid scales down from top
+                oldMain.style.opacity = '0';
+                newMain.style.opacity = '1';
                 
-                return (rowFactor + distanceFromCenter) * 0.05 + 0.3 * (Math.random() - 0.5);
+                gsap.to(gridDivs, {
+                  scaleY: 0,
+                  transformOrigin: '0% 0%',
+                  duration: 0.5,
+                  ease: 'o4',
+                  stagger: function(index) {
+                    // Exact stagger function from original
+                    const row = Math.floor(index / 11);
+                    const col = index % 11;
+                    return (9 - row + Math.abs(col - C)) * 0.05 + 0.3 * (Math.random() - 0.5);
+                  },
+                  onComplete: () => {
+                    // PHASE 3: onExited - Clean up
+                    console.log('exited');
+                    
+                    // Reset styles
+                    newMain.style.position = '';
+                    newMain.style.inset = '';
+                    newMain.style.zIndex = '';
+                    newMain.style.opacity = '';
+                    
+                    if (oldMain && oldMain.parentNode) {
+                      oldMain.remove();
+                    }
+                    
+                    window.scrollTo(0, 0);
+                    document.body.style.cursor = 'default';
+                    transitionGrid.style.pointerEvents = 'none';
+                    
+                    resolve();
+                  }
+                });
               }
-            }
-          }, 0.4);
-
-          return tl;
+            });
+          });
         }
       }
     ]
-  });
-
-  // Alternative: Custom ease for the grid animation
-  gsap.registerEase("gridEase", function(progress) {
-    // Custom ease that matches the 'o4' ease feel from the original
-    return 1 - Math.pow(1 - progress, 4);
   });
 });
