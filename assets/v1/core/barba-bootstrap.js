@@ -101,7 +101,7 @@ document.addEventListener("DOMContentLoaded", () => {
           );
           */
           
-
+          /*
           // DYNAMIC VERSION 2: Multi-stage animation with momentum
           // Comment out Version 1 and uncomment this for a different effect
           
@@ -139,12 +139,14 @@ document.addEventListener("DOMContentLoaded", () => {
             },
             0.2
           );
+
+          */
+
+          
+        
           
 
-          // DYNAMIC VERSION 3: Staggered panels effect
-          // Comment out other versions and uncomment this for panel reveal
-          /*
-          // Old page: Shrink to center with twist
+            // Old page: Shrink to center with twist
           tl.fromTo(oldMain, 
             {
               opacity: 1,
@@ -178,7 +180,7 @@ document.addEventListener("DOMContentLoaded", () => {
             },
             0.3
           );
-          */
+        
 
           // DYNAMIC VERSION 4: Cinematic wipe with motion
           // Comment out other versions and uncomment this for cinematic effect
