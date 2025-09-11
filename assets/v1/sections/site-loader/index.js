@@ -11,39 +11,43 @@ export default function initSiteLoader(container) {
   lock.textContent = `html.is-preloading, html.is-preloading body { overflow:hidden!important }`;
   document.head.appendChild(lock);
 
-  // CustomEase setup
-  if (window.CustomEase && !gsap.parseEase("hop")) {
-    window.CustomEase.create("hop", "0.68, -0.55, 0.265, 1.55");
+  // CustomEase setup - smoother curve instead of bouncy hop
+  if (window.CustomEase) {
+    // Create a smoother, more refined ease curve
+    window.CustomEase.create("smooth-out", "0.25, 0.46, 0.45, 0.94");
+    window.CustomEase.create("smooth-in-out", "0.645, 0.045, 0.355, 1.000");
+    window.CustomEase.create("gentle-bounce", "0.34, 1.56, 0.64, 1");
   }
 
   // Check for reduced motion preference
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   
   // Minimum display time to prevent loader from disappearing too quickly
-  const minDisplayTime = 2000; // 2 seconds minimum
+  const minDisplayTime = 2500; // 2.5 seconds minimum for smoother experience
   const startTime = Date.now();
 
-  // Reset initial states
-  gsap.set(loaderEl, { pointerEvents: "all", display: "block" });
-  gsap.set("#word-1 h1", { y: "-120%" });
-  gsap.set("#word-2 h1", { y: "120%" });
-  gsap.set(".block", { clipPath: "polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)" });
+  // Reset initial states with smoother values
+  gsap.set(loaderEl, { pointerEvents: "all", display: "block", opacity: 1 });
+  gsap.set("#word-1 h1", { y: "-100%", opacity: 0 });
+  gsap.set("#word-2 h1", { y: "100%", opacity: 0 });
+  gsap.set(".block", { 
+    clipPath: "polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)",
+    opacity: 1 
+  });
 
   const tl = gsap.timeline({
-    delay: 1.5, // Short delay before animation starts
-    defaults: { ease: "hop" },
+    delay: 0.3, // Shorter initial delay
     onComplete: () => {
       // Ensure minimum display time
       const elapsed = Date.now() - startTime;
       const remaining = Math.max(0, minDisplayTime - elapsed);
       
       setTimeout(() => {
-        // Smooth backdrop filter fade before hiding loader
-        gsap.to(loaderEl.querySelector(".overlay"), {
-          backdropFilter: "blur(0px)",
-          webkitBackdropFilter: "blur(0px)",
-          duration: 0.4,
-          ease: "power2.out",
+        // Smooth fade out before removing
+        gsap.to(loaderEl, {
+          opacity: 0,
+          duration: 0.3,
+          ease: "power2.inOut",
           onComplete: () => {
             loaderEl.style.pointerEvents = "none";
             loaderEl.style.display = "none";
@@ -58,40 +62,63 @@ export default function initSiteLoader(container) {
 
   // Apply reduced motion if user prefers it
   if (prefersReducedMotion) {
-    tl.timeScale(10); // Much faster for users who prefer reduced motion
+    tl.timeScale(3); // Faster but not instant
   }
 
-  // === WORDS IN ===
-  tl.to(
-    ".word h1",
-    { y: "0%", duration: 1 },
-    0 // Start immediately when timeline begins
-  );
+  // === WORDS IN - Smoother entrance ===
+  // First word slides in from top with fade
+  tl.to("#word-1 h1", { 
+    y: "0%", 
+    opacity: 1,
+    duration: 0.8,
+    ease: "power3.out" // Smooth deceleration
+  }, 0);
+  
+  // Second word slides in from bottom with slight delay for elegance
+  tl.to("#word-2 h1", { 
+    y: "0%", 
+    opacity: 1,
+    duration: 0.8,
+    ease: "power3.out"
+  }, 0.1); // Slight stagger for smoother feel
 
-  // === WORDS OUT ===
-  tl.to(loaderEl.querySelectorAll("#word-1 h1"), { 
+  // === HOLD - Let the name breathe ===
+  tl.set({}, {}, "+=1.2"); // Hold for readability
+
+  // === WORDS OUT - Coordinated exit ===
+  tl.to("#word-1 h1", { 
     y: "100%", 
-    duration: 1, 
-    delay: 1.5 // Let words stay visible for 1.5 seconds
+    opacity: 0,
+    duration: 0.6, 
+    ease: "power2.in" // Accelerate out
   });
   
-  tl.to(
-    loaderEl.querySelectorAll("#word-2 h1"),
-    { y: "-100%", duration: 1 },
-    "<" // Start at same time as word-1
-  );
+  tl.to("#word-2 h1", { 
+    y: "-100%", 
+    opacity: 0,
+    duration: 0.6,
+    ease: "power2.in"
+  }, "<"); // Start at same time for synchronized exit
 
-  // === PANELS CLOSE (REVEAL CONTENT BEHIND) ===
-  tl.to(
-    loaderEl.querySelectorAll(".block"),
-    {
-      clipPath: "polygon(0% 0%, 100% 0%, 100% 0%, 0% 0%)",
-      duration: 1,
-      stagger: 0.05,
-      delay: 0.75,
+  // === PANELS CLOSE - Refined reveal ===
+  // Use a more elegant easing for the clip-path animation
+  tl.to(".block", {
+    clipPath: "polygon(0% 0%, 100% 0%, 100% 0%, 0% 0%)",
+    duration: 0.8,
+    stagger: {
+      each: 0.08, // Slightly longer stagger for smoother transition
+      from: "center", // Start from center for symmetrical feel
+      ease: "power2.inOut"
     },
-    "<" // Start with words out animation
-  );
+    ease: "power3.inOut" // Smooth S-curve for panel animation
+  }, "-=0.3"); // Start slightly before words are fully out
+
+  // Optional: Add subtle scale animation to panels for depth
+  tl.to(".block", {
+    scaleY: 0.98,
+    duration: 0.8,
+    ease: "power2.inOut"
+  }, "<");
 
   // Cleanup
   return () => {
