@@ -89,15 +89,15 @@ document.addEventListener("DOMContentLoaded", () => {
           );
 
           // 2. New page animation (::view-transition-new)
-          // Animates from circle(0%) TO circle(75%)
+          // Animates from small square TO full viewport rectangle
           tl.fromTo(newMain,
             {
-              clipPath: "circle(0% at 50% 50%)",
+              clipPath: "inset(45% 45% 45% 45%)", // Small square in center (10% x 10%)
               opacity: 1,
               scale: 1
             },
             {
-              clipPath: "circle(75% at 50% 50%)",
+              clipPath: "inset(0% 0% 0% 0%)", // Full viewport rectangle
               duration: 2,
               ease: "cubic-bezier(0.87, 0, 0.13, 1)"
             },
