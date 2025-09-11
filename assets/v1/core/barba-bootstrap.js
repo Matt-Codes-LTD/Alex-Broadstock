@@ -33,7 +33,7 @@ document.addEventListener("DOMContentLoaded", () => {
         margin-top: -1px;
         transform: scaleY(0);
         transform-origin: 0% 100%;
-        background: #000;
+        background: #fff;
       `;
       grid.appendChild(div);
     }
