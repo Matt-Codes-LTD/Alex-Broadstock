@@ -60,7 +60,8 @@ document.addEventListener("DOMContentLoaded", () => {
               window.scrollTo(0, 0);
             }
           });
-
+          
+          /*
           // DYNAMIC VERSION 1: Asymmetric rectangle with rotation
           // Uncomment this version for a tilted, asymmetric reveal
           
@@ -98,11 +99,12 @@ document.addEventListener("DOMContentLoaded", () => {
             },
             0.3 // Slight delay for overlap effect
           );
+          */
           
 
           // DYNAMIC VERSION 2: Multi-stage animation with momentum
           // Comment out Version 1 and uncomment this for a different effect
-          /*
+          
           // Old page: Elastic scale with blur
           tl.fromTo(oldMain, 
             {
@@ -137,7 +139,7 @@ document.addEventListener("DOMContentLoaded", () => {
             },
             0.2
           );
-          */
+          
 
           // DYNAMIC VERSION 3: Staggered panels effect
           // Comment out other versions and uncomment this for panel reveal
