@@ -7,32 +7,36 @@ export default function initHomeHero(container) {
   if (!section || section.dataset.scriptInitialized) return () => {};
   section.dataset.scriptInitialized = "true";
 
+  // Core elements
   const videoStage = section.querySelector(".home-hero_video");
   const listParent = section.querySelector(".home-hero_list_parent");
   const awardsStrip = section.querySelector(".home-awards_list");
   
-  if (!videoStage || !listParent) return () => {};
+  if (!videoStage || !listParent) {
+    console.warn("[HomeHero] Missing required elements");
+    return () => {};
+  }
 
-  const links = Array.from(section.querySelectorAll(".home-hero_link"));
+  // Get all project items
   const items = Array.from(section.querySelectorAll(".home-hero_list"));
   const videoManager = createVideoManager(videoStage);
+  
+  // Track active item
+  let activeItem = null;
 
-  // Initialize awards display
+  // Awards management
   function updateAwards(item) {
     if (!awardsStrip) return;
     
-    // Clear current awards
     awardsStrip.innerHTML = "";
     awardsStrip.classList.remove("is-visible");
     
-    // Find awards in the active item
     const awardsContainer = item?.querySelector(".home-project_awards");
     if (!awardsContainer) return;
     
     const awardImages = awardsContainer.querySelectorAll("img");
     if (!awardImages.length) return;
     
-    // Clone awards to strip
     awardImages.forEach(img => {
       const clone = img.cloneNode(true);
       clone.removeAttribute("sizes");
@@ -40,85 +44,118 @@ export default function initHomeHero(container) {
       awardsStrip.appendChild(clone);
     });
     
-    // Fade in
     requestAnimationFrame(() => {
       awardsStrip.classList.add("is-visible");
     });
   }
 
-  // Set active state
-  function setActive(link) {
-    const item = link.closest(".home-hero_list");
-    const videoSrc = link.dataset.video;
+  // Set active project
+  function setActive(item) {
+    if (!item || item.style.display === "none") return;
+    if (activeItem === item) return;
     
-    // Update link states
-    links.forEach(l => {
-      const isActive = l === link;
-      l.setAttribute("aria-current", isActive ? "true" : "false");
-      const text = l.querySelector(".home_hero_text");
-      if (text) text.classList.toggle("u-color-faded", !isActive);
-    });
+    activeItem = item;
     
-    // Update category pills
+    // Get video from .home-hero_item element
+    const projectEl = item.querySelector(".home-hero_item");
+    const videoSrc = projectEl?.dataset.video;
+    
+    // Update all items' states
     items.forEach(i => {
       const isActive = i === item;
+      const link = i.querySelector(".home-hero_link");
+      const text = i.querySelector(".home_hero_text");
+      
+      // Update link state
+      if (link) {
+        link.setAttribute("aria-current", isActive ? "true" : "false");
+      }
+      
+      // Update text color
+      if (text) {
+        text.classList.toggle("u-color-faded", !isActive);
+      }
+      
+      // Update category pills
       i.querySelectorAll(".home-category_ref_text:not([hidden])").forEach(pill => {
         pill.classList.toggle("u-color-faded", !isActive);
       });
     });
     
-    // Update video
-    if (videoSrc) videoManager.setActive(videoSrc, link);
+    // Trigger video change
+    if (videoSrc && videoManager) {
+      // Create a pseudo-link object for compatibility with video-manager
+      const pseudoLink = { 
+        dataset: { video: videoSrc },
+        getAttribute: () => videoSrc
+      };
+      videoManager.setActive(videoSrc, pseudoLink);
+    }
     
     // Update awards
     updateAwards(item);
   }
 
   // Preload videos
-  const MAX_EAGER = 3;
-  links.forEach((link, i) => {
-    const v = videoManager.createVideo(link.dataset.video);
-    if (v && i < MAX_EAGER) videoManager.warmVideo(v);
-  });
-
-  // Initialize first visible
-  const firstVisible = links.find(l => {
-    const item = l.closest(".home-hero_list");
-    return item && item.style.display !== "none";
-  });
-  if (firstVisible) setActive(firstVisible);
-
-  // Hide "Selected" tags
-  section.querySelectorAll(".home-category_ref_text").forEach(tag => {
-    const text = (tag.textContent || "").trim().toLowerCase();
-    if (text === "selected") tag.setAttribute("hidden", "");
-  });
-
-  // Initialize category filter with awards callback
-  const cleanupFilter = initCategoryFilter(section, videoManager, (firstVisibleItem) => {
-    if (firstVisibleItem) setActive(firstVisibleItem);
-  });
-
-  // Hover/focus handlers
-  function onPointerOver(e) {
-    const item = e.target.closest(".home-hero_list");
-    if (!item || !listParent.contains(item)) return;
-    if (item.style.display !== "none") setActive(item);
+  function preloadVideos() {
+    const MAX_EAGER = 3;
+    let count = 0;
+    
+    items.forEach(item => {
+      const projectEl = item.querySelector(".home-hero_item");
+      const videoSrc = projectEl?.dataset.video;
+      
+      if (videoSrc && videoManager) {
+        const video = videoManager.createVideo(videoSrc);
+        if (video && count < MAX_EAGER) {
+          videoManager.warmVideo(video);
+          count++;
+        }
+      }
+    });
   }
 
-  listParent.addEventListener("pointerover", onPointerOver, { passive: true });
-  listParent.addEventListener("focusin", onPointerOver);
-  listParent.addEventListener("touchstart", onPointerOver, { passive: true });
+  // Hide "Selected" tags
+  function hideMetaTags() {
+    section.querySelectorAll(".home-category_ref_text").forEach(tag => {
+      const text = (tag.textContent || "").trim().toLowerCase();
+      if (text === "selected" || text === "archive") {
+        tag.setAttribute("hidden", "");
+      }
+    });
+  }
 
-  // Pause videos when tab hidden
-  const visHandler = () => {
+  // Event handlers
+  function handleInteraction(e) {
+    const item = e.target.closest(".home-hero_list");
+    if (!item || !listParent.contains(item)) return;
+    if (item.style.display !== "none") {
+      setActive(item);
+    }
+  }
+
+  // Initialize category filter with callback
+  const cleanupFilter = initCategoryFilter(section, videoManager, (firstVisible) => {
+    // After filter, set first visible item as active
+    const firstItem = items.find(i => i.style.display !== "none");
+    if (firstItem) setActive(firstItem);
+  });
+
+  // Bind events
+  listParent.addEventListener("mouseenter", handleInteraction, true);
+  listParent.addEventListener("focusin", handleInteraction);
+  listParent.addEventListener("touchstart", handleInteraction, { passive: true });
+  listParent.addEventListener("click", handleInteraction);
+
+  // Handle tab visibility
+  const handleVisibility = () => {
     if (document.hidden) {
       videoStage.querySelectorAll(".home-hero_video_el").forEach(v => v.pause?.());
     }
   };
-  document.addEventListener("visibilitychange", visHandler);
+  document.addEventListener("visibilitychange", handleVisibility);
 
-  // CSS for awards
+  // Add required CSS
   if (!section.querySelector("[data-awards-css]")) {
     const style = document.createElement("style");
     style.setAttribute("data-awards-css", "");
@@ -139,12 +176,23 @@ export default function initHomeHero(container) {
     section.appendChild(style);
   }
 
-  // Cleanup
+  // Initialize
+  hideMetaTags();
+  preloadVideos();
+  
+  // Set first visible item as active
+  const firstVisible = items.find(item => item.style.display !== "none");
+  if (firstVisible) {
+    setActive(firstVisible);
+  }
+
+  // Cleanup function
   return () => {
-    listParent.removeEventListener("pointerover", onPointerOver);
-    listParent.removeEventListener("focusin", onPointerOver);
-    listParent.removeEventListener("touchstart", onPointerOver);
-    document.removeEventListener("visibilitychange", visHandler);
+    listParent.removeEventListener("mouseenter", handleInteraction, true);
+    listParent.removeEventListener("focusin", handleInteraction);
+    listParent.removeEventListener("touchstart", handleInteraction);
+    listParent.removeEventListener("click", handleInteraction);
+    document.removeEventListener("visibilitychange", handleVisibility);
     cleanupFilter?.();
     delete section.dataset.scriptInitialized;
   };
