@@ -95,16 +95,15 @@ export default function initHomeHero(container) {
   });
 
   // Initialize category filter with awards callback
-  const cleanupFilter = initCategoryFilter(section, videoManager, (firstVisibleLink) => {
-    if (firstVisibleLink) setActive(firstVisibleLink);
+  const cleanupFilter = initCategoryFilter(section, videoManager, (firstVisibleItem) => {
+    if (firstVisibleItem) setActive(firstVisibleItem);
   });
 
   // Hover/focus handlers
   function onPointerOver(e) {
-    const link = e.target.closest(".home-hero_link");
-    if (!link || !listParent.contains(link)) return;
-    const item = link.closest(".home-hero_list");
-    if (item && item.style.display !== "none") setActive(link);
+    const item = e.target.closest(".home-hero_list");
+    if (!item || !listParent.contains(item)) return;
+    if (item.style.display !== "none") setActive(item);
   }
 
   listParent.addEventListener("pointerover", onPointerOver, { passive: true });
