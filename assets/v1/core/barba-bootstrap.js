@@ -1,4 +1,4 @@
-// barba-bootstrap.js - Grid transition with glass effect
+// barba-bootstrap.js - Grid transition exactly matching Next.js reference
 
 import { initPageScripts, initGlobal } from "./page-scripts.js";
 
@@ -7,14 +7,34 @@ document.addEventListener("DOMContentLoaded", () => {
 
   initGlobal();
 
-  // Create the transition grid overlay
+  // Create the transition grid overlay - matching the exact structure
   const createTransitionGrid = () => {
     const grid = document.createElement('div');
     grid.className = 'transition-grid';
+    grid.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: grid;
+      grid-template-columns: repeat(11, 1fr);
+      pointer-events: none;
+      z-index: 1000;
+    `;
     
-    // Create exactly 110 divs (CSS handles all styling)
+    // Create exactly 110 divs as in the original (matching the JSX)
     for (let i = 0; i < 110; i++) {
       const div = document.createElement('div');
+      div.style.cssText = `
+        width: calc(100% + 2px);
+        height: calc(100% + 2px);
+        margin-left: -1px;
+        margin-top: -1px;
+        transform: scaleY(0);
+        transform-origin: 0% 100%;
+        background: #000;
+      `;
       grid.appendChild(div);
     }
     
@@ -46,7 +66,7 @@ document.addEventListener("DOMContentLoaded", () => {
         },
 
         leave({ current }) {
-          // Mark as navigating when transition starts
+          // ADD: Mark as navigating when transition starts
           document.body.classList.add('barba-navigating');
           
           if (current?.container?.__cleanup) {
@@ -131,7 +151,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     document.body.style.cursor = 'default';
                     transitionGrid.style.pointerEvents = 'none';
                     
-                    // Remove navigation class when complete
+                    // ADD: Remove navigation class when complete
                     document.body.classList.remove('barba-navigating');
                     
                     resolve();
