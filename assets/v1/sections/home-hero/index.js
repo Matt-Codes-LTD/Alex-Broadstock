@@ -28,25 +28,40 @@ export default function initHomeHero(container) {
   function updateAwards(item) {
     if (!awardsStrip) return;
     
-    awardsStrip.innerHTML = "";
+    // Fade out current awards
+    awardsStrip.style.transition = 'opacity 0.3s ease';
     awardsStrip.classList.remove("is-visible");
     
-    const awardsContainer = item?.querySelector(".home-project_awards");
-    if (!awardsContainer) return;
-    
-    const awardImages = awardsContainer.querySelectorAll("img");
-    if (!awardImages.length) return;
-    
-    awardImages.forEach(img => {
-      const clone = img.cloneNode(true);
-      clone.removeAttribute("sizes");
-      clone.removeAttribute("srcset");
-      awardsStrip.appendChild(clone);
-    });
-    
-    requestAnimationFrame(() => {
-      awardsStrip.classList.add("is-visible");
-    });
+    setTimeout(() => {
+      // Clear after fade out
+      awardsStrip.innerHTML = "";
+      
+      const awardsContainer = item?.querySelector(".home-project_awards");
+      if (!awardsContainer) return;
+      
+      const awardImages = awardsContainer.querySelectorAll("img");
+      if (!awardImages.length) return;
+      
+      // Add new awards
+      awardImages.forEach(img => {
+        const clone = img.cloneNode(true);
+        clone.removeAttribute("sizes");
+        clone.removeAttribute("srcset");
+        clone.style.opacity = "0";
+        clone.style.transition = "opacity 0.3s ease";
+        awardsStrip.appendChild(clone);
+      });
+      
+      // Fade in new awards
+      requestAnimationFrame(() => {
+        awardsStrip.classList.add("is-visible");
+        awardsStrip.querySelectorAll("img").forEach((img, i) => {
+          setTimeout(() => {
+            img.style.opacity = "1";
+          }, i * 50); // Stagger each image by 50ms
+        });
+      });
+    }, 300); // Wait for fade out
   }
 
   // Set active project
