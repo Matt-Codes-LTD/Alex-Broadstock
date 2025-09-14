@@ -7,38 +7,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   initGlobal();
 
-  // Create the transition grid overlay with glass effect
+  // Create the transition grid overlay
   const createTransitionGrid = () => {
     const grid = document.createElement('div');
     grid.className = 'transition-grid';
-    grid.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      display: grid;
-      grid-template-columns: repeat(11, 1fr);
-      pointer-events: none;
-      z-index: 1000;
-    `;
     
-    // Create exactly 110 divs with glass effect
+    // Create exactly 110 divs (CSS handles all styling)
     for (let i = 0; i < 110; i++) {
       const div = document.createElement('div');
-      div.style.cssText = `
-        width: calc(100% + 2px);
-        height: calc(100% + 2px);
-        margin-left: -1px;
-        margin-top: -1px;
-        transform: scaleY(0);
-        transform-origin: 0% 100%;
-        background: rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        
-        will-change: transform, backdrop-filter;
-      `;
       grid.appendChild(div);
     }
     
