@@ -10,13 +10,14 @@ export default function initHomeHero(container) {
   const listParent = section.querySelector(".home-hero_list_parent");
   if (!stage || !listParent) return () => {};
 
-  const links = Array.from(section.querySelectorAll(".home-hero_link"));
+  // Update selector to find home-hero_item instead of home-hero_link
+  const items = Array.from(section.querySelectorAll(".home-hero_item"));
   const videoManager = createVideoManager(stage);
 
   // Preload eager videos
   const MAX_EAGER = Number(section.getAttribute("data-warm-eager") || 3);
-  links.forEach((lnk, i) => {
-    const v = videoManager.createVideo(lnk.dataset.video);
+  items.forEach((item, i) => {
+    const v = videoManager.createVideo(item.dataset.video);
     if (v) {
       i < MAX_EAGER
         ? videoManager.warmVideo(v)
@@ -27,8 +28,8 @@ export default function initHomeHero(container) {
   });
 
   // Init first video
-  if (links.length) {
-    const first = links[0];
+  if (items.length) {
+    const first = items[0];
     videoManager.createVideo(first.dataset.video);
     videoManager.setActive(first.dataset.video, first);
   }
@@ -36,11 +37,11 @@ export default function initHomeHero(container) {
   // ✅ Single call for categories
   const cleanupCat = initCategoryFilter(section, videoManager);
 
-  // Hover/focus videos
+  // Hover/focus videos - updated to use home-hero_item
   function onPointerOver(e) {
-    const a = e.target.closest?.(".home-hero_link");
-    if (!a || !listParent.contains(a)) return;
-    videoManager.setActive(a.dataset.video, a);
+    const item = e.target.closest?.(".home-hero_item");
+    if (!item || !listParent.contains(item)) return;
+    videoManager.setActive(item.dataset.video, item);
   }
   
   // ADD THIS: Mark project clicks to skip FLIP animation
