@@ -84,12 +84,13 @@ export default function initHomeHero(container) {
     
     // Trigger video change
     if (videoSrc && videoManager) {
-      // Create a pseudo-link object for compatibility with video-manager
-      const pseudoLink = { 
-        dataset: { video: videoSrc },
-        getAttribute: () => videoSrc
-      };
-      videoManager.setActive(videoSrc, pseudoLink);
+      // Pass the actual link element to video-manager
+      const linkEl = item.querySelector(".home-hero_link");
+      if (linkEl) {
+        // Add data-video to link temporarily for video-manager compatibility
+        linkEl.dataset.video = videoSrc;
+        videoManager.setActive(videoSrc, linkEl);
+      }
     }
     
     // Update awards
