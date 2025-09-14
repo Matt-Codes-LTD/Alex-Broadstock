@@ -120,7 +120,7 @@ export default function initHomeHero(container) {
   function hideMetaTags() {
     section.querySelectorAll(".home-category_ref_text").forEach(tag => {
       const text = (tag.textContent || "").trim().toLowerCase();
-      if (text === "selected" || text === "archive") {
+      if (text === "selected") {
         tag.setAttribute("hidden", "");
       }
     });
