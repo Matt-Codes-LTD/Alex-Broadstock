@@ -1,3 +1,4 @@
+// assets/v1/sections/home-hero/index.js
 import { createVideoManager } from "./video-manager.js";
 import { initCategoryFilter } from "./category-filter.js";
 
@@ -6,76 +7,146 @@ export default function initHomeHero(container) {
   if (!section || section.dataset.scriptInitialized) return () => {};
   section.dataset.scriptInitialized = "true";
 
-  const stage = section.querySelector(".home-hero_video");
+  const videoStage = section.querySelector(".home-hero_video");
   const listParent = section.querySelector(".home-hero_list_parent");
-  if (!stage || !listParent) return () => {};
+  const awardsStrip = section.querySelector(".home-awards_list");
+  
+  if (!videoStage || !listParent) return () => {};
 
-  // Update selector to find home-hero_item instead of home-hero_link
-  const items = Array.from(section.querySelectorAll(".home-hero_item"));
-  const videoManager = createVideoManager(stage);
+  const links = Array.from(section.querySelectorAll(".home-hero_link"));
+  const items = Array.from(section.querySelectorAll(".home-hero_list"));
+  const videoManager = createVideoManager(videoStage);
 
-  // Preload eager videos
-  const MAX_EAGER = Number(section.getAttribute("data-warm-eager") || 3);
-  items.forEach((item, i) => {
-    const v = videoManager.createVideo(item.dataset.video);
-    if (v) {
-      i < MAX_EAGER
-        ? videoManager.warmVideo(v)
-        : (window.requestIdleCallback || ((fn) => setTimeout(fn, 400)))(() =>
-            videoManager.warmVideo(v)
-          );
-    }
+  // Initialize awards display
+  function updateAwards(item) {
+    if (!awardsStrip) return;
+    
+    // Clear current awards
+    awardsStrip.innerHTML = "";
+    awardsStrip.classList.remove("is-visible");
+    
+    // Find awards in the active item
+    const awardsContainer = item?.querySelector(".home-project_awards");
+    if (!awardsContainer) return;
+    
+    const awardImages = awardsContainer.querySelectorAll("img");
+    if (!awardImages.length) return;
+    
+    // Clone awards to strip
+    awardImages.forEach(img => {
+      const clone = img.cloneNode(true);
+      clone.removeAttribute("sizes");
+      clone.removeAttribute("srcset");
+      awardsStrip.appendChild(clone);
+    });
+    
+    // Fade in
+    requestAnimationFrame(() => {
+      awardsStrip.classList.add("is-visible");
+    });
+  }
+
+  // Set active state
+  function setActive(link) {
+    const item = link.closest(".home-hero_list");
+    const videoSrc = link.dataset.video;
+    
+    // Update link states
+    links.forEach(l => {
+      const isActive = l === link;
+      l.setAttribute("aria-current", isActive ? "true" : "false");
+      const text = l.querySelector(".home_hero_text");
+      if (text) text.classList.toggle("u-color-faded", !isActive);
+    });
+    
+    // Update category pills
+    items.forEach(i => {
+      const isActive = i === item;
+      i.querySelectorAll(".home-category_ref_text:not([hidden])").forEach(pill => {
+        pill.classList.toggle("u-color-faded", !isActive);
+      });
+    });
+    
+    // Update video
+    if (videoSrc) videoManager.setActive(videoSrc, link);
+    
+    // Update awards
+    updateAwards(item);
+  }
+
+  // Preload videos
+  const MAX_EAGER = 3;
+  links.forEach((link, i) => {
+    const v = videoManager.createVideo(link.dataset.video);
+    if (v && i < MAX_EAGER) videoManager.warmVideo(v);
   });
 
-  // Init first video
-  if (items.length) {
-    const first = items[0];
-    videoManager.createVideo(first.dataset.video);
-    videoManager.setActive(first.dataset.video, first);
-  }
+  // Initialize first visible
+  const firstVisible = links.find(l => {
+    const item = l.closest(".home-hero_list");
+    return item && item.style.display !== "none";
+  });
+  if (firstVisible) setActive(firstVisible);
 
-  // ✅ Single call for categories
-  const cleanupCat = initCategoryFilter(section, videoManager);
+  // Hide "Selected" tags
+  section.querySelectorAll(".home-category_ref_text").forEach(tag => {
+    const text = (tag.textContent || "").trim().toLowerCase();
+    if (text === "selected") tag.setAttribute("hidden", "");
+  });
 
-  // Hover/focus videos - updated to use home-hero_item
+  // Initialize category filter with awards callback
+  const cleanupFilter = initCategoryFilter(section, videoManager, (firstVisibleLink) => {
+    if (firstVisibleLink) setActive(firstVisibleLink);
+  });
+
+  // Hover/focus handlers
   function onPointerOver(e) {
-    const item = e.target.closest?.(".home-hero_item");
-    if (!item || !listParent.contains(item)) return;
-    videoManager.setActive(item.dataset.video, item);
+    const link = e.target.closest(".home-hero_link");
+    if (!link || !listParent.contains(link)) return;
+    const item = link.closest(".home-hero_list");
+    if (item && item.style.display !== "none") setActive(link);
   }
-  
-  // ADD THIS: Mark project clicks to skip FLIP animation
-  function onProjectClick(e) {
-    const projectUrl = e.target.closest(".home-hero_url");
-    const categoryBtn = e.target.closest(".home-category_text");
-    
-    // Only mark as navigating if it's a project link, not a category button
-    if (projectUrl && !categoryBtn) {
-      section.dataset.navigating = "true";
-      // Longer timeout to ensure FLIP doesn't trigger during Barba init
-      setTimeout(() => delete section.dataset.navigating, 500);
-    }
-  }
-  
-  listParent.addEventListener("click", onProjectClick, { capture: true });
+
   listParent.addEventListener("pointerover", onPointerOver, { passive: true });
   listParent.addEventListener("focusin", onPointerOver);
   listParent.addEventListener("touchstart", onPointerOver, { passive: true });
 
+  // Pause videos when tab hidden
   const visHandler = () => {
-    if (document.hidden)
-      stage.querySelectorAll(".home-hero_video_el").forEach((v) => v.pause?.());
+    if (document.hidden) {
+      videoStage.querySelectorAll(".home-hero_video_el").forEach(v => v.pause?.());
+    }
   };
   document.addEventListener("visibilitychange", visHandler);
 
+  // CSS for awards
+  if (!section.querySelector("[data-awards-css]")) {
+    const style = document.createElement("style");
+    style.setAttribute("data-awards-css", "");
+    style.textContent = `
+      .home-awards_list {
+        opacity: 0;
+        transition: opacity .3s ease;
+      }
+      .home-awards_list.is-visible {
+        opacity: 1;
+      }
+      .home-awards_list img {
+        height: 4rem;
+        width: auto;
+        display: block;
+      }
+    `;
+    section.appendChild(style);
+  }
+
   // Cleanup
   return () => {
-    listParent.removeEventListener("click", onProjectClick, { capture: true });
     listParent.removeEventListener("pointerover", onPointerOver);
     listParent.removeEventListener("focusin", onPointerOver);
     listParent.removeEventListener("touchstart", onPointerOver);
     document.removeEventListener("visibilitychange", visHandler);
-    cleanupCat?.();
+    cleanupFilter?.();
     delete section.dataset.scriptInitialized;
   };
 }
