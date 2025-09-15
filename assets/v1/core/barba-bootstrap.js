@@ -1,4 +1,4 @@
-// barba-bootstrap.js - Targeted fix for layout shift while preserving animations
+// barba-bootstrap.js - Grid transition exactly matching Next.js reference
 
 import { initPageScripts, initGlobal } from "./page-scripts.js";
 
@@ -7,7 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   initGlobal();
 
-  // Create the transition grid overlay
+  // Create the transition grid overlay - matching the exact structure
   const createTransitionGrid = () => {
     const grid = document.createElement('div');
     grid.className = 'transition-grid';
@@ -23,7 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
       z-index: 1000;
     `;
     
-    // Create exactly 110 divs
+    // Create exactly 110 divs as in the original (matching the JSX)
     for (let i = 0; i < 110; i++) {
       const div = document.createElement('div');
       div.style.cssText = `
@@ -45,7 +45,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Initialize the grid but keep it hidden
   const transitionGrid = createTransitionGrid();
 
-  // Register custom ease
+  // Register custom ease that matches 'o4' from the original
   gsap.registerEase("o4", function(progress) {
     return 1 - Math.pow(1 - progress, 4);
   });
@@ -65,39 +65,10 @@ document.addEventListener("DOMContentLoaded", () => {
           });
         },
 
-        beforeLeave({ current }) {
-          // Mark as navigating to prevent FLIP animations
+        leave({ current }) {
+          // ADD: Mark as navigating when transition starts
           document.body.classList.add('barba-navigating');
           
-          const homeHero = current.container.querySelector('.home-hero_wrap');
-          if (homeHero) {
-            homeHero.dataset.navigating = "true";
-            
-            // Only kill FLIP animation tweens, not video crossfades
-            gsap.killTweensOf('.home-hero_list');
-            gsap.killTweensOf('.ghost-exit-layer *');
-            
-            // Lock the current layout state of lists
-            const lists = homeHero.querySelectorAll('.home-hero_list');
-            lists.forEach(list => {
-              // Get current computed values
-              const rect = list.getBoundingClientRect();
-              const computed = getComputedStyle(list);
-              
-              // Only lock transform and display, not opacity
-              if (computed.display !== 'none') {
-                list.style.transform = 'none';
-                list.style.willChange = 'auto';
-              }
-            });
-            
-            // Remove any ghost elements immediately
-            const ghosts = document.querySelectorAll('.ghost-exit-layer');
-            ghosts.forEach(g => g.remove());
-          }
-        },
-
-        leave({ current }) {
           if (current?.container?.__cleanup) {
             current.container.__cleanup();
             delete current.container.__cleanup;
@@ -111,13 +82,7 @@ document.addEventListener("DOMContentLoaded", () => {
           
           newMain.__cleanup = initPageScripts(newMain);
 
-          // Lock old container dimensions
-          const oldMainRect = oldMain.getBoundingClientRect();
-          oldMain.style.width = oldMainRect.width + 'px';
-          oldMain.style.height = oldMainRect.height + 'px';
-          oldMain.style.overflow = 'hidden';
-          
-          // Position containers
+          // Position containers exactly as original
           Object.assign(oldMain.style, { 
             position: 'absolute', 
             inset: '0', 
@@ -132,26 +97,28 @@ document.addEventListener("DOMContentLoaded", () => {
           });
 
           const gridDivs = transitionGrid.querySelectorAll('div');
-          const C = Math.floor(5.5); // Center column
+          const C = Math.floor(5.5); // Matching the original centerColumn variable
           
           // Enable grid interaction
           document.body.style.cursor = 'none';
           transitionGrid.style.pointerEvents = 'all';
 
+          // Create a promise-based animation sequence matching the original
           return new Promise((resolve) => {
-            // PHASE 1: Grid scales up from bottom
+            // PHASE 1: onEnter - Grid scales up from bottom
             gsap.to(gridDivs, {
               scaleY: 1,
               transformOrigin: '0% 100%',
               duration: 0.5,
               ease: 'o4',
               stagger: function(index) {
+                // Exact stagger function from original
                 const row = Math.floor(index / 11);
                 const col = index % 11;
                 return (9 - row + Math.abs(col - C)) * 0.05 + 0.3 * (Math.random() - 0.5);
               },
               onComplete: () => {
-                // PHASE 2: Swap content and grid scales down
+                // PHASE 2: onEntered - Swap content and grid scales down from top
                 oldMain.style.opacity = '0';
                 newMain.style.opacity = '1';
                 
@@ -161,30 +128,30 @@ document.addEventListener("DOMContentLoaded", () => {
                   duration: 0.5,
                   ease: 'o4',
                   stagger: function(index) {
+                    // Exact stagger function from original
                     const row = Math.floor(index / 11);
                     const col = index % 11;
                     return (9 - row + Math.abs(col - C)) * 0.05 + 0.3 * (Math.random() - 0.5);
                   },
                   onComplete: () => {
+                    // PHASE 3: onExited - Clean up
                     console.log('exited');
                     
-                    // Reset new container styles
+                    // Reset styles
                     newMain.style.position = '';
                     newMain.style.inset = '';
                     newMain.style.zIndex = '';
                     newMain.style.opacity = '';
                     
-                    // Remove old container
                     if (oldMain && oldMain.parentNode) {
                       oldMain.remove();
                     }
                     
-                    // Reset page state
                     window.scrollTo(0, 0);
                     document.body.style.cursor = 'default';
                     transitionGrid.style.pointerEvents = 'none';
                     
-                    // Remove navigation class
+                    // ADD: Remove navigation class when complete
                     document.body.classList.remove('barba-navigating');
                     
                     resolve();
@@ -195,27 +162,6 @@ document.addEventListener("DOMContentLoaded", () => {
           });
         }
       }
-    ],
-    // Add click handler to prevent FLIP animations immediately
-    preventRunning: true,
-    onClick: (e) => {
-      const link = e.currentTarget;
-      
-      // If it's a project link, prevent FLIP animations
-      if (link.closest('.home-hero_item')) {
-        // Set navigation flag immediately
-        const homeHero = document.querySelector('.home-hero_wrap');
-        if (homeHero) {
-          homeHero.dataset.navigating = "true";
-        }
-        
-        // Kill only FLIP animations, not video animations
-        gsap.killTweensOf('.home-hero_list');
-        gsap.killTweensOf('.ghost-exit-layer *');
-        
-        // Remove any existing ghost elements
-        document.querySelectorAll('.ghost-exit-layer').forEach(g => g.remove());
-      }
-    }
+    ]
   });
 });
