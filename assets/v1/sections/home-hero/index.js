@@ -7,12 +7,12 @@ function initBlendEffect(section) {
   const items = section.querySelectorAll('.home-hero_list');
   
   items.forEach(item => {
-    // Create blend bars container
+    // Add blend bars to main container
     const barsContainer = document.createElement('div');
     barsContainer.className = 'home-hero_blend-bars';
     barsContainer.setAttribute('data-direction', 'left');
     
-    // Create staggered bars with varying --i values
+    // Create staggered bars for main area
     [3, 4, 5, 6, 7, 8, 10, 14, 18, 24, 30].forEach(i => {
       const bar = document.createElement('div');
       bar.className = 'home-hero_blend-bar';
@@ -20,8 +20,26 @@ function initBlendEffect(section) {
       barsContainer.appendChild(bar);
     });
     
-    // Insert into the item
     item.appendChild(barsContainer);
+    
+    // Add blend bars to category area
+    const categoryArea = item.querySelector('.home-category_ref');
+    if (categoryArea) {
+      const catBarsContainer = document.createElement('div');
+      catBarsContainer.className = 'home-category_blend-bars';
+      catBarsContainer.setAttribute('data-direction', 'right');
+      
+      // Fewer bars for the smaller category area
+      [3, 5, 7, 10, 15, 20].forEach(i => {
+        const bar = document.createElement('div');
+        bar.className = 'home-category_blend-bar';
+        bar.style.setProperty('--i', i);
+        catBarsContainer.appendChild(bar);
+      });
+      
+      categoryArea.style.position = 'relative';
+      categoryArea.appendChild(catBarsContainer);
+    }
     
     // Handle hover direction for animation origin
     item.addEventListener('mouseenter', (e) => {
@@ -29,10 +47,20 @@ function initBlendEffect(section) {
       const mouseX = e.clientX - rect.left;
       const direction = mouseX < rect.width / 2 ? 'left' : 'right';
       barsContainer.setAttribute('data-direction', direction);
+      
+      // Set opposite direction for category bars for visual interest
+      const catBars = item.querySelector('.home-category_blend-bars');
+      if (catBars) {
+        catBars.setAttribute('data-direction', direction === 'left' ? 'right' : 'left');
+      }
     });
     
     item.addEventListener('mouseleave', () => {
       barsContainer.setAttribute('data-direction', 'right');
+      const catBars = item.querySelector('.home-category_blend-bars');
+      if (catBars) {
+        catBars.setAttribute('data-direction', 'left');
+      }
     });
   });
 }
