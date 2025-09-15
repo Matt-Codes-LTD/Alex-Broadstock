@@ -2,69 +2,6 @@
 import { createVideoManager } from "./video-manager.js";
 import { initCategoryFilter } from "./category-filter.js";
 
-// Initialize blend effect for each project item
-function initBlendEffect(section) {
-  const items = section.querySelectorAll('.home-hero_list');
-  
-  items.forEach(item => {
-    // Add blend bars to main container
-    const barsContainer = document.createElement('div');
-    barsContainer.className = 'home-hero_blend-bars';
-    barsContainer.setAttribute('data-direction', 'left');
-    
-    // Create staggered bars for main area
-    [3, 4, 5, 6, 7, 8, 10, 14, 18, 24, 30].forEach(i => {
-      const bar = document.createElement('div');
-      bar.className = 'home-hero_blend-bar';
-      bar.style.setProperty('--i', i);
-      barsContainer.appendChild(bar);
-    });
-    
-    item.appendChild(barsContainer);
-    
-    // Add blend bars to category area
-    const categoryArea = item.querySelector('.home-category_ref');
-    if (categoryArea) {
-      const catBarsContainer = document.createElement('div');
-      catBarsContainer.className = 'home-category_blend-bars';
-      catBarsContainer.setAttribute('data-direction', 'right');
-      
-      // Fewer bars for the smaller category area
-      [3, 5, 7, 10, 15, 20].forEach(i => {
-        const bar = document.createElement('div');
-        bar.className = 'home-category_blend-bar';
-        bar.style.setProperty('--i', i);
-        catBarsContainer.appendChild(bar);
-      });
-      
-      categoryArea.style.position = 'relative';
-      categoryArea.appendChild(catBarsContainer);
-    }
-    
-    // Handle hover direction for animation origin
-    item.addEventListener('mouseenter', (e) => {
-      const rect = item.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
-      const direction = mouseX < rect.width / 2 ? 'left' : 'right';
-      barsContainer.setAttribute('data-direction', direction);
-      
-      // Set opposite direction for category bars for visual interest
-      const catBars = item.querySelector('.home-category_blend-bars');
-      if (catBars) {
-        catBars.setAttribute('data-direction', direction === 'left' ? 'right' : 'left');
-      }
-    });
-    
-    item.addEventListener('mouseleave', () => {
-      barsContainer.setAttribute('data-direction', 'right');
-      const catBars = item.querySelector('.home-category_blend-bars');
-      if (catBars) {
-        catBars.setAttribute('data-direction', 'left');
-      }
-    });
-  });
-}
-
 export default function initHomeHero(container) {
   const section = container.querySelector(".home-hero_wrap");
   if (!section || section.dataset.scriptInitialized) return () => {};
@@ -172,35 +109,37 @@ export default function initHomeHero(container) {
     // Create transition timeline
     const tl = gsap.timeline();
     
-    // Update aria-current states
-    items.forEach(i => {
-      const link = i.querySelector(".home-hero_link");
-      if (link) {
-        link.setAttribute("aria-current", i === item ? "true" : "false");
-      }
-    });
-    
-    // Fade states for text
+    // Fade out previous states
     if (prevItem) {
       items.forEach(i => {
+        const link = i.querySelector(".home-hero_link");
         const text = i.querySelector(".home_hero_text");
         const pills = i.querySelectorAll(".home-category_ref_text:not([hidden])");
         
-        if (i === item) {
-          tl.to([text, ...pills], {
-            color: "inherit",
-            duration: 0.3,
-            ease: "power2.out"
-          }, 0);
-        } else {
-          tl.to([text, ...pills], {
-            color: "color-mix(in srgb, currentColor 60%, transparent)",
-            duration: 0.2,
-            ease: "power2.out"
-          }, 0);
-        }
+        if (link) link.setAttribute("aria-current", "false");
+        
+        tl.to([text, ...pills], {
+          color: "color-mix(in srgb, currentColor 60%, transparent)",
+          duration: 0.2,
+          ease: "power2.out"
+        }, 0);
       });
     }
+    
+    // Fade in new active states
+    const activeLink = item.querySelector(".home-hero_link");
+    const activeText = item.querySelector(".home_hero_text");
+    const activePills = item.querySelectorAll(".home-category_ref_text:not([hidden])");
+    
+    if (activeLink) {
+      activeLink.setAttribute("aria-current", "true");
+    }
+    
+    tl.to([activeText, ...activePills], {
+      color: "inherit",
+      duration: 0.3,
+      ease: "power2.out"
+    }, 0.1);
     
     // Trigger video change with crossfade
     if (videoSrc && videoManager) {
@@ -261,9 +200,6 @@ export default function initHomeHero(container) {
     if (firstItem) setActive(firstItem);
   });
 
-  // Initialize blend effect
-  initBlendEffect(section);
-
   // Bind events
   listParent.addEventListener("mouseenter", handleInteraction, true);
   listParent.addEventListener("focusin", handleInteraction);
@@ -285,7 +221,7 @@ export default function initHomeHero(container) {
     style.textContent = `
       .home-awards_list {
         opacity: 0;
-        transition: none;
+        transition: none; /* GSAP handles this now */
       }
       .home-awards_list.is-visible {
         opacity: 1;
@@ -297,21 +233,13 @@ export default function initHomeHero(container) {
         transform: translateY(0) scale(1);
       }
       
+      /* Enhanced video crossfade */
       .home-hero_video_el {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        pointer-events: none;
-        opacity: 0;
-        z-index: 0;
+        transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
         will-change: opacity;
       }
-      .home-hero_video_el.is-active { 
-        z-index: 1; 
-      }
       
+      /* Smoother text transitions */
       .home_hero_text,
       .home-category_ref_text {
         transition: color 0.35s cubic-bezier(0.4, 0, 0.2, 1);
