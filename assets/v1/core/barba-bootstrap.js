@@ -1,4 +1,4 @@
-// barba-bootstrap.js - Grid transition exactly matching Next.js reference
+// barba-bootstrap.js - Fixed layout shift during transitions
 
 import { initPageScripts, initGlobal } from "./page-scripts.js";
 
@@ -7,7 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   initGlobal();
 
-  // Create the transition grid overlay - matching the exact structure
+  // Create the transition grid overlay
   const createTransitionGrid = () => {
     const grid = document.createElement('div');
     grid.className = 'transition-grid';
@@ -23,7 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
       z-index: 1000;
     `;
     
-    // Create exactly 110 divs as in the original (matching the JSX)
+    // Create exactly 110 divs
     for (let i = 0; i < 110; i++) {
       const div = document.createElement('div');
       div.style.cssText = `
@@ -45,7 +45,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Initialize the grid but keep it hidden
   const transitionGrid = createTransitionGrid();
 
-  // Register custom ease that matches 'o4' from the original
+  // Register custom ease
   gsap.registerEase("o4", function(progress) {
     return 1 - Math.pow(1 - progress, 4);
   });
@@ -66,8 +66,14 @@ document.addEventListener("DOMContentLoaded", () => {
         },
 
         leave({ current }) {
-          // ADD: Mark as navigating when transition starts
+          // Mark as navigating when transition starts
           document.body.classList.add('barba-navigating');
+          
+          // Add dataset flag for home-hero section
+          const homeHero = current.container.querySelector('.home-hero_wrap');
+          if (homeHero) {
+            homeHero.dataset.navigating = "true";
+          }
           
           if (current?.container?.__cleanup) {
             current.container.__cleanup();
@@ -82,76 +88,100 @@ document.addEventListener("DOMContentLoaded", () => {
           
           newMain.__cleanup = initPageScripts(newMain);
 
-          // Position containers exactly as original
-          Object.assign(oldMain.style, { 
-            position: 'absolute', 
-            inset: '0', 
-            zIndex: '1'
-          });
+          // Capture current dimensions and scroll position before any changes
+          const oldMainRect = oldMain.getBoundingClientRect();
+          const scrollY = window.scrollY;
           
+          // Keep old container in document flow initially
+          oldMain.style.minHeight = oldMainRect.height + 'px';
+          
+          // Prepare new container but keep it hidden
           Object.assign(newMain.style, { 
             position: 'absolute', 
             inset: '0', 
             zIndex: '2',
-            opacity: '0'
+            opacity: '0',
+            visibility: 'hidden'
           });
 
           const gridDivs = transitionGrid.querySelectorAll('div');
-          const C = Math.floor(5.5); // Matching the original centerColumn variable
+          const C = Math.floor(5.5); // Center column
           
           // Enable grid interaction
           document.body.style.cursor = 'none';
           transitionGrid.style.pointerEvents = 'all';
+          transitionGrid.style.zIndex = '1000';
 
-          // Create a promise-based animation sequence matching the original
           return new Promise((resolve) => {
-            // PHASE 1: onEnter - Grid scales up from bottom
+            // PHASE 1: Grid scales up from bottom (covering the old content)
             gsap.to(gridDivs, {
               scaleY: 1,
               transformOrigin: '0% 100%',
               duration: 0.5,
               ease: 'o4',
               stagger: function(index) {
-                // Exact stagger function from original
                 const row = Math.floor(index / 11);
                 const col = index % 11;
                 return (9 - row + Math.abs(col - C)) * 0.05 + 0.3 * (Math.random() - 0.5);
               },
+              onStart: () => {
+                // Lock the old container dimensions to prevent layout shift
+                Object.assign(oldMain.style, {
+                  width: oldMainRect.width + 'px',
+                  height: oldMainRect.height + 'px',
+                  overflow: 'hidden'
+                });
+              },
               onComplete: () => {
-                // PHASE 2: onEntered - Swap content and grid scales down from top
-                oldMain.style.opacity = '0';
-                newMain.style.opacity = '1';
+                // Now that grid covers everything, we can safely manipulate containers
+                Object.assign(oldMain.style, { 
+                  position: 'absolute', 
+                  inset: '0', 
+                  zIndex: '1',
+                  opacity: '0',
+                  visibility: 'hidden'
+                });
                 
+                // Show new container
+                Object.assign(newMain.style, { 
+                  opacity: '1',
+                  visibility: 'visible'
+                });
+                
+                // PHASE 2: Grid scales down from top (revealing new content)
                 gsap.to(gridDivs, {
                   scaleY: 0,
                   transformOrigin: '0% 0%',
                   duration: 0.5,
                   ease: 'o4',
                   stagger: function(index) {
-                    // Exact stagger function from original
                     const row = Math.floor(index / 11);
                     const col = index % 11;
                     return (9 - row + Math.abs(col - C)) * 0.05 + 0.3 * (Math.random() - 0.5);
                   },
                   onComplete: () => {
-                    // PHASE 3: onExited - Clean up
+                    // PHASE 3: Clean up
                     console.log('exited');
                     
-                    // Reset styles
+                    // Reset new container styles
                     newMain.style.position = '';
                     newMain.style.inset = '';
                     newMain.style.zIndex = '';
                     newMain.style.opacity = '';
+                    newMain.style.visibility = '';
                     
+                    // Remove old container
                     if (oldMain && oldMain.parentNode) {
                       oldMain.remove();
                     }
                     
+                    // Reset page state
                     window.scrollTo(0, 0);
                     document.body.style.cursor = 'default';
                     transitionGrid.style.pointerEvents = 'none';
+                    transitionGrid.style.zIndex = '1000';
                     
-                    // ADD: Remove navigation class when complete
+                    // Remove navigation class
                     document.body.classList.remove('barba-navigating');
                     
                     resolve();
@@ -162,6 +192,11 @@ document.addEventListener("DOMContentLoaded", () => {
           });
         }
       }
-    ]
+    ],
+    // Prevent Barba from animating on certain links
+    prevent: ({ el }) => {
+      // Prevent on links with target="_blank" or specific classes
+      return el.classList && el.classList.contains('no-barba');
+    }
   });
 });
