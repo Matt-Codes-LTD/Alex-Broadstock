@@ -131,7 +131,7 @@ export function createVideoManager(stage) {
           // Crossfade animation
           tl.to(previousVideo, {
             opacity: 0,
-            scale: 0.98,
+            scale: 1,
             duration: 0.6,
             ease: "power2.out"
           }, 0)
