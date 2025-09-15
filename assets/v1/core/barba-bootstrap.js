@@ -1,4 +1,4 @@
-// barba-bootstrap.js - Fixed layout shift during transitions
+// barba-bootstrap.js - Aggressive fix for layout shift
 
 import { initPageScripts, initGlobal } from "./page-scripts.js";
 
@@ -65,16 +65,48 @@ document.addEventListener("DOMContentLoaded", () => {
           });
         },
 
-        leave({ current }) {
-          // Mark as navigating when transition starts
+        beforeLeave({ current }) {
+          // IMMEDIATELY freeze everything before any animations can start
           document.body.classList.add('barba-navigating');
           
-          // Add dataset flag for home-hero section
+          // Stop all GSAP animations on home hero elements
           const homeHero = current.container.querySelector('.home-hero_wrap');
           if (homeHero) {
             homeHero.dataset.navigating = "true";
+            
+            // Kill all tweens on home hero elements
+            gsap.killTweensOf('.home-hero_list');
+            gsap.killTweensOf('.home-hero_item');
+            gsap.killTweensOf('.home_hero_text');
+            gsap.killTweensOf('.home-category_ref_text');
+            
+            // Force set all elements to their current state
+            const lists = homeHero.querySelectorAll('.home-hero_list');
+            lists.forEach(list => {
+              const currentTransform = getComputedStyle(list).transform;
+              const currentOpacity = getComputedStyle(list).opacity;
+              
+              // Lock current state
+              list.style.transform = currentTransform === 'none' ? '' : currentTransform;
+              list.style.opacity = currentOpacity;
+              list.style.transition = 'none !important';
+              list.style.willChange = 'auto';
+            });
+            
+            // Disable all animations on the container
+            homeHero.style.pointerEvents = 'none';
           }
           
+          // Freeze the entire layout
+          const container = current.container;
+          const rect = container.getBoundingClientRect();
+          container.style.width = rect.width + 'px';
+          container.style.height = rect.height + 'px';
+          container.style.overflow = 'hidden';
+          container.style.position = 'relative';
+        },
+
+        leave({ current }) {          
           if (current?.container?.__cleanup) {
             current.container.__cleanup();
             delete current.container.__cleanup;
@@ -88,14 +120,7 @@ document.addEventListener("DOMContentLoaded", () => {
           
           newMain.__cleanup = initPageScripts(newMain);
 
-          // Capture current dimensions and scroll position before any changes
-          const oldMainRect = oldMain.getBoundingClientRect();
-          const scrollY = window.scrollY;
-          
-          // Keep old container in document flow initially
-          oldMain.style.minHeight = oldMainRect.height + 'px';
-          
-          // Prepare new container but keep it hidden
+          // Hide new container completely
           Object.assign(newMain.style, { 
             position: 'absolute', 
             inset: '0', 
@@ -112,8 +137,35 @@ document.addEventListener("DOMContentLoaded", () => {
           transitionGrid.style.pointerEvents = 'all';
           transitionGrid.style.zIndex = '1000';
 
+          // Create a snapshot of the old content
+          const snapshot = document.createElement('div');
+          snapshot.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 999;
+            pointer-events: none;
+          `;
+          
+          // Use html2canvas if available, otherwise just hide content immediately
+          if (window.html2canvas) {
+            try {
+              const canvas = await html2canvas(oldMain, {
+                backgroundColor: '#000',
+                scale: 1,
+                logging: false
+              });
+              snapshot.appendChild(canvas);
+              document.body.appendChild(snapshot);
+            } catch(e) {
+              console.log('Screenshot failed, proceeding without snapshot');
+            }
+          }
+
           return new Promise((resolve) => {
-            // PHASE 1: Grid scales up from bottom (covering the old content)
+            // PHASE 1: Grid scales up from bottom
             gsap.to(gridDivs, {
               scaleY: 1,
               transformOrigin: '0% 100%',
@@ -125,22 +177,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 return (9 - row + Math.abs(col - C)) * 0.05 + 0.3 * (Math.random() - 0.5);
               },
               onStart: () => {
-                // Lock the old container dimensions to prevent layout shift
-                Object.assign(oldMain.style, {
-                  width: oldMainRect.width + 'px',
-                  height: oldMainRect.height + 'px',
-                  overflow: 'hidden'
-                });
+                // Hide old content immediately
+                oldMain.style.opacity = '0';
+                oldMain.style.visibility = 'hidden';
               },
               onComplete: () => {
-                // Now that grid covers everything, we can safely manipulate containers
-                Object.assign(oldMain.style, { 
-                  position: 'absolute', 
-                  inset: '0', 
-                  zIndex: '1',
-                  opacity: '0',
-                  visibility: 'hidden'
-                });
+                // Remove snapshot if it exists
+                if (snapshot.parentNode) {
+                  snapshot.remove();
+                }
                 
                 // Show new container
                 Object.assign(newMain.style, { 
@@ -148,7 +193,7 @@ document.addEventListener("DOMContentLoaded", () => {
                   visibility: 'visible'
                 });
                 
-                // PHASE 2: Grid scales down from top (revealing new content)
+                // PHASE 2: Grid scales down from top
                 gsap.to(gridDivs, {
                   scaleY: 0,
                   transformOrigin: '0% 0%',
@@ -160,7 +205,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     return (9 - row + Math.abs(col - C)) * 0.05 + 0.3 * (Math.random() - 0.5);
                   },
                   onComplete: () => {
-                    // PHASE 3: Clean up
                     console.log('exited');
                     
                     // Reset new container styles
@@ -197,6 +241,29 @@ document.addEventListener("DOMContentLoaded", () => {
     prevent: ({ el }) => {
       // Prevent on links with target="_blank" or specific classes
       return el.classList && el.classList.contains('no-barba');
+    },
+    // Add click handler to freeze animations immediately
+    preventRunning: true,
+    onClick: (e) => {
+      const link = e.currentTarget;
+      
+      // If it's a project link, immediately freeze animations
+      if (link.closest('.home-hero_item')) {
+        // Stop all animations immediately
+        gsap.globalTimeline.clear();
+        
+        // Freeze all home hero elements
+        const lists = document.querySelectorAll('.home-hero_list');
+        lists.forEach(el => {
+          const computed = getComputedStyle(el);
+          el.style.cssText += `
+            transform: ${computed.transform} !important;
+            opacity: ${computed.opacity} !important;
+            transition: none !important;
+            animation: none !important;
+          `;
+        });
+      }
     }
   });
 });
