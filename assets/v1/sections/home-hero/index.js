@@ -23,93 +23,135 @@ export default function initHomeHero(container) {
   
   // Track active item
   let activeItem = null;
+  let isTransitioning = false;
 
-  // Awards management
+  // Improved awards management with GSAP
   function updateAwards(item) {
-    if (!awardsStrip) return;
+    if (!awardsStrip || isTransitioning) return;
+    isTransitioning = true;
     
+    const awardsContainer = item?.querySelector(".home-project_awards");
+    const newAwardImages = awardsContainer?.querySelectorAll("img") || [];
+    
+    // Create timeline for smooth transition
+    const tl = gsap.timeline({
+      onComplete: () => {
+        isTransitioning = false;
+      }
+    });
+
+    // If no awards, just fade out
+    if (!newAwardImages.length) {
+      tl.to(awardsStrip, {
+        opacity: 0,
+        duration: 0.3,
+        ease: "power2.out"
+      })
+      .call(() => {
+        awardsStrip.innerHTML = "";
+        awardsStrip.classList.remove("is-visible");
+      });
+      return;
+    }
+
     // Fade out current awards
-    awardsStrip.style.transition = 'opacity 0.3s ease';
-    awardsStrip.classList.remove("is-visible");
-    
-    setTimeout(() => {
-      // Clear after fade out
+    tl.to(awardsStrip, {
+      opacity: 0,
+      duration: 0.25,
+      ease: "power2.out"
+    })
+    // Clear and add new awards
+    .call(() => {
       awardsStrip.innerHTML = "";
       
-      const awardsContainer = item?.querySelector(".home-project_awards");
-      if (!awardsContainer) return;
-      
-      const awardImages = awardsContainer.querySelectorAll("img");
-      if (!awardImages.length) return;
-      
-      // Add new awards
-      awardImages.forEach(img => {
+      newAwardImages.forEach(img => {
         const clone = img.cloneNode(true);
         clone.removeAttribute("sizes");
         clone.removeAttribute("srcset");
-        clone.style.opacity = "0";
-        clone.style.transition = "opacity 0.3s ease";
+        gsap.set(clone, { 
+          opacity: 0, 
+          y: 12,
+          scale: 0.95
+        });
         awardsStrip.appendChild(clone);
       });
       
-      // Fade in new awards
-      requestAnimationFrame(() => {
-        awardsStrip.classList.add("is-visible");
-        awardsStrip.querySelectorAll("img").forEach((img, i) => {
-          setTimeout(() => {
-            img.style.opacity = "1";
-          }, i * 50); // Stagger each image by 50ms
-        });
-      });
-    }, 300); // Wait for fade out
+      awardsStrip.classList.add("is-visible");
+    })
+    // Fade in and animate new awards
+    .to(awardsStrip, {
+      opacity: 1,
+      duration: 0.4,
+      ease: "power2.out"
+    }, "+=0.1")
+    .to(awardsStrip.querySelectorAll("img"), {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      duration: 0.5,
+      stagger: 0.08,
+      ease: "back.out(1.7)"
+    }, "-=0.3");
   }
 
-  // Set active project
+  // Set active project with improved transitions
   function setActive(item) {
     if (!item || item.style.display === "none") return;
     if (activeItem === item) return;
     
+    const prevItem = activeItem;
     activeItem = item;
     
     // Get video from .home-hero_item element
     const projectEl = item.querySelector(".home-hero_item");
     const videoSrc = projectEl?.dataset.video;
     
-    // Update all items' states
-    items.forEach(i => {
-      const isActive = i === item;
-      const link = i.querySelector(".home-hero_link");
-      const text = i.querySelector(".home_hero_text");
-      
-      // Update link state
-      if (link) {
-        link.setAttribute("aria-current", isActive ? "true" : "false");
-      }
-      
-      // Update text color
-      if (text) {
-        text.classList.toggle("u-color-faded", !isActive);
-      }
-      
-      // Update category pills
-      i.querySelectorAll(".home-category_ref_text:not([hidden])").forEach(pill => {
-        pill.classList.toggle("u-color-faded", !isActive);
-      });
-    });
+    // Create transition timeline
+    const tl = gsap.timeline();
     
-    // Trigger video change
+    // Fade out previous states
+    if (prevItem) {
+      items.forEach(i => {
+        const link = i.querySelector(".home-hero_link");
+        const text = i.querySelector(".home_hero_text");
+        const pills = i.querySelectorAll(".home-category_ref_text:not([hidden])");
+        
+        if (link) link.setAttribute("aria-current", "false");
+        
+        tl.to([text, ...pills], {
+          color: "color-mix(in srgb, currentColor 60%, transparent)",
+          duration: 0.2,
+          ease: "power2.out"
+        }, 0);
+      });
+    }
+    
+    // Fade in new active states
+    const activeLink = item.querySelector(".home-hero_link");
+    const activeText = item.querySelector(".home_hero_text");
+    const activePills = item.querySelectorAll(".home-category_ref_text:not([hidden])");
+    
+    if (activeLink) {
+      activeLink.setAttribute("aria-current", "true");
+    }
+    
+    tl.to([activeText, ...activePills], {
+      color: "inherit",
+      duration: 0.3,
+      ease: "power2.out"
+    }, 0.1);
+    
+    // Trigger video change with crossfade
     if (videoSrc && videoManager) {
-      // Pass the actual link element to video-manager
       const linkEl = item.querySelector(".home-hero_link");
       if (linkEl) {
-        // Add data-video to link temporarily for video-manager compatibility
         linkEl.dataset.video = videoSrc;
         videoManager.setActive(videoSrc, linkEl);
       }
     }
     
-    // Update awards
-    updateAwards(item);
+    // Update awards with delay for better sequencing
+    tl.call(() => updateAwards(item), null, 0.15);
   }
 
   // Preload videos
@@ -141,18 +183,19 @@ export default function initHomeHero(container) {
     });
   }
 
-  // Event handlers
+  // Improved event handlers with debouncing
+  let hoverTimeout;
   function handleInteraction(e) {
     const item = e.target.closest(".home-hero_list");
     if (!item || !listParent.contains(item)) return;
     if (item.style.display !== "none") {
-      setActive(item);
+      clearTimeout(hoverTimeout);
+      hoverTimeout = setTimeout(() => setActive(item), 50);
     }
   }
 
-  // Initialize category filter with callback
+  // Initialize category filter
   const cleanupFilter = initCategoryFilter(section, videoManager, (firstVisible) => {
-    // After filter, set first visible item as active
     const firstItem = items.find(i => i.style.display !== "none");
     if (firstItem) setActive(firstItem);
   });
@@ -171,14 +214,14 @@ export default function initHomeHero(container) {
   };
   document.addEventListener("visibilitychange", handleVisibility);
 
-  // Add required CSS
+  // Enhanced CSS for smoother animations
   if (!section.querySelector("[data-awards-css]")) {
     const style = document.createElement("style");
     style.setAttribute("data-awards-css", "");
     style.textContent = `
       .home-awards_list {
         opacity: 0;
-        transition: opacity .3s ease;
+        transition: none; /* GSAP handles this now */
       }
       .home-awards_list.is-visible {
         opacity: 1;
@@ -187,6 +230,20 @@ export default function initHomeHero(container) {
         height: 4rem;
         width: auto;
         display: block;
+        transform: translateY(0) scale(1);
+      }
+      
+      /* Enhanced video crossfade */
+      .home-hero_video_el {
+        transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        will-change: opacity;
+      }
+      
+      /* Smoother text transitions */
+      .home_hero_text,
+      .home-category_ref_text {
+        transition: color 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        will-change: color;
       }
     `;
     section.appendChild(style);
@@ -204,6 +261,7 @@ export default function initHomeHero(container) {
 
   // Cleanup function
   return () => {
+    clearTimeout(hoverTimeout);
     listParent.removeEventListener("mouseenter", handleInteraction, true);
     listParent.removeEventListener("focusin", handleInteraction);
     listParent.removeEventListener("touchstart", handleInteraction);
