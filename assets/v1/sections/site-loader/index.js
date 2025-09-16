@@ -49,6 +49,32 @@ export default function initSiteLoader(container) {
     overflow: hidden;
   `;
   
+  // Create first video since hero module hasn't initialized yet
+  let firstVideo = heroVideoContainer.querySelector('.home-hero_video_el');
+  if (!firstVideo) {
+    const firstProjectItem = container.querySelector('.home-hero_list:not([style*="display: none"]) .home-hero_item');
+    const firstVideoUrl = firstProjectItem?.dataset?.video;
+    
+    if (firstVideoUrl) {
+      firstVideo = document.createElement('video');
+      firstVideo.className = 'home-hero_video_el is-active';
+      firstVideo.src = firstVideoUrl;
+      firstVideo.muted = true;
+      firstVideo.loop = true;
+      firstVideo.playsInline = true;
+      firstVideo.preload = 'auto';
+      firstVideo.crossOrigin = 'anonymous';
+      firstVideo.style.cssText = `
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        opacity: 1;
+      `;
+      heroVideoContainer.appendChild(firstVideo);
+      console.log("[SiteLoader] Created video:", firstVideoUrl);
+    }
+  }
+  
   // Add curtain overlay
   const curtain = document.createElement("div");
   curtain.className = "site-loader_curtain-overlay";
@@ -71,10 +97,8 @@ export default function initSiteLoader(container) {
     loaderContainer.appendChild(heroVideoContainer);
   }
   
-  // Get first video and ensure it plays
-  const firstVideo = heroVideoContainer.querySelector('.home-hero_video_el');
+  // Ensure first video plays
   if (firstVideo) {
-    firstVideo.muted = true;
     firstVideo.currentTime = 0.001;
     firstVideo.style.opacity = "1";
     firstVideo.play().catch(() => {});
