@@ -50,9 +50,10 @@ export default function initSiteLoader(container) {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    z-index: 0;
+    z-index: 1;
     opacity: 0;
     clip-path: inset(0 0 0 0);
+    overflow: hidden;
   `;
   
   // Get first project video URL
@@ -72,11 +73,18 @@ export default function initSiteLoader(container) {
   video.playsInline = true;
   video.preload = 'auto';
   video.crossOrigin = 'anonymous';
+  video.autoplay = true; // Add autoplay
   
   if (firstVideoUrl) {
     video.src = firstVideoUrl + '#t=0.5';
     video.load();
     console.log("[SiteLoader] Using video:", firstVideoUrl);
+    
+    // Ensure video loads
+    video.addEventListener('loadeddata', () => {
+      console.log("Video loaded, duration:", video.duration);
+      video.currentTime = 0.001;
+    }, { once: true });
   }
   
   videoWrapper.appendChild(video);
@@ -96,9 +104,12 @@ export default function initSiteLoader(container) {
   `;
   videoWrapper.appendChild(videoCurtain);
   
-  // Insert video wrapper into loader container
+  // Insert video wrapper BEFORE edges box so it's behind
   const loaderContainer = loaderEl.querySelector(".site-loader_container");
-  if (loaderContainer) {
+  const edgesInContainer = loaderContainer?.querySelector(".site-loader_edges");
+  if (loaderContainer && edgesInContainer) {
+    loaderContainer.insertBefore(videoWrapper, edgesInContainer);
+  } else if (loaderContainer) {
     loaderContainer.appendChild(videoWrapper);
   }
   
@@ -138,9 +149,15 @@ export default function initSiteLoader(container) {
   if (edgesBox) {
     gsap.set(edgesBox, {
       "--sl-width": 67,
-      "--sl-height": 67
+      "--sl-height": 67,
+      zIndex: 2 // Ensure edges are above video initially
     });
   }
+  
+  // Set video wrapper behind edges but visible
+  gsap.set(videoWrapper, {
+    zIndex: 1 // Behind edges but above background
+  });
 
   console.log("[SiteLoader] Creating timeline");
 
@@ -196,29 +213,51 @@ export default function initSiteLoader(container) {
     }
   });
   
-  // Phase 2: Fade out progress text
+  // Phase 2: Fade out progress text and prepare video
   if (progressText) {
     tl.to(progressText, { 
       opacity: 0, 
       duration: 0.3,
       onStart: () => console.log("[Phase 2] Fade progress text"),
+      onComplete: () => {
+        // Move edges to higher z-index after text fades
+        if (edgesBox) {
+          gsap.set(edgesBox, { zIndex: 3 });
+        }
+      }
     });
   }
   
-  // Phase 3: Video reveal sequence
-  tl.to(videoWrapper, { 
+  // Phase 3: Show video behind edges
+  tl.set(videoWrapper, {
     opacity: 1,
-    duration: 0.3,
-    ease: "power2.out",
-    onStart: () => console.log("[Phase 3] Show video wrapper"),
+    zIndex: 1, // Behind edges (z-index 3)
+    onComplete: () => {
+      console.log("[Phase 3] Video wrapper visible behind edges");
+      console.log("Video wrapper actual size:", videoWrapper.offsetWidth + "x" + videoWrapper.offsetHeight);
+      console.log("Edges box z-index:", edgesBox ? getComputedStyle(edgesBox).zIndex : "N/A");
+    }
   });
+  
+  // Small pause to see video behind edges
+  tl.to({}, { duration: 0.2 });
   
   // Slide curtain to reveal video
   tl.to(videoCurtain, { 
     xPercent: 100, 
     duration: 1.6, 
     ease: "custom2InOut",
-    onStart: () => console.log("[Phase 4] Slide curtain"),
+    onStart: () => {
+      console.log("[Phase 4] Sliding curtain to reveal video");
+      video.play().catch(e => console.log("Video play error:", e));
+    },
+    onUpdate: function() {
+      if (this.progress() > 0.5 && !this._logged) {
+        this._logged = true;
+        console.log("Curtain 50% - video should be visible in center");
+      }
+    },
+    onComplete: () => console.log("Curtain fully slid, video revealed")
   });
   
   // Scale video during reveal - animate separately to avoid array issue
