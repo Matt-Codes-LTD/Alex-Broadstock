@@ -1,3 +1,4 @@
+// assets/v1/sections/home-hero/category-filter.js
 import { normalize, prefersReducedMotion } from "./utils.js";
 
 /**
@@ -8,7 +9,7 @@ export function initCategoryFilter(section, videoManager) {
   if (!catWrap) return () => {};
 
   // ✅ Ensure "All" button exists
-  ensureAllButton(catWrap);
+  ensureAllButton(catWrap, section);
 
   // Build data-cats for each project list
   cacheCats(section);
@@ -271,10 +272,11 @@ function makeGhost(el, rect) {
   return g;
 }
 
-function ensureAllButton(catWrap) {
+function ensureAllButton(catWrap, section) {
   const BTN_SEL = ".home-category_text";
   const buttons = Array.from(catWrap.querySelectorAll(BTN_SEL));
   let allBtn = buttons.find((b) => normalize(b.textContent) === "all") || null;
+  
   if (!allBtn) {
     const item = document.createElement("div");
     item.setAttribute("role", "listitem");
@@ -294,6 +296,24 @@ function ensureAllButton(catWrap) {
     item.appendChild(a);
     catWrap.insertBefore(item, catWrap.firstChild);
     allBtn = a;
+    
+    // FIX: Check if intro animation has already completed
+    const heroWrap = section || document.querySelector('.home-hero_wrap');
+    if (heroWrap && (heroWrap.dataset.introComplete === "true" || heroWrap.dataset.scriptInitialized === "true")) {
+      // Animation already ran, make button visible immediately
+      if (window.gsap) {
+        gsap.set(allBtn, { 
+          opacity: 1, 
+          y: 0, 
+          scale: 1,
+          clearProps: "transform"
+        });
+      } else {
+        // Fallback if GSAP isn't loaded yet
+        allBtn.style.opacity = "1";
+        allBtn.style.transform = "none";
+      }
+    }
   }
   return allBtn;
 }
