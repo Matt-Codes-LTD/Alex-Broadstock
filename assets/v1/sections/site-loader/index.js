@@ -22,91 +22,75 @@ export default function initSiteLoader(container) {
   const fpsCounter = loaderEl.querySelector(".site-loader_fps-counter");
   const edgesBox = loaderEl.querySelector(".site-loader_edges");
   const corners = loaderEl.querySelectorAll(".site-loader_corner");
-  const loaderContainer = loaderEl.querySelector(".site-loader_container");
   
-  // Get the actual hero video container
-  const heroVideoContainer = container.querySelector(".home-hero_video");
-  if (!heroVideoContainer) {
-    console.error("[SiteLoader] No hero video container found");
-    return () => {};
-  }
+  // Viewport base for responsive units
+  const vwScreen = window.innerWidth <= 479 ? 479 : 
+                   window.innerWidth <= 767 ? 767 : 
+                   window.innerWidth <= 991 ? 991 : 1920;
   
-  // Move hero video container into loader
-  const originalParent = heroVideoContainer.parentNode;
-  const originalNextSibling = heroVideoContainer.nextSibling;
-  
-  // Style it for the loader animation
-  heroVideoContainer.style.cssText = `
+  // Create video wrapper with viewport-relative dimensions
+  const videoWrapper = document.createElement("div");
+  videoWrapper.className = "site-loader_video-wrapper";
+  videoWrapper.style.cssText = `
     position: absolute;
-    width: 349px;
-    height: 198px;
+    width: calc(349 / ${vwScreen} * 100 * 1vw);
+    height: calc(198 / ${vwScreen} * 100 * 1vw);
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    z-index: 1;
+    z-index: 0;
     opacity: 0;
-    clip-path: inset(0 0 0 0);
     overflow: hidden;
   `;
   
-  // Create first video since hero module hasn't initialized yet
-  let firstVideo = heroVideoContainer.querySelector('.home-hero_video_el');
-  if (!firstVideo) {
-    const firstProjectItem = container.querySelector('.home-hero_list:not([style*="display: none"]) .home-hero_item');
-    const firstVideoUrl = firstProjectItem?.dataset?.video;
-    
-    if (firstVideoUrl) {
-      firstVideo = document.createElement('video');
-      firstVideo.className = 'home-hero_video_el is-active';
-      firstVideo.src = firstVideoUrl;
-      firstVideo.muted = true;
-      firstVideo.loop = true;
-      firstVideo.playsInline = true;
-      firstVideo.preload = 'auto';
-      firstVideo.crossOrigin = 'anonymous';
-      firstVideo.style.cssText = `
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        opacity: 1;
-      `;
-      heroVideoContainer.appendChild(firstVideo);
-      console.log("[SiteLoader] Created video:", firstVideoUrl);
-    }
+  // Get first project video URL
+  const firstProjectItem = container.querySelector('.home-hero_list:not([style*="display: none"]) .home-hero_item');
+  const firstVideoUrl = firstProjectItem?.dataset?.video;
+  
+  // Create video element
+  const video = document.createElement('video');
+  video.style.cssText = `
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scale(1);
+  `;
+  video.muted = true;
+  video.loop = true;
+  video.playsInline = true;
+  video.preload = 'auto';
+  video.crossOrigin = 'anonymous';
+  
+  if (firstVideoUrl) {
+    video.src = firstVideoUrl;
+    console.log("[SiteLoader] Using video:", firstVideoUrl);
   }
   
-  // Add curtain overlay
-  const curtain = document.createElement("div");
-  curtain.className = "site-loader_curtain-overlay";
-  curtain.style.cssText = `
+  videoWrapper.appendChild(video);
+  
+  // Add curtain inside video wrapper
+  const videoCurtain = document.createElement("div");
+  videoCurtain.className = "site-loader_video-curtain";
+  videoCurtain.style.cssText = `
     position: absolute;
-    top: -1%;
+    top: 0;
     left: 0;
     width: 100%;
-    height: 102%;
+    height: 100%;
     background: #020202;
-    z-index: 100;
-    pointer-events: none;
+    z-index: 1;
+    transform: translateX(0);
   `;
-  heroVideoContainer.appendChild(curtain);
+  videoWrapper.appendChild(videoCurtain);
   
-  // Move to loader container (before edges so it's behind)
-  if (edgesBox) {
-    loaderContainer.insertBefore(heroVideoContainer, edgesBox);
-  } else {
-    loaderContainer.appendChild(heroVideoContainer);
-  }
+  // Insert video wrapper into loader container
+  loaderEl.querySelector(".site-loader_container").appendChild(videoWrapper);
   
-  // Ensure first video plays
-  if (firstVideo) {
-    firstVideo.currentTime = 0.001;
-    firstVideo.style.opacity = "1";
-    firstVideo.play().catch(() => {});
-  }
-
-  // Hide hero UI initially
+  // Hide hero content initially
   const heroContent = container.querySelectorAll(".nav_wrap, .home-hero_menu, .home-hero_awards");
+  const heroVideoContainer = container.querySelector(".home-hero_video");
   gsap.set(heroContent, { opacity: 0, visibility: "hidden" });
+  gsap.set(heroVideoContainer, { opacity: 0 });
 
   // Register custom ease
   gsap.registerEase("custom2InOut", function(progress) {
@@ -123,39 +107,22 @@ export default function initSiteLoader(container) {
   gsap.set(progressText, { opacity: 1 });
   gsap.set(edgesBox, {
     "--sl-width": 67,
-    "--sl-height": 67,
-    zIndex: 2,
-    background: "transparent"
+    "--sl-height": 67
   });
 
   // Timeline
   const tl = gsap.timeline({
     onComplete: () => {
-      // Move hero video back to original position
-      heroVideoContainer.style.cssText = '';
-      heroVideoContainer.classList.add("u-cover-absolute", "u-inset-0", "u-zindex-0");
-      
-      // Remove curtain
-      curtain.remove();
-      
-      // Move back to original parent
-      if (originalNextSibling) {
-        originalParent.insertBefore(heroVideoContainer, originalNextSibling);
-      } else {
-        originalParent.appendChild(heroVideoContainer);
-      }
-      
-      // Cleanup
       loaderEl.style.display = "none";
       document.documentElement.classList.remove("is-preloading");
       lock.remove();
-      
+      console.log("[SiteLoader] done");
       window.dispatchEvent(new CustomEvent('siteLoaderComplete'));
       window.dispatchEvent(new CustomEvent('siteLoaderMorphComplete'));
     }
   });
 
-  // Phase 1: Progress (3s)
+  // Phase 1: Progress animation (0-3s)
   tl.to(progress, {
     value: 1,
     fps: 120,
@@ -163,8 +130,10 @@ export default function initSiteLoader(container) {
     ease: "sine.inOut",
     onUpdate: () => {
       const pct = Math.round(progress.value * 100);
-      if (progressText) progressText.textContent = pct.toString().padStart(2, "0");
-      
+      if (progressText) {
+        progressText.textContent = pct.toString().padStart(2, "0");
+      }
+      // Expand edges from 67 to final size
       if (edgesBox) {
         const width = Math.round(67 + (371 - 67) * progress.value);
         const height = Math.round(67 + (220 - 67) * progress.value);
@@ -173,73 +142,158 @@ export default function initSiteLoader(container) {
           "--sl-height": height
         });
       }
-      
-      if (fpsCounter) fpsCounter.textContent = `FPS: ${Math.round(progress.fps)}`;
+      if (fpsCounter) {
+        fpsCounter.textContent = `FPS: ${Math.round(progress.fps)}`;
+      }
+    },
+    onComplete: () => {
+      // Start video playback
+      if (video) {
+        video.currentTime = 0.001;
+        video.play().catch(() => {});
+      }
     }
   })
   
-  // Phase 2: Fade text
-  .to(progressText, { opacity: 0, duration: 0.3 })
+  // Phase 2: Fade out progress text
+  .to(progressText, { 
+    opacity: 0, 
+    duration: 0.3 
+  })
   
-  // Phase 3: Show video
-  .to(heroVideoContainer, { 
-    opacity: 1, 
+  // Phase 3: Video reveal sequence
+  .to(videoWrapper, { 
+    opacity: 1,
     duration: 0.3,
     ease: "power2.out"
   })
   
-  // Slide curtain
-  .to(curtain, { 
+  // Slide curtain to reveal video
+  .to(videoCurtain, { 
     xPercent: 100, 
     duration: 1.6, 
-    ease: "custom2InOut"
+    ease: "custom2InOut" 
   })
   
-  // Phase 4: Fade corners/edges
-  .to([corners, fpsCounter], {
-    opacity: 0,
-    duration: 0.6,
-    stagger: 0.02
+  // Scale video during reveal
+  .to(video, { 
+    scale: 1.2,
+    duration: 1.6, 
+    ease: "custom2InOut" 
+  }, "<")
+  
+  // Phase 4: Exit animation
+  .call(() => {
+    // Fade out corners
+    gsap.to(corners, {
+      opacity: 0,
+      duration: 0.8,
+      stagger: 0.05
+    });
+    
+    // Fade out FPS counter
+    gsap.to(fpsCounter, {
+      opacity: 0,
+      duration: 0.6
+    });
   })
+  
+  // Fade and scale edges
   .to(edgesBox, {
     opacity: 0,
     scale: 1.5,
     duration: 0.7,
     ease: "power3.inOut"
-  }, "<")
+  }, "<0.024")
   
   // Phase 5: Morph to fullscreen
-  .to(heroVideoContainer, {
-    width: "100vw",
-    height: "100vh",
+  .to(video, {
+    scale: 1,
     duration: 2,
     ease: "power3.inOut"
   })
   
-  // Show hero UI
+  // Clear transform and morph to fullscreen
+  .set(videoWrapper, {
+    transform: "none",
+    left: "50%",
+    top: "50%",
+    xPercent: -50,
+    yPercent: -50
+  })
+  .to(videoWrapper, {
+    width: "100vw",
+    height: "100vh",
+    xPercent: 0,
+    yPercent: 0,
+    left: 0,
+    top: 0,
+    duration: 1.8,
+    ease: "power3.inOut"
+  }, "<")
+  
+  // Phase 6: Transfer to hero
+  .call(() => {
+    // Show hero video container
+    if (heroVideoContainer) {
+      // Clone current video state to hero
+      let heroVideo = heroVideoContainer.querySelector('.home-hero_video_el');
+      if (!heroVideo && firstVideoUrl) {
+        heroVideo = document.createElement('video');
+        heroVideo.className = 'home-hero_video_el is-active';
+        heroVideo.src = firstVideoUrl;
+        heroVideo.currentTime = video.currentTime;
+        heroVideo.muted = true;
+        heroVideo.loop = true;
+        heroVideo.playsInline = true;
+        heroVideo.style.cssText = `
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          opacity: 1;
+        `;
+        heroVideoContainer.appendChild(heroVideo);
+        heroVideo.play().catch(() => {});
+      }
+      
+      gsap.set(heroVideoContainer, { opacity: 1 });
+    }
+  }, "-=0.3")
+  
+  // Fade in hero content
   .to(heroContent, {
     visibility: "visible",
     opacity: 1,
     duration: 0.4,
     stagger: 0.1,
     ease: "power2.out"
-  }, "-=0.5")
+  }, "-=0.3")
   
-  // Fade loader
+  // Fade out loader
   .to(loaderEl, { 
     opacity: 0, 
     duration: 0.5
   }, "-=0.5");
 
-  // Play after min time
+  // Minimum display time
   const minDisplayTime = 2000;
+  const startTime = Date.now();
+  
   tl.pause();
-  setTimeout(() => tl.play(), minDisplayTime);
+  setTimeout(() => {
+    tl.play();
+  }, Math.max(0, minDisplayTime - (Date.now() - startTime)));
 
   // Cleanup
   return () => {
+    console.log("[SiteLoader] cleanup");
     tl.kill();
-    if (lock?.parentNode) lock.remove();
+    gsap.killTweensOf([loaderEl, progressText, videoWrapper, videoCurtain, video, corners, fpsCounter, edgesBox]);
+    if (lock && lock.parentNode) {
+      lock.remove();
+    }
     document.documentElement.classList.remove("is-preloading");
     delete loaderEl.dataset.scriptInitialized;
   };
