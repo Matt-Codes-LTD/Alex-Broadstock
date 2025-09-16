@@ -233,27 +233,20 @@ export default function initHomeHero(container) {
     const projectEl = item.querySelector(".home-hero_item");
     const videoSrc = projectEl?.dataset.video;
     
-    // Create transition timeline
-    const tl = gsap.timeline();
+    // Apply faded class to all items first
+    items.forEach(i => {
+      const link = i.querySelector(".home-hero_link");
+      const text = i.querySelector(".home_hero_text");
+      const pills = i.querySelectorAll(".home-category_ref_text:not([hidden])");
+      
+      if (link) link.setAttribute("aria-current", "false");
+      
+      // Add faded class to all
+      text?.classList.add("u-color-faded");
+      pills.forEach(p => p.classList.add("u-color-faded"));
+    });
     
-    // Fade out previous states
-    if (prevItem) {
-      items.forEach(i => {
-        const link = i.querySelector(".home-hero_link");
-        const text = i.querySelector(".home_hero_text");
-        const pills = i.querySelectorAll(".home-category_ref_text:not([hidden])");
-        
-        if (link) link.setAttribute("aria-current", "false");
-        
-        tl.to([text, ...pills], {
-          color: "color-mix(in srgb, currentColor 60%, transparent)",
-          duration: 0.2,
-          ease: "power2.out"
-        }, 0);
-      });
-    }
-    
-    // Fade in new active states
+    // Remove faded class from active item
     const activeLink = item.querySelector(".home-hero_link");
     const activeText = item.querySelector(".home_hero_text");
     const activePills = item.querySelectorAll(".home-category_ref_text:not([hidden])");
@@ -262,11 +255,9 @@ export default function initHomeHero(container) {
       activeLink.setAttribute("aria-current", "true");
     }
     
-    tl.to([activeText, ...activePills], {
-      color: "#ffffff",
-      duration: 0.3,
-      ease: "power2.out"
-    }, 0.1);
+    // Remove faded class from active elements
+    activeText?.classList.remove("u-color-faded");
+    activePills.forEach(p => p.classList.remove("u-color-faded"));
     
     // Trigger video change with crossfade
     if (videoSrc && videoManager) {
@@ -278,7 +269,7 @@ export default function initHomeHero(container) {
     }
     
     // Update awards with delay for better sequencing
-    tl.call(() => updateAwards(item), null, 0.15);
+    setTimeout(() => updateAwards(item), 150);
   }
 
   // Preload videos (delayed to prioritize intro animation)
