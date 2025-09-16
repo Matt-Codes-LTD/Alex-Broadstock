@@ -228,19 +228,25 @@ export default function initSiteLoader(container) {
     });
   }
   
-  // Phase 3: Show video behind edges
-  tl.set(videoWrapper, {
+  // Phase 3: Show video behind edges - use .to() instead of .set() to ensure it animates
+  tl.to(videoWrapper, {
     opacity: 1,
     zIndex: 1, // Behind edges (z-index 3)
+    duration: 0.3,
+    ease: "power2.out",
+    onStart: () => {
+      console.log("[Phase 3] Fading in video wrapper");
+      console.log("Initial opacity:", getComputedStyle(videoWrapper).opacity);
+    },
     onComplete: () => {
       console.log("[Phase 3] Video wrapper visible behind edges");
+      console.log("Final opacity:", getComputedStyle(videoWrapper).opacity);
       console.log("Video wrapper actual size:", videoWrapper.offsetWidth + "x" + videoWrapper.offsetHeight);
       console.log("Edges box z-index:", edgesBox ? getComputedStyle(edgesBox).zIndex : "N/A");
     }
   });
   
-  // Small pause to see video behind edges
-  tl.to({}, { duration: 0.2 });
+  // Small pause to see video behind edges - removed as it's not needed
   
   // Slide curtain to reveal video
   tl.to(videoCurtain, { 
