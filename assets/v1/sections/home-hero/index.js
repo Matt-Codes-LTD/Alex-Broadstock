@@ -341,51 +341,8 @@ export default function initHomeHero(container) {
   };
   document.addEventListener("visibilitychange", handleVisibility);
 
-  // Enhanced CSS for smoother animations
-  if (!section.querySelector("[data-awards-css]")) {
-    const style = document.createElement("style");
-    style.setAttribute("data-awards-css", "");
-    style.textContent = `
-      /* Initial states for intro animation */
-      .home-hero_wrap:not([data-intro-complete]) .home-category_text,
-      .home-hero_wrap:not([data-intro-complete]) .home_hero_text,
-      .home-hero_wrap:not([data-intro-complete]) .home-category_ref_text:not([hidden]),
-      .home-hero_wrap:not([data-intro-complete]) .brand_logo,
-      .home-hero_wrap:not([data-intro-complete]) .nav_link,
-      .home-hero_wrap:not([data-intro-complete]) .home-awards_list {
-        opacity: 0;
-        transform: translateY(20px) scale(0.98);
-      }
-      
-      .home-awards_list {
-        opacity: 0;
-        transition: none; /* GSAP handles this now */
-      }
-      .home-awards_list.is-visible {
-        opacity: 1;
-      }
-      .home-awards_list img {
-        height: 4rem;
-        width: auto;
-        display: block;
-        transform: translateY(0) scale(1);
-      }
-      
-      /* Enhanced video crossfade */
-      .home-hero_video_el {
-        transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-        will-change: opacity;
-      }
-      
-      /* Smoother text transitions */
-      .home_hero_text,
-      .home-category_ref_text {
-        transition: color 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-        will-change: color;
-      }
-    `;
-    section.appendChild(style);
-  }
+  // Note: All CSS should be in your main CSS file/embed
+  // The GSAP animations will handle the initial states and animations
 
   // Initialize after intro animation has started
   introTimeline.eventCallback("onStart", () => {
