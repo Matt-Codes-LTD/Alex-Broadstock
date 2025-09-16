@@ -5,6 +5,9 @@ import { initPageScripts, initGlobal } from "./page-scripts.js";
 document.addEventListener("DOMContentLoaded", () => {
   console.log("[Barba] init starting…");
 
+  // Clear navigation flag on initial load
+  window.__barbaNavigated = false;
+
   initGlobal();
 
   // Create the transition grid overlay - matching the exact structure
@@ -68,6 +71,7 @@ document.addEventListener("DOMContentLoaded", () => {
         leave({ current }) {
           // ADD: Mark as navigating when transition starts
           document.body.classList.add('barba-navigating');
+          window.__barbaNavigated = true; // Set flag for navigation
           
           if (current?.container?.__cleanup) {
             current.container.__cleanup();

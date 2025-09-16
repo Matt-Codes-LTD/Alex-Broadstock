@@ -1,9 +1,9 @@
 // assets/v1/sections/site-loader/index.js
 
 export default function initSiteLoader(container) {
-  // Only run once per session
-  if (sessionStorage.getItem('siteLoaderShown') === 'true') {
-    console.log("[SiteLoader] Already shown this session");
+  // Skip if this is a Barba navigation (not a fresh page load)
+  if (window.__barbaNavigated) {
+    console.log("[SiteLoader] Skipping - Barba navigation");
     return () => {};
   }
 
@@ -51,8 +51,8 @@ export default function initSiteLoader(container) {
   
   // Set initial size CSS variables
   gsap.set(edgesBox, {
-    "--width": 67,
-    "--height": 67
+    "--sl-width": 67,
+    "--sl-height": 67
   });
 
   // Create timeline
@@ -89,8 +89,8 @@ export default function initSiteLoader(container) {
       // Expand edges from 67 to final size
       if (edgesBox) {
         gsap.set(edgesBox, {
-          "--width": Math.max(Math.round(371 * progress.value), 67),
-          "--height": Math.max(Math.round(220 * progress.value), 67)
+          "--sl-width": Math.max(Math.round(371 * progress.value), 67),
+          "--sl-height": Math.max(Math.round(220 * progress.value), 67)
         });
       }
 

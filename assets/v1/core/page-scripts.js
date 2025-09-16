@@ -3,7 +3,7 @@ import initCursor from "../../globals/cursor/index.js";
 import initSplitChars from "../sections/split-chars/index.js";
 import initHomeHero from "../sections/home-hero/index.js";
 import initProjectPlayer from "../sections/project-player/index.js";
-import initSiteLoader from "../sections/site-loader/index.js"; // ✅ new
+import initSiteLoader from "../sections/site-loader/index.js";
 
 /* =========================
    PAGE SCRIPTS (per Barba container)
@@ -16,9 +16,9 @@ export function initPageScripts(container) {
   cleanups.push(initHomeHero(container));
   cleanups.push(initProjectPlayer(container));
 
-  // ✅ Home-only preloader
+  // Site loader - only on home page direct visits/refreshes
   if (container.dataset.barbaNamespace === "home") {
-    console.log("[SiteLoader] Init on home page");
+    console.log("[SiteLoader] Checking for home page init");
     cleanups.push(initSiteLoader(container));
   }
 
