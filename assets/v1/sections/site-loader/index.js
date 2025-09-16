@@ -345,14 +345,14 @@ export default function initSiteLoader(container) {
     // Clone video for seamless transfer
     const heroVideo = video.cloneNode(true);
     heroVideo.currentTime = video.currentTime;
-    heroVideo.className = 'home-hero_video_el is-active';
+    heroVideo.className = 'home-hero_video_el is-active site-loader-transferred';
     heroVideo.style.cssText = `
       position: absolute;
       inset: 0;
       width: 100%;
       height: 100%;
       object-fit: cover;
-      opacity: 1;
+      opacity: 1 !important;
     `;
     
     // Add to hero container
@@ -360,6 +360,8 @@ export default function initSiteLoader(container) {
       heroVideoContainer.appendChild(heroVideo);
       heroVideo.play().catch(() => {});
       gsap.set(heroVideoContainer, { opacity: 1 });
+      // Force the transferred video to stay visible
+      gsap.set(heroVideo, { opacity: 1, important: true });
     }
   }, "-=0.3");
   
