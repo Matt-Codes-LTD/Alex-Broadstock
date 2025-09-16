@@ -263,7 +263,7 @@ export default function initHomeHero(container) {
     }
     
     tl.to([activeText, ...activePills], {
-      color: "inherit",
+      color: "#ffffff",
       duration: 0.3,
       ease: "power2.out"
     }, 0.1);
