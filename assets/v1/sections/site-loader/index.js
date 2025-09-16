@@ -1,3 +1,4 @@
+// assets/v1/sections/site-loader/index.js
 export default function initSiteLoader(container) {
   // Skip if this is a Barba navigation (not a fresh page load)
   if (window.__barbaNavigated) {
@@ -22,16 +23,20 @@ export default function initSiteLoader(container) {
   const progressText = loaderEl.querySelector(".site-loader_progress-text");
   const fpsCounter = loaderEl.querySelector(".site-loader_fps-counter");
   const edgesBox = loaderEl.querySelector(".site-loader_edges");
-  const curtain = loaderEl.querySelector(".site-loader_curtain");
   const corners = loaderEl.querySelectorAll(".site-loader_corner");
   
-  // Create video wrapper inside loader (like reference site)
+  // Determine viewport base for responsive units
+  const vwScreen = window.innerWidth <= 479 ? 479 : 
+                   window.innerWidth <= 767 ? 767 : 
+                   window.innerWidth <= 991 ? 991 : 1920;
+  
+  // Create video wrapper with viewport-relative dimensions
   const videoWrapper = document.createElement("div");
   videoWrapper.className = "site-loader_video-wrapper";
   videoWrapper.style.cssText = `
     position: absolute;
-    width: 349px;
-    height: 198px;
+    width: calc(349 / ${vwScreen} * 100 * 1vw);
+    height: calc(198 / ${vwScreen} * 100 * 1vw);
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
@@ -44,9 +49,14 @@ export default function initSiteLoader(container) {
   const firstProjectItem = container.querySelector('.home-hero_list:not([style*="display: none"]) .home-hero_item');
   const firstVideoUrl = firstProjectItem?.dataset?.video;
   
-  // Create video element
+  // Create video element with initial scale
   const video = document.createElement('video');
-  video.style.cssText = 'width: 100%; height: 100%; object-fit: cover;';
+  video.style.cssText = `
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scale(1.013);
+  `;
   video.muted = true;
   video.loop = true;
   video.playsInline = true;
@@ -54,7 +64,7 @@ export default function initSiteLoader(container) {
   video.crossOrigin = 'anonymous';
   
   if (firstVideoUrl) {
-    video.src = firstVideoUrl;
+    video.src = firstVideoUrl + '#t=0.5'; // Add poster frame timestamp
     video.load();
     console.log("[SiteLoader] Using video:", firstVideoUrl);
   }
@@ -85,6 +95,15 @@ export default function initSiteLoader(container) {
   gsap.set(heroContent, { opacity: 0, visibility: "hidden" });
   gsap.set(heroVideoContainer, { opacity: 0 });
 
+  // Register custom ease to match reference
+  gsap.registerEase("custom2InOut", function(progress) {
+    if (progress < 0.5) {
+      return 2 * progress * progress;
+    } else {
+      return 1 - Math.pow(-2 * progress + 2, 2) / 2;
+    }
+  });
+
   // Check for reduced motion
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -114,7 +133,7 @@ export default function initSiteLoader(container) {
     tl.timeScale(10);
   }
 
-  // Progress animation (0-3s)
+  // Phase 1: Progress animation (0-3s)
   tl.to(progress, {
     value: 1,
     fps: 120,
@@ -125,10 +144,13 @@ export default function initSiteLoader(container) {
       if (progressText) {
         progressText.textContent = pct.toString().padStart(2, "0");
       }
+      // Expand edges from 67 to final size
       if (edgesBox) {
+        const width = Math.round(67 + (371 - 67) * progress.value);
+        const height = Math.round(67 + (220 - 67) * progress.value);
         gsap.set(edgesBox, {
-          "--sl-width": Math.max(Math.round(371 * progress.value), 67),
-          "--sl-height": Math.max(Math.round(220 * progress.value), 67)
+          "--sl-width": width,
+          "--sl-height": height
         });
       }
       if (fpsCounter) {
@@ -137,80 +159,101 @@ export default function initSiteLoader(container) {
     },
     onComplete: () => {
       // Start video playback
-      video.currentTime = 0.001;
-      video.play().catch(() => {});
+      if (video) {
+        video.currentTime = 0.001;
+        video.play().catch(() => {});
+      }
     }
   })
   
-  // Fade out progress text (3.3s)
-  .to(progressText, { opacity: 0, duration: 0.3 })
+  // Phase 2: Fade out progress text
+  .to(progressText, { 
+    opacity: 0, 
+    duration: 0.3 
+  })
   
-  // Show video wrapper
-  .set(videoWrapper, { opacity: 1 })
+  // Phase 3: Video reveal sequence
+  .to(videoWrapper, { 
+    opacity: 1,
+    duration: 0.3,
+    ease: "power2.out"
+  })
   
-  // Slide curtain to reveal video (3.5s)
+  // Slide curtain to reveal video
   .to(videoCurtain, { 
     xPercent: 100, 
     duration: 1.6, 
-    ease: "power3.inOut" 
+    ease: "custom2InOut" 
   })
   
-  // Scale video slightly during reveal
+  // Scale video during reveal
   .to(video, { 
     scale: 1.2,
     duration: 1.6, 
-    ease: "power3.inOut" 
+    ease: "custom2InOut" 
   }, "<")
   
-  // Start morphing sequence
-  .add(() => {
-    // Fade out corners and FPS
-    gsap.to([corners, fpsCounter], {
+  // Phase 4: Exit animation
+  .call(() => {
+    // Fade out corners
+    gsap.to(corners, {
       opacity: 0,
-      duration: 0.6,
-      stagger: 0.02
+      duration: 0.8,
+      stagger: 0.05
     });
     
-    // Fade and scale out edges
-    gsap.to(edgesBox, {
+    // Fade out FPS counter
+    gsap.to(fpsCounter, {
       opacity: 0,
-      scale: 1.5,
-      duration: 0.7,
-      ease: "power3.inOut"
+      duration: 0.6
     });
   })
   
-  // Morph video to fullscreen (4.5s)
-  .to(videoWrapper, {
-    width: "100vw",
-    height: "100vh",
-    top: "50%",
-    left: "50%",
-    duration: 1.8,
-    ease: "power3.inOut"
-  }, "-=0.5")
+  // Fade and scale edges
+  .to(edgesBox, {
+    opacity: 0,
+    scale: 1.5,
+    duration: 0.7,
+    ease: "power3.inOut",
+    delay: 0.024
+  }, "<")
   
-  // Continue scaling video during morph
-  .to(video, {
+  // Phase 5: Morph to fullscreen
+  .to([videoWrapper, video], {
     scale: 1,
     duration: 2,
     ease: "power3.inOut"
+  })
+  
+  .to(videoWrapper, {
+    width: "100%",
+    height: "100%",
+    duration: 1.8,
+    ease: "power3.inOut",
+    overwrite: "auto"
   }, "<")
   
-  // Transfer video to hero container
-  .add(() => {
+  // Phase 6: Transfer to hero
+  .call(() => {
     // Clone video for seamless transfer
     const heroVideo = video.cloneNode(true);
     heroVideo.currentTime = video.currentTime;
     heroVideo.className = 'home-hero_video_el is-active';
-    heroVideo.style.cssText = 'position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 1;';
+    heroVideo.style.cssText = `
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 1;
+    `;
     
     // Add to hero container
-    heroVideoContainer.appendChild(heroVideo);
-    heroVideo.play().catch(() => {});
-    
-    // Show hero container
-    gsap.set(heroVideoContainer, { opacity: 1 });
+    if (heroVideoContainer) {
+      heroVideoContainer.appendChild(heroVideo);
+      heroVideo.play().catch(() => {});
+      gsap.set(heroVideoContainer, { opacity: 1 });
+    }
   }, "-=0.3")
   
   // Fade in hero content
@@ -241,7 +284,7 @@ export default function initSiteLoader(container) {
   return () => {
     console.log("[SiteLoader] cleanup");
     tl.kill();
-    gsap.killTweensOf([loaderEl, progressText, videoWrapper, curtain, corners, fpsCounter]);
+    gsap.killTweensOf([loaderEl, progressText, videoWrapper, videoCurtain, video, corners, fpsCounter, edgesBox]);
     if (lock && lock.parentNode) {
       lock.remove();
     }
