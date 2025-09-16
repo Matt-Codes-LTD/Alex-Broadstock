@@ -1,9 +1,20 @@
+// assets/v1/sections/site-loader/index.js
+
 export default function initSiteLoader(container) {
-  const loaderEl = container.querySelector(".loader");
+  // Only run once per session
+  if (sessionStorage.getItem('siteLoaderShown') === 'true') {
+    console.log("[SiteLoader] Already shown this session");
+    return () => {};
+  }
+
+  const loaderEl = container.querySelector(".site-loader_wrap");
   if (!loaderEl || loaderEl.dataset.scriptInitialized) return () => {};
   loaderEl.dataset.scriptInitialized = "true";
 
   console.log("[SiteLoader] init");
+
+  // Mark as shown for this session
+  sessionStorage.setItem('siteLoaderShown', 'true');
 
   // Lock scroll during preload
   document.documentElement.classList.add("is-preloading");
@@ -11,95 +22,154 @@ export default function initSiteLoader(container) {
   lock.textContent = `html.is-preloading, html.is-preloading body { overflow:hidden!important }`;
   document.head.appendChild(lock);
 
-  // CustomEase setup
-  if (window.CustomEase && !gsap.parseEase("hop")) {
-    window.CustomEase.create("hop", "0.68, -0.55, 0.265, 1.55");
-  }
+  // Get elements
+  const progressText = loaderEl.querySelector(".site-loader_progress-text");
+  const fpsCounter = loaderEl.querySelector(".site-loader_fps-counter");
+  const edgesBox = loaderEl.querySelector(".site-loader_edges");
+  const videoBox = loaderEl.querySelector(".site-loader_video-wrap");
+  const bgVideo = loaderEl.querySelector(".site-loader_video");
+  const curtain = loaderEl.querySelector(".site-loader_curtain");
+  const corners = loaderEl.querySelectorAll(".site-loader_corner");
 
   // Check for reduced motion preference
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // State
+  let progress = { value: 0, fps: 24 };
   
-  // Minimum display time to prevent loader from disappearing too quickly
-  const minDisplayTime = 2000; // 2 seconds minimum
-  const startTime = Date.now();
-
   // Reset initial states
-  gsap.set(loaderEl, { pointerEvents: "all", display: "block" });
-  gsap.set("#word-1 h1", { y: "-120%" });
-  gsap.set("#word-2 h1", { y: "120%" });
-  gsap.set(".block", { clipPath: "polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)" });
-
-  const tl = gsap.timeline({
-    delay: 1.5, // Short delay before animation starts
-    defaults: { ease: "hop" },
-    onComplete: () => {
-      // Ensure minimum display time
-      const elapsed = Date.now() - startTime;
-      const remaining = Math.max(0, minDisplayTime - elapsed);
-      
-      setTimeout(() => {
-        // Smooth backdrop filter fade before hiding loader
-        gsap.to(loaderEl.querySelector(".overlay"), {
-          backdropFilter: "blur(0px)",
-          webkitBackdropFilter: "blur(0px)",
-          duration: 0.4,
-          ease: "power2.out",
-          onComplete: () => {
-            loaderEl.style.pointerEvents = "none";
-            loaderEl.style.display = "none";
-            document.documentElement.classList.remove("is-preloading");
-            lock.remove();
-            console.log("[SiteLoader] done");
-          }
-        });
-      }, remaining);
-    },
+  gsap.set(loaderEl, { 
+    display: "flex",
+    opacity: 1,
+    pointerEvents: "all" 
+  });
+  gsap.set(progressText, { opacity: 1 });
+  gsap.set(videoBox, { opacity: 0, scale: 1.1 });
+  gsap.set(curtain, { xPercent: 0 });
+  gsap.set(corners, { opacity: 1 });
+  
+  // Set initial size CSS variables
+  gsap.set(edgesBox, {
+    "--width": 67,
+    "--height": 67
   });
 
-  // Apply reduced motion if user prefers it
+  // Create timeline
+  const tl = gsap.timeline({
+    onComplete: () => {
+      // Clean up
+      loaderEl.style.display = "none";
+      document.documentElement.classList.remove("is-preloading");
+      lock.remove();
+      console.log("[SiteLoader] done");
+      
+      // Dispatch custom event for other modules
+      window.dispatchEvent(new CustomEvent('siteLoaderComplete'));
+    }
+  });
+
+  // Apply faster animation if reduced motion
   if (prefersReducedMotion) {
-    tl.timeScale(10); // Much faster for users who prefer reduced motion
+    tl.timeScale(10);
   }
 
-  // === WORDS IN ===
-  tl.to(
-    ".word h1",
-    { y: "0%", duration: 1 },
-    0 // Start immediately when timeline begins
-  );
+  // Progress animation with expanding edges
+  tl.to(progress, {
+    value: 1,
+    fps: 120,
+    duration: 3,
+    ease: "sine.inOut",
+    onUpdate: () => {
+      const pct = Math.round(progress.value * 100);
+      if (progressText) {
+        progressText.textContent = pct.toString().padStart(2, "0");
+      }
 
-  // === WORDS OUT ===
-  tl.to(loaderEl.querySelectorAll("#word-1 h1"), { 
-    y: "100%", 
-    duration: 1, 
-    delay: 1.5 // Let words stay visible for 1.5 seconds
-  });
-  
-  tl.to(
-    loaderEl.querySelectorAll("#word-2 h1"),
-    { y: "-100%", duration: 1 },
-    "<" // Start at same time as word-1
-  );
+      // Expand edges from 67 to final size
+      if (edgesBox) {
+        gsap.set(edgesBox, {
+          "--width": Math.max(Math.round(371 * progress.value), 67),
+          "--height": Math.max(Math.round(220 * progress.value), 67)
+        });
+      }
 
-  // === PANELS CLOSE (REVEAL CONTENT BEHIND) ===
-  tl.to(
-    loaderEl.querySelectorAll(".block"),
-    {
-      clipPath: "polygon(0% 0%, 100% 0%, 100% 0%, 0% 0%)",
-      duration: 1,
-      stagger: 0.05,
-      delay: 0.75,
+      // Update FPS counter
+      if (fpsCounter) {
+        fpsCounter.textContent = `FPS: ${Math.round(progress.fps)}`;
+      }
     },
-    "<" // Start with words out animation
-  );
+    onComplete: () => {
+      // Start video if it exists
+      if (bgVideo) {
+        try {
+          bgVideo.currentTime = 0.01;
+          bgVideo.play().catch(() => {});
+        } catch {}
+      }
+    }
+  })
+  
+  // Fade out progress text
+  .to(progressText, { 
+    opacity: 0, 
+    duration: 0.3 
+  })
+  
+  // Reveal video with curtain slide
+  .to(curtain, { 
+    xPercent: 100, 
+    duration: 1.6, 
+    ease: "power3.inOut" 
+  })
+  
+  // Fade in video
+  .to(videoBox, { 
+    opacity: 1, 
+    scale: 1, 
+    duration: 1.6, 
+    ease: "power3.inOut" 
+  }, "<")
+  
+  // Fade out corners
+  .to(corners, {
+    opacity: 0,
+    duration: 0.8,
+    stagger: 0.05
+  }, "<0.5")
+  
+  // Fade out FPS counter
+  .to(fpsCounter, {
+    opacity: 0,
+    duration: 0.6
+  }, "<")
+  
+  // Final fade out of entire loader
+  .to(loaderEl, { 
+    opacity: 0, 
+    duration: 1.2,
+    delay: 0.3
+  });
+
+  // Minimum display time (optional)
+  const minDisplayTime = 2000;
+  const startTime = Date.now();
+  
+  // Pause timeline initially to ensure minimum display time
+  tl.pause();
+  
+  setTimeout(() => {
+    tl.play();
+  }, Math.max(0, minDisplayTime - (Date.now() - startTime)));
 
   // Cleanup
   return () => {
     console.log("[SiteLoader] cleanup");
-    gsap.killTweensOf(loaderEl.querySelectorAll("*"));
+    tl.kill();
+    gsap.killTweensOf([loaderEl, progressText, videoBox, curtain, corners, fpsCounter]);
     if (lock && lock.parentNode) {
       lock.remove();
     }
+    document.documentElement.classList.remove("is-preloading");
     delete loaderEl.dataset.scriptInitialized;
   };
 }
