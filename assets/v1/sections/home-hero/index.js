@@ -20,10 +20,8 @@ function createIntroAnimation(section) {
     scale: 0.98
   });
   
-  // Hide video initially for smoother transition
-  gsap.set(".home-hero_video_el", {
-    opacity: 0
-  });
+  // DON'T hide videos - let the loader handle the first one
+  // gsap.set(".home-hero_video_el", { opacity: 0 });
 
   // Create master timeline
   const tl = gsap.timeline({

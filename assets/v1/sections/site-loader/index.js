@@ -25,13 +25,6 @@ export default function initSiteLoader(container) {
   const edgesBox = loaderEl.querySelector(".site-loader_edges");
   const corners = loaderEl.querySelectorAll(".site-loader_corner");
   
-  console.log("[DEBUG] Elements found:", {
-    progressText: !!progressText,
-    fpsCounter: !!fpsCounter,
-    edgesBox: !!edgesBox,
-    corners: corners.length
-  });
-  
   // Determine viewport base for responsive units
   const vwScreen = window.innerWidth <= 479 ? 479 : 
                    window.innerWidth <= 767 ? 767 : 
@@ -73,18 +66,11 @@ export default function initSiteLoader(container) {
   video.playsInline = true;
   video.preload = 'auto';
   video.crossOrigin = 'anonymous';
-  video.autoplay = true; // Add autoplay
   
   if (firstVideoUrl) {
     video.src = firstVideoUrl + '#t=0.5';
     video.load();
     console.log("[SiteLoader] Using video:", firstVideoUrl);
-    
-    // Ensure video loads
-    video.addEventListener('loadeddata', () => {
-      console.log("Video loaded, duration:", video.duration);
-      video.currentTime = 0.001;
-    }, { once: true });
   }
   
   videoWrapper.appendChild(video);
@@ -150,24 +136,18 @@ export default function initSiteLoader(container) {
     gsap.set(edgesBox, {
       "--sl-width": 67,
       "--sl-height": 67,
-      zIndex: 2 // Ensure edges are above video initially
+      zIndex: 2,
+      background: "transparent"
     });
   }
-  
-  // Set video wrapper behind edges but visible
-  gsap.set(videoWrapper, {
-    zIndex: 1 // Behind edges but above background
-  });
-
-  console.log("[SiteLoader] Creating timeline");
 
   // Timeline
   const tl = gsap.timeline({
     onComplete: () => {
-      console.log("[SiteLoader] Animation complete");
       loaderEl.style.display = "none";
       document.documentElement.classList.remove("is-preloading");
       lock.remove();
+      console.log("[SiteLoader] done");
       window.dispatchEvent(new CustomEvent('siteLoaderComplete'));
       window.dispatchEvent(new CustomEvent('siteLoaderMorphComplete'));
     }
@@ -183,7 +163,6 @@ export default function initSiteLoader(container) {
     fps: 120,
     duration: 3,
     ease: "sine.inOut",
-    onStart: () => console.log("[Phase 1] Progress animation start"),
     onUpdate: () => {
       const pct = Math.round(progress.value * 100);
       
@@ -205,7 +184,6 @@ export default function initSiteLoader(container) {
       }
     },
     onComplete: () => {
-      console.log("[Phase 1] Complete, starting video");
       if (video) {
         video.currentTime = 0.001;
         video.play().catch(() => {});
@@ -213,81 +191,37 @@ export default function initSiteLoader(container) {
     }
   });
   
-  // Phase 2: Fade out progress text and prepare video
+  // Phase 2: Fade out progress text
   if (progressText) {
     tl.to(progressText, { 
       opacity: 0, 
-      duration: 0.3,
-      onStart: () => console.log("[Phase 2] Fade progress text"),
-      onComplete: () => {
-        // Move edges to higher z-index after text fades
-        if (edgesBox) {
-          gsap.set(edgesBox, { zIndex: 3 });
-        }
-      }
+      duration: 0.3
     });
   }
   
-  // Phase 3: Show video behind edges - force visibility
+  // Phase 3: Show video behind edges
   tl.to(videoWrapper, {
     opacity: 1,
     duration: 0.3,
-    ease: "power2.out",
-    immediateRender: true,
-    force3D: false,
-    onStart: () => {
-      console.log("[Phase 3] Fading in video wrapper");
-      // Force edges to be transparent in center
-      if (edgesBox) {
-        edgesBox.style.background = 'transparent';
-        edgesBox.style.pointerEvents = 'none';
-      }
-      console.log("Initial opacity:", getComputedStyle(videoWrapper).opacity);
-    },
-    onComplete: () => {
-      console.log("[Phase 3] Video wrapper visible");
-      console.log("Final opacity:", getComputedStyle(videoWrapper).opacity);
-      console.log("Edges background:", edgesBox ? getComputedStyle(edgesBox).background : "N/A");
-      
-      // Verify video is playing
-      if (video && !video.paused) {
-        console.log("Video is playing behind edges");
-      }
-    }
+    ease: "power2.out"
   });
-  
-  // Small pause to see video behind edges - removed as it's not needed
   
   // Slide curtain to reveal video
   tl.to(videoCurtain, { 
     xPercent: 100, 
     duration: 1.6, 
-    ease: "custom2InOut",
-    onStart: () => {
-      console.log("[Phase 4] Sliding curtain to reveal video");
-      video.play().catch(e => console.log("Video play error:", e));
-    },
-    onUpdate: function() {
-      if (this.progress() > 0.5 && !this._logged) {
-        this._logged = true;
-        console.log("Curtain 50% - video should be visible in center");
-      }
-    },
-    onComplete: () => console.log("Curtain fully slid, video revealed")
+    ease: "custom2InOut"
   });
   
-  // Scale video during reveal - animate separately to avoid array issue
+  // Scale video during reveal
   tl.to(video, { 
     scale: 1.2,
     duration: 1.6, 
     ease: "custom2InOut"
   }, "<");
   
-  // Phase 4: Exit animation
+  // Phase 4: Exit animations
   tl.add(() => {
-    console.log("[Phase 5] Exit animations");
-    
-    // Fade out corners
     if (corners.length) {
       gsap.to(corners, {
         opacity: 0,
@@ -296,7 +230,6 @@ export default function initSiteLoader(container) {
       });
     }
     
-    // Fade out FPS counter
     if (fpsCounter) {
       gsap.to(fpsCounter, {
         opacity: 0,
@@ -316,19 +249,12 @@ export default function initSiteLoader(container) {
     }, "<");
   }
   
-  // Phase 5: Morph to fullscreen - animate video and wrapper separately
+  // Phase 5: Morph to fullscreen
   tl.to(video, {
     scale: 1,
     duration: 2,
-    ease: "power3.inOut",
-    onStart: () => console.log("[Phase 6] Morph to fullscreen")
-  });
-  
-  tl.to(videoWrapper, {
-    scale: 1,
-    duration: 2,
     ease: "power3.inOut"
-  }, "<");
+  });
   
   tl.to(videoWrapper, {
     width: "100%",
@@ -338,30 +264,10 @@ export default function initSiteLoader(container) {
     overwrite: "auto"
   }, "<");
   
-  // Phase 6: Transfer to hero
+  // Phase 6: Show hero container (simplified - no transfer)
   tl.add(() => {
-    console.log("[Phase 7] Transfer to hero");
-    
-    // Clone video for seamless transfer
-    const heroVideo = video.cloneNode(true);
-    heroVideo.currentTime = video.currentTime;
-    heroVideo.className = 'home-hero_video_el is-active site-loader-transferred';
-    heroVideo.style.cssText = `
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      opacity: 1 !important;
-    `;
-    
-    // Add to hero container
     if (heroVideoContainer) {
-      heroVideoContainer.appendChild(heroVideo);
-      heroVideo.play().catch(() => {});
       gsap.set(heroVideoContainer, { opacity: 1 });
-      // Force the transferred video to stay visible
-      gsap.set(heroVideo, { opacity: 1, important: true });
     }
   }, "-=0.3");
   
@@ -382,32 +288,22 @@ export default function initSiteLoader(container) {
     duration: 0.5
   }, "-=0.5");
 
-  console.log("[SiteLoader] Timeline duration:", tl.duration());
-
   // Minimum display time
   const minDisplayTime = 2000;
   const startTime = Date.now();
   
   tl.pause();
   setTimeout(() => {
-    console.log("[SiteLoader] Playing timeline");
     tl.play();
   }, Math.max(0, minDisplayTime - (Date.now() - startTime)));
 
   // Cleanup
   return () => {
-    console.log("[SiteLoader] cleanup");
     tl.kill();
     gsap.killTweensOf([loaderEl, progressText, videoWrapper, videoCurtain, video, edgesBox]);
-    if (corners.length) {
-      gsap.killTweensOf(corners);
-    }
-    if (fpsCounter) {
-      gsap.killTweensOf(fpsCounter);
-    }
-    if (lock && lock.parentNode) {
-      lock.remove();
-    }
+    if (corners.length) gsap.killTweensOf(corners);
+    if (fpsCounter) gsap.killTweensOf(fpsCounter);
+    if (lock && lock.parentNode) lock.remove();
     document.documentElement.classList.remove("is-preloading");
     delete loaderEl.dataset.scriptInitialized;
   };
