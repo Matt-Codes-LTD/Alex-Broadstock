@@ -2,6 +2,130 @@
 import { createVideoManager } from "./video-manager.js";
 import { initCategoryFilter } from "./category-filter.js";
 
+/**
+ * Create intro animation timeline
+ */
+function createIntroAnimation(section) {
+  // Set initial states via GSAP
+  gsap.set([
+    ".home-category_text",
+    ".home_hero_text", 
+    ".home-category_ref_text:not([hidden])",
+    ".brand_logo",
+    ".nav_link",
+    ".home-awards_list"
+  ], {
+    opacity: 0,
+    y: 20,
+    scale: 0.98
+  });
+  
+  // Hide video initially for smoother transition
+  gsap.set(".home-hero_video_el", {
+    opacity: 0
+  });
+
+  // Create master timeline
+  const tl = gsap.timeline({
+    defaults: {
+      ease: "power3.out",
+      duration: 0.8
+    },
+    onComplete: () => {
+      console.log("[HomeHero] Intro animation complete");
+      section.dataset.introComplete = "true";
+      
+      // Remove inline styles to let CSS take over
+      gsap.set([
+        ".home-category_text",
+        ".home_hero_text",
+        ".home-category_ref_text",
+        ".brand_logo",
+        ".nav_link"
+      ], { clearProps: "all" });
+    }
+  });
+
+  // Phase 1: Logo and Nav
+  tl.to(".brand_logo", {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    duration: 1,
+    ease: "power4.out"
+  }, 0.2)
+  
+  // Navigation links with micro-stagger
+  .to(".nav_link", {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    duration: 0.6,
+    stagger: 0.08
+  }, 0.3)
+  
+  // Phase 2: Category filters
+  .to(".home-category_text", {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    duration: 0.6,
+    stagger: {
+      each: 0.06,
+      from: "start"
+    }
+  }, 0.4)
+  
+  // Phase 3: Project names
+  .to(".home_hero_text", {
+    opacity: function(index, target) {
+      const parent = target.closest('.home-hero_link');
+      return parent?.getAttribute('aria-current') === 'true' ? 1 : 0.6;
+    },
+    y: 0,
+    scale: 1,
+    duration: 0.7,
+    stagger: {
+      each: 0.05,
+      from: "start",
+      ease: "power2.inOut"
+    }
+  }, 0.6)
+  
+  // Phase 4: Project tags
+  .to(".home-category_ref_text:not([hidden])", {
+    opacity: function(index, target) {
+      const parent = target.closest('.home-hero_link');
+      return parent?.getAttribute('aria-current') === 'true' ? 1 : 0.6;
+    },
+    y: 0,
+    scale: 1,
+    duration: 0.6,
+    stagger: {
+      each: 0.04,
+      from: "start"
+    }
+  }, 0.7)
+  
+  // Phase 5: Awards (if visible)
+  .to(".home-awards_list", {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    duration: 0.8,
+    ease: "back.out(1.4)"
+  }, 0.9)
+  
+  // Phase 6: Video fade in
+  .to(".home-hero_video_el.is-active", {
+    opacity: 1,
+    duration: 1.5,
+    ease: "power2.inOut"
+  }, 0.5);
+
+  return tl;
+}
+
 export default function initHomeHero(container) {
   const section = container.querySelector(".home-hero_wrap");
   if (!section || section.dataset.scriptInitialized) return () => {};
@@ -16,6 +140,9 @@ export default function initHomeHero(container) {
     console.warn("[HomeHero] Missing required elements");
     return () => {};
   }
+
+  // Run intro animation first
+  const introTimeline = createIntroAnimation(section);
 
   // Get all project items
   const items = Array.from(section.querySelectorAll(".home-hero_list"));
@@ -154,7 +281,7 @@ export default function initHomeHero(container) {
     tl.call(() => updateAwards(item), null, 0.15);
   }
 
-  // Preload videos
+  // Preload videos (delayed to prioritize intro animation)
   function preloadVideos() {
     const MAX_EAGER = 3;
     let count = 0;
@@ -219,6 +346,17 @@ export default function initHomeHero(container) {
     const style = document.createElement("style");
     style.setAttribute("data-awards-css", "");
     style.textContent = `
+      /* Initial states for intro animation */
+      .home-hero_wrap:not([data-intro-complete]) .home-category_text,
+      .home-hero_wrap:not([data-intro-complete]) .home_hero_text,
+      .home-hero_wrap:not([data-intro-complete]) .home-category_ref_text:not([hidden]),
+      .home-hero_wrap:not([data-intro-complete]) .brand_logo,
+      .home-hero_wrap:not([data-intro-complete]) .nav_link,
+      .home-hero_wrap:not([data-intro-complete]) .home-awards_list {
+        opacity: 0;
+        transform: translateY(20px) scale(0.98);
+      }
+      
       .home-awards_list {
         opacity: 0;
         transition: none; /* GSAP handles this now */
@@ -249,19 +387,26 @@ export default function initHomeHero(container) {
     section.appendChild(style);
   }
 
-  // Initialize
-  hideMetaTags();
-  preloadVideos();
-  
-  // Set first visible item as active
-  const firstVisible = items.find(item => item.style.display !== "none");
-  if (firstVisible) {
-    setActive(firstVisible);
-  }
+  // Initialize after intro animation has started
+  introTimeline.eventCallback("onStart", () => {
+    hideMetaTags();
+  });
+
+  // Complete initialization after intro plays
+  introTimeline.eventCallback("onComplete", () => {
+    preloadVideos();
+    
+    // Set first visible item as active
+    const firstVisible = items.find(item => item.style.display !== "none");
+    if (firstVisible) {
+      setActive(firstVisible);
+    }
+  });
 
   // Cleanup function
   return () => {
     clearTimeout(hoverTimeout);
+    introTimeline.kill();
     listParent.removeEventListener("mouseenter", handleInteraction, true);
     listParent.removeEventListener("focusin", handleInteraction);
     listParent.removeEventListener("touchstart", handleInteraction);
@@ -269,5 +414,6 @@ export default function initHomeHero(container) {
     document.removeEventListener("visibilitychange", handleVisibility);
     cleanupFilter?.();
     delete section.dataset.scriptInitialized;
+    delete section.dataset.introComplete;
   };
 }
