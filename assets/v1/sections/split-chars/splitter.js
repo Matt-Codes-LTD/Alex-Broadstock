@@ -1,5 +1,5 @@
 // splitter.js
-const incDefault = 0.01;
+const incDefault = 0.02;
 const originals = new Map();
 
 export function splitChars(hostEl) {
