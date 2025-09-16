@@ -1,5 +1,3 @@
-// assets/v1/sections/site-loader/index.js
-
 export default function initSiteLoader(container) {
   // Skip if this is a Barba navigation (not a fresh page load)
   if (window.__barbaNavigated) {
@@ -7,15 +5,12 @@ export default function initSiteLoader(container) {
     return () => {};
   }
 
+  console.log("[SiteLoader] init");
+
   // Look in document, not container (loader is outside barba container)
   const loaderEl = document.querySelector(".site-loader_wrap");
   if (!loaderEl || loaderEl.dataset.scriptInitialized) return () => {};
   loaderEl.dataset.scriptInitialized = "true";
-
-  console.log("[SiteLoader] init");
-
-  // Mark as shown for this session
-  sessionStorage.setItem('siteLoaderShown', 'true');
 
   // Lock scroll during preload
   document.documentElement.classList.add("is-preloading");
@@ -31,6 +26,9 @@ export default function initSiteLoader(container) {
   const bgVideo = loaderEl.querySelector(".site-loader_video");
   const curtain = loaderEl.querySelector(".site-loader_curtain");
   const corners = loaderEl.querySelectorAll(".site-loader_corner");
+  
+  // Get hero container for morph target
+  const heroVideoContainer = document.querySelector(".home-hero_video");
   
   // Dynamically get the first project's video URL
   const firstProjectItem = document.querySelector('.home-hero_list:not([style*="display: none"]) .home-hero_item');
@@ -77,7 +75,7 @@ export default function initSiteLoader(container) {
   // Create timeline
   const tl = gsap.timeline({
     onComplete: () => {
-      // Clean up
+      // Final cleanup after morph
       loaderEl.style.display = "none";
       document.documentElement.classList.remove("is-preloading");
       lock.remove();
@@ -163,12 +161,59 @@ export default function initSiteLoader(container) {
     duration: 0.6
   }, "<")
   
-  // Final fade out of entire loader
+  // MORPH VIDEO TO HERO BACKGROUND
+  .call(() => {
+    if (!bgVideo || !heroVideoContainer || !videoBox) return;
+    
+    // Capture current state with Flip
+    const state = Flip.getState(bgVideo);
+    
+    // Prepare video for morph
+    bgVideo.classList.add("site-loader-morph-video");
+    bgVideo.style.position = "absolute";
+    bgVideo.style.inset = "0";
+    bgVideo.style.width = "100%";
+    bgVideo.style.height = "100%";
+    bgVideo.style.objectFit = "cover";
+    bgVideo.style.zIndex = "2"; // Above other hero videos temporarily
+    
+    // Move video to hero container
+    heroVideoContainer.appendChild(bgVideo);
+    
+    // Animate morph
+    Flip.from(state, {
+      duration: 1.5,
+      ease: "power3.inOut",
+      absolute: true,
+      scale: true,
+      onComplete: () => {
+        // After morph, trigger fade to existing hero video
+        gsap.to(bgVideo, {
+          opacity: 0,
+          duration: 0.6,
+          ease: "power2.out",
+          onComplete: () => {
+            // Clean up morph video
+            bgVideo.remove();
+            
+            // Ensure first hero video is active
+            const firstHeroVideo = heroVideoContainer.querySelector('.home-hero_video_el');
+            if (firstHeroVideo) {
+              firstHeroVideo.classList.add('is-active');
+              gsap.set(firstHeroVideo, { opacity: 1 });
+            }
+          }
+        });
+      }
+    });
+  })
+  
+  // Fade out loader wrapper (happens during morph)
   .to(loaderEl, { 
     opacity: 0, 
     duration: 1.2,
     delay: 0.3
-  });
+  }, "-=1.5"); // Overlap with morph
 
   // Minimum display time (optional)
   const minDisplayTime = 2000;
@@ -185,7 +230,7 @@ export default function initSiteLoader(container) {
   return () => {
     console.log("[SiteLoader] cleanup");
     tl.kill();
-    gsap.killTweensOf([loaderEl, progressText, videoBox, curtain, corners, fpsCounter]);
+    gsap.killTweensOf([loaderEl, progressText, videoBox, curtain, corners, fpsCounter, bgVideo]);
     if (lock && lock.parentNode) {
       lock.remove();
     }
