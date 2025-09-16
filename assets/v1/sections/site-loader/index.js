@@ -27,8 +27,18 @@ export default function initSiteLoader(container) {
   const curtain = loaderEl.querySelector(".site-loader_curtain");
   const corners = loaderEl.querySelectorAll(".site-loader_corner");
   
-  // Get hero container for morph target
+  // Get hero elements
+  const heroSection = document.querySelector(".home-hero_wrap");
   const heroVideoContainer = document.querySelector(".home-hero_video");
+  const navWrap = document.querySelector(".nav_wrap");
+  
+  // Hide hero content initially (will show after morph)
+  if (heroSection) {
+    gsap.set([heroSection, navWrap], { 
+      opacity: 0,
+      visibility: "hidden"
+    });
+  }
   
   // Dynamically get the first project's video URL
   const firstProjectItem = document.querySelector('.home-hero_list:not([style*="display: none"]) .home-hero_item');
@@ -75,7 +85,7 @@ export default function initSiteLoader(container) {
   // Create timeline
   const tl = gsap.timeline({
     onComplete: () => {
-      // Final cleanup after morph
+      // Final cleanup
       loaderEl.style.display = "none";
       document.documentElement.classList.remove("is-preloading");
       lock.remove();
@@ -161,59 +171,94 @@ export default function initSiteLoader(container) {
     duration: 0.6
   }, "<")
   
-  // MORPH VIDEO TO HERO BACKGROUND
+  // MORPH VIDEO TO FULLSCREEN
   .call(() => {
-    if (!bgVideo || !heroVideoContainer || !videoBox) return;
+    if (!bgVideo || !videoBox) return;
     
-    // Capture current state with Flip
-    const state = Flip.getState(bgVideo);
+    // Clone video for seamless morph
+    const morphVideo = bgVideo.cloneNode(true);
+    morphVideo.currentTime = bgVideo.currentTime;
+    morphVideo.play().catch(() => {});
     
-    // Prepare video for morph
-    bgVideo.classList.add("site-loader-morph-video");
-    bgVideo.style.position = "absolute";
-    bgVideo.style.inset = "0";
-    bgVideo.style.width = "100%";
-    bgVideo.style.height = "100%";
-    bgVideo.style.objectFit = "cover";
-    bgVideo.style.zIndex = "2"; // Above other hero videos temporarily
+    // Position morph video absolutely in viewport
+    morphVideo.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: ${videoBox.offsetWidth}px;
+      height: ${videoBox.offsetHeight}px;
+      object-fit: cover;
+      z-index: 9999;
+      pointer-events: none;
+    `;
     
-    // Move video to hero container
-    heroVideoContainer.appendChild(bgVideo);
+    document.body.appendChild(morphVideo);
     
-    // Animate morph
-    Flip.from(state, {
+    // Hide original preloader video
+    videoBox.style.opacity = '0';
+    
+    // Animate to fullscreen
+    gsap.to(morphVideo, {
+      width: '100vw',
+      height: '100vh',
       duration: 1.5,
       ease: "power3.inOut",
-      absolute: true,
-      scale: true,
       onComplete: () => {
-        // After morph, trigger fade to existing hero video
-        gsap.to(bgVideo, {
-          opacity: 0,
-          duration: 0.6,
-          ease: "power2.out",
-          onComplete: () => {
-            // Clean up morph video
-            bgVideo.remove();
-            
-            // Ensure first hero video is active
-            const firstHeroVideo = heroVideoContainer.querySelector('.home-hero_video_el');
-            if (firstHeroVideo) {
-              firstHeroVideo.classList.add('is-active');
-              gsap.set(firstHeroVideo, { opacity: 1 });
+        // Add morphed video to hero container
+        if (heroVideoContainer) {
+          morphVideo.style.cssText = `
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 2;
+          `;
+          morphVideo.classList.add('home-hero_video_el', 'is-active');
+          heroVideoContainer.appendChild(morphVideo);
+        }
+        
+        // Show hero section
+        if (heroSection) {
+          gsap.set([heroSection, navWrap], { 
+            visibility: "visible"
+          });
+          gsap.to([heroSection, navWrap], {
+            opacity: 1,
+            duration: 0.4,
+            ease: "power2.out",
+            onComplete: () => {
+              // Trigger hero intro animations
+              window.dispatchEvent(new CustomEvent('siteLoaderMorphComplete'));
+              
+              // After a delay, fade out morph video and let real videos take over
+              setTimeout(() => {
+                const firstHeroVideo = heroVideoContainer?.querySelector('.home-hero_video_el:not(:first-child)');
+                if (firstHeroVideo) {
+                  firstHeroVideo.classList.add('is-active');
+                  gsap.set(firstHeroVideo, { opacity: 1 });
+                }
+                gsap.to(morphVideo, {
+                  opacity: 0,
+                  duration: 0.8,
+                  ease: "power2.out",
+                  onComplete: () => morphVideo.remove()
+                });
+              }, 2000);
             }
-          }
-        });
+          });
+        }
       }
     });
   })
   
-  // Fade out loader wrapper (happens during morph)
+  // Fade out loader wrapper
   .to(loaderEl, { 
     opacity: 0, 
-    duration: 1.2,
-    delay: 0.3
-  }, "-=1.5"); // Overlap with morph
+    duration: 0.8,
+    delay: 0.5
+  }, "-=1");
 
   // Minimum display time (optional)
   const minDisplayTime = 2000;

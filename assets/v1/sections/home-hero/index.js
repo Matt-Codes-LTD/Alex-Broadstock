@@ -134,8 +134,22 @@ export default function initHomeHero(container) {
     return () => {};
   }
 
-  // Run intro animation first
-  const introTimeline = createIntroAnimation(section);
+  // Check if we're coming from site loader
+  const hasSiteLoader = document.querySelector('.site-loader_wrap');
+  let introTimeline = null;
+
+  // If site loader exists, wait for morph to complete
+  if (hasSiteLoader && !window.__barbaNavigated) {
+    window.addEventListener('siteLoaderMorphComplete', () => {
+      console.log("[HomeHero] Morph complete, starting intro");
+      introTimeline = createIntroAnimation(section);
+      initializeHero();
+    }, { once: true });
+  } else {
+    // No site loader or Barba navigation - start immediately
+    introTimeline = createIntroAnimation(section);
+    initializeHero();
+  }
 
   // Get all project items
   const items = Array.from(section.querySelectorAll(".home-hero_list"));
@@ -144,6 +158,32 @@ export default function initHomeHero(container) {
   // Track active item
   let activeItem = null;
   let isTransitioning = false;
+
+  function initializeHero() {
+    // Initialize after intro animation has started
+    if (introTimeline) {
+      introTimeline.eventCallback("onStart", () => {
+        hideMetaTags();
+      });
+
+      // Complete initialization after intro plays
+      introTimeline.eventCallback("onComplete", () => {
+        preloadVideos();
+        
+        // Set first visible item as active
+        const firstVisible = items.find(item => item.style.display !== "none");
+        if (firstVisible) {
+          setActive(firstVisible);
+        }
+      });
+    } else {
+      // Immediate setup if no timeline
+      hideMetaTags();
+      preloadVideos();
+      const firstVisible = items.find(item => item.style.display !== "none");
+      if (firstVisible) setActive(firstVisible);
+    }
+  }
 
   // Improved awards management with GSAP
   function updateAwards(item) {
@@ -325,29 +365,10 @@ export default function initHomeHero(container) {
   };
   document.addEventListener("visibilitychange", handleVisibility);
 
-  // Note: All CSS should be in your main CSS file/embed
-  // The GSAP animations will handle the initial states and animations
-
-  // Initialize after intro animation has started
-  introTimeline.eventCallback("onStart", () => {
-    hideMetaTags();
-  });
-
-  // Complete initialization after intro plays
-  introTimeline.eventCallback("onComplete", () => {
-    preloadVideos();
-    
-    // Set first visible item as active
-    const firstVisible = items.find(item => item.style.display !== "none");
-    if (firstVisible) {
-      setActive(firstVisible);
-    }
-  });
-
   // Cleanup function
   return () => {
     clearTimeout(hoverTimeout);
-    introTimeline.kill();
+    if (introTimeline) introTimeline.kill();
     listParent.removeEventListener("mouseenter", handleInteraction, true);
     listParent.removeEventListener("focusin", handleInteraction);
     listParent.removeEventListener("touchstart", handleInteraction);
