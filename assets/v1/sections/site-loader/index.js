@@ -7,7 +7,8 @@ export default function initSiteLoader(container) {
     return () => {};
   }
 
-  const loaderEl = container.querySelector(".site-loader_wrap");
+  // Look in document, not container (loader is outside barba container)
+  const loaderEl = document.querySelector(".site-loader_wrap");
   if (!loaderEl || loaderEl.dataset.scriptInitialized) return () => {};
   loaderEl.dataset.scriptInitialized = "true";
 
