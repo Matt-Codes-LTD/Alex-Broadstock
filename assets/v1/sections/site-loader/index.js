@@ -228,21 +228,31 @@ export default function initSiteLoader(container) {
     });
   }
   
-  // Phase 3: Show video behind edges - use .to() instead of .set() to ensure it animates
+  // Phase 3: Show video behind edges - force visibility
   tl.to(videoWrapper, {
     opacity: 1,
-    zIndex: 1, // Behind edges (z-index 3)
     duration: 0.3,
     ease: "power2.out",
+    immediateRender: true,
+    force3D: false,
     onStart: () => {
       console.log("[Phase 3] Fading in video wrapper");
+      // Force edges to be transparent in center
+      if (edgesBox) {
+        edgesBox.style.background = 'transparent';
+        edgesBox.style.pointerEvents = 'none';
+      }
       console.log("Initial opacity:", getComputedStyle(videoWrapper).opacity);
     },
     onComplete: () => {
-      console.log("[Phase 3] Video wrapper visible behind edges");
+      console.log("[Phase 3] Video wrapper visible");
       console.log("Final opacity:", getComputedStyle(videoWrapper).opacity);
-      console.log("Video wrapper actual size:", videoWrapper.offsetWidth + "x" + videoWrapper.offsetHeight);
-      console.log("Edges box z-index:", edgesBox ? getComputedStyle(edgesBox).zIndex : "N/A");
+      console.log("Edges background:", edgesBox ? getComputedStyle(edgesBox).background : "N/A");
+      
+      // Verify video is playing
+      if (video && !video.paused) {
+        console.log("Video is playing behind edges");
+      }
     }
   });
   
