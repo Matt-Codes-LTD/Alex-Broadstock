@@ -30,10 +30,22 @@ export default function initSiteLoader(container) {
   const heroContent = container.querySelectorAll(".nav_wrap, .home-hero_menu, .home-hero_awards");
   gsap.set(heroContent, { opacity: 0, visibility: "hidden" });
   
-  // Get first video and update it
+  // Get first video URL and create/update video element
   const firstProjectItem = container.querySelector('.home-hero_list:not([style*="display: none"]) .home-hero_item');
   const firstVideoUrl = firstProjectItem?.dataset?.video;
-  const firstVideo = videoContainer?.querySelector('.home-hero_video_el');
+  let firstVideo = videoContainer?.querySelector('.home-hero_video_el');
+  
+  // CREATE VIDEO ELEMENT IF IT DOESN'T EXIST
+  if (!firstVideo && videoContainer && firstVideoUrl) {
+    firstVideo = document.createElement('video');
+    firstVideo.className = 'home-hero_video_el';
+    firstVideo.muted = true;
+    firstVideo.loop = true;
+    firstVideo.playsInline = true;
+    firstVideo.preload = 'auto';
+    firstVideo.crossOrigin = 'anonymous';
+    videoContainer.appendChild(firstVideo);
+  }
   
   if (firstVideo && firstVideoUrl) {
     firstVideo.src = firstVideoUrl;
@@ -48,7 +60,7 @@ export default function initSiteLoader(container) {
   let progress = { value: 0, fps: 24 };
   
   // Initial states
-  gsap.set(loaderEl, { display: "flex", opacity: 1 });
+  gsap.set(loaderEl, { display: "flex", opacity: 1, zIndex: 10000 });
   gsap.set(progressText, { opacity: 1 });
   gsap.set(videoContainer, { 
     width: "349px",
@@ -58,7 +70,8 @@ export default function initSiteLoader(container) {
     left: "50%",
     transform: "translate(-50%, -50%)",
     scale: 1.1,
-    opacity: 0
+    opacity: 0,
+    zIndex: 9999  // Ensure video is above curtain initially
   });
   gsap.set(curtain, { xPercent: 0 });
   gsap.set(edgesBox, {
@@ -113,10 +126,14 @@ export default function initSiteLoader(container) {
   // Fade out progress text
   .to(progressText, { opacity: 0, duration: 0.3 })
   
-  // Show video
-  .to(videoContainer, { opacity: 1, duration: 0.5 }, "-=0.2")
+  // Show video with proper z-index
+  .to(videoContainer, { 
+    opacity: 1, 
+    zIndex: 9999,
+    duration: 0.5 
+  }, "-=0.2")
   
-  // Slide curtain
+  // Slide curtain to reveal video
   .to(curtain, { 
     xPercent: 100, 
     duration: 1.6, 
@@ -152,15 +169,20 @@ export default function initSiteLoader(container) {
     scale: 1,
     duration: 1.8,
     ease: "power3.inOut",
-    clearProps: "transform",
+    clearProps: "transform,zIndex",
     onComplete: () => {
       // Reset video container to original state
       gsap.set(videoContainer, {
         position: "absolute",
         top: 0,
         left: 0,
-        transform: "none"
+        transform: "none",
+        zIndex: ""
       });
+      // Mark video as active for home-hero module
+      if (firstVideo) {
+        firstVideo.classList.add('is-active');
+      }
     }
   }, "-=0.5")
   
@@ -176,7 +198,8 @@ export default function initSiteLoader(container) {
   // Fade out loader wrapper
   .to(loaderEl, { 
     opacity: 0, 
-    duration: 0.5
+    duration: 0.5,
+    zIndex: -1
   }, "-=0.5");
 
   // Minimum display time
