@@ -114,14 +114,7 @@ function createIntroAnimation(section) {
     scale: 1,
     duration: 0.8,
     ease: "back.out(1.4)"
-  }, 0.9)
-  
-  // Phase 6: Video fade in
-  .to(".home-hero_video_el.is-active", {
-    opacity: 1,
-    duration: 1.5,
-    ease: "power2.inOut"
-  }, 0.5);
+  }, 0.9);
 
   return tl;
 }
