@@ -31,6 +31,25 @@ export default function initSiteLoader(container) {
   const bgVideo = loaderEl.querySelector(".site-loader_video");
   const curtain = loaderEl.querySelector(".site-loader_curtain");
   const corners = loaderEl.querySelectorAll(".site-loader_corner");
+  
+  // Dynamically get the first project's video URL
+  const firstProjectItem = document.querySelector('.home-hero_list:not([style*="display: none"]) .home-hero_item');
+  const firstVideoUrl = firstProjectItem?.dataset?.video;
+  
+  // Update video source if found
+  if (bgVideo && firstVideoUrl) {
+    // Remove any existing sources
+    bgVideo.querySelectorAll('source').forEach(s => s.remove());
+    
+    // Create new source with dynamic URL
+    const source = document.createElement('source');
+    source.src = firstVideoUrl + '#t=0.5'; // Add poster frame timestamp
+    source.type = 'video/mp4';
+    bgVideo.appendChild(source);
+    bgVideo.load(); // Reload video with new source
+    
+    console.log("[SiteLoader] Using video:", firstVideoUrl);
+  }
 
   // Check for reduced motion preference
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
