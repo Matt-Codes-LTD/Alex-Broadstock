@@ -2,121 +2,6 @@
 import { createVideoManager } from "./video-manager.js";
 import { initCategoryFilter } from "./category-filter.js";
 
-/**
- * Create intro animation timeline
- */
-function createIntroAnimation(section) {
-  // Set initial states via GSAP
-  gsap.set([
-    ".home-category_text",
-    ".home_hero_text", 
-    ".home-category_ref_text:not([hidden])",
-    ".brand_logo",
-    ".nav_link",
-    ".home-awards_list"
-  ], {
-    opacity: 0,
-    y: 20,
-    scale: 0.98
-  });
-  
-  // DON'T hide videos - let the loader handle the first one
-  // gsap.set(".home-hero_video_el", { opacity: 0 });
-
-  // Create master timeline
-  const tl = gsap.timeline({
-    defaults: {
-      ease: "power3.out",
-      duration: 0.8
-    },
-    onComplete: () => {
-      console.log("[HomeHero] Intro animation complete");
-      section.dataset.introComplete = "true";
-      
-      // Remove inline styles to let CSS take over
-      gsap.set([
-        ".home-category_text",
-        ".home_hero_text",
-        ".home-category_ref_text",
-        ".brand_logo",
-        ".nav_link"
-      ], { clearProps: "all" });
-    }
-  });
-
-  // Phase 1: Logo and Nav
-  tl.to(".brand_logo", {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    duration: 1,
-    ease: "power4.out"
-  }, 0.2)
-  
-  // Navigation links with micro-stagger
-  .to(".nav_link", {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    duration: 0.6,
-    stagger: 0.08
-  }, 0.3)
-  
-  // Phase 2: Category filters
-  .to(".home-category_text", {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    duration: 0.6,
-    stagger: {
-      each: 0.06,
-      from: "start"
-    }
-  }, 0.4)
-  
-  // Phase 3: Project names
-  .to(".home_hero_text", {
-    opacity: function(index, target) {
-      const parent = target.closest('.home-hero_link');
-      return parent?.getAttribute('aria-current') === 'true' ? 1 : 0.6;
-    },
-    y: 0,
-    scale: 1,
-    duration: 0.7,
-    stagger: {
-      each: 0.05,
-      from: "start",
-      ease: "power2.inOut"
-    }
-  }, 0.6)
-  
-  // Phase 4: Project tags
-  .to(".home-category_ref_text:not([hidden])", {
-    opacity: function(index, target) {
-      const parent = target.closest('.home-hero_link');
-      return parent?.getAttribute('aria-current') === 'true' ? 1 : 0.6;
-    },
-    y: 0,
-    scale: 1,
-    duration: 0.6,
-    stagger: {
-      each: 0.04,
-      from: "start"
-    }
-  }, 0.7)
-  
-  // Phase 5: Awards (if visible)
-  .to(".home-awards_list", {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    duration: 0.8,
-    ease: "back.out(1.4)"
-  }, 0.9);
-
-  return tl;
-}
-
 export default function initHomeHero(container) {
   const section = container.querySelector(".home-hero_wrap");
   if (!section || section.dataset.scriptInitialized) return () => {};
@@ -126,171 +11,104 @@ export default function initHomeHero(container) {
   const videoStage = section.querySelector(".home-hero_video");
   const listParent = section.querySelector(".home-hero_list_parent");
   const awardsStrip = section.querySelector(".home-awards_list");
-  
+
   if (!videoStage || !listParent) {
     console.warn("[HomeHero] Missing required elements");
     return () => {};
   }
 
-  // Check if we're coming from site loader
-  const hasSiteLoader = document.querySelector('.site-loader_wrap');
-  let introTimeline = null;
-
-  // If site loader exists, wait for morph to complete
-  if (hasSiteLoader && !window.__barbaNavigated) {
-    window.addEventListener('siteLoaderMorphComplete', () => {
-      console.log("[HomeHero] Morph complete, starting intro");
-      introTimeline = createIntroAnimation(section);
-      initializeHero();
-    }, { once: true });
-  } else {
-    // No site loader or Barba navigation - start immediately
-    introTimeline = createIntroAnimation(section);
-    initializeHero();
-  }
-
   // Get all project items
   const items = Array.from(section.querySelectorAll(".home-hero_list"));
   const videoManager = createVideoManager(videoStage);
-  
+
   // Track active item
   let activeItem = null;
-  let isTransitioning = false;
 
+  // Initialize (no timelines)
   function initializeHero() {
-    // Initialize after intro animation has started
-    if (introTimeline) {
-      introTimeline.eventCallback("onStart", () => {
-        hideMetaTags();
-      });
+    hideMetaTags();
+    preloadVideos();
 
-      // Complete initialization after intro plays
-      introTimeline.eventCallback("onComplete", () => {
-        preloadVideos();
-        
-        // Set first visible item as active
-        const firstVisible = items.find(item => item.style.display !== "none");
-        if (firstVisible) {
-          setActive(firstVisible);
-        }
-      });
-    } else {
-      // Immediate setup if no timeline
-      hideMetaTags();
-      preloadVideos();
-      const firstVisible = items.find(item => item.style.display !== "none");
-      if (firstVisible) setActive(firstVisible);
-    }
+    const firstVisible = items.find(item => item.style.display !== "none");
+    if (firstVisible) setActive(firstVisible);
+
+    section.dataset.introComplete = "true";
+    console.log("[HomeHero] Intro setup complete (no timelines)");
   }
 
-  // Improved awards management with GSAP
+  // Wait for site loader morph if present, then init
+  const hasSiteLoader = document.querySelector(".site-loader_wrap");
+  if (hasSiteLoader && !window.__barbaNavigated) {
+    window.addEventListener(
+      "siteLoaderMorphComplete",
+      () => {
+        console.log("[HomeHero] Morph complete, starting init");
+        initializeHero();
+      },
+      { once: true }
+    );
+  } else {
+    initializeHero();
+  }
+
+  // Awards management (no timelines/animations)
   function updateAwards(item) {
-    if (!awardsStrip || isTransitioning) return;
-    isTransitioning = true;
-    
+    if (!awardsStrip) return;
+
     const awardsContainer = item?.querySelector(".home-project_awards");
     const newAwardImages = awardsContainer?.querySelectorAll("img") || [];
-    
-    // Create timeline for smooth transition
-    const tl = gsap.timeline({
-      onComplete: () => {
-        isTransitioning = false;
-      }
-    });
 
-    // If no awards, just fade out
+    // Clear existing
+    awardsStrip.innerHTML = "";
+
     if (!newAwardImages.length) {
-      tl.to(awardsStrip, {
-        opacity: 0,
-        duration: 0.3,
-        ease: "power2.out"
-      })
-      .call(() => {
-        awardsStrip.innerHTML = "";
-        awardsStrip.classList.remove("is-visible");
-      });
+      awardsStrip.classList.remove("is-visible");
       return;
     }
 
-    // Fade out current awards
-    tl.to(awardsStrip, {
-      opacity: 0,
-      duration: 0.25,
-      ease: "power2.out"
-    })
-    // Clear and add new awards
-    .call(() => {
-      awardsStrip.innerHTML = "";
-      
-      newAwardImages.forEach(img => {
-        const clone = img.cloneNode(true);
-        clone.removeAttribute("sizes");
-        clone.removeAttribute("srcset");
-        gsap.set(clone, { 
-          opacity: 0, 
-          y: 12,
-          scale: 0.95
-        });
-        awardsStrip.appendChild(clone);
-      });
-      
-      awardsStrip.classList.add("is-visible");
-    })
-    // Fade in and animate new awards
-    .to(awardsStrip, {
-      opacity: 1,
-      duration: 0.4,
-      ease: "power2.out"
-    }, "+=0.1")
-    .to(awardsStrip.querySelectorAll("img"), {
-      opacity: 1,
-      y: 0,
-      scale: 1,
-      duration: 0.5,
-      stagger: 0.08,
-      ease: "back.out(1.7)"
-    }, "-=0.3");
+    // Add new awards instantly
+    newAwardImages.forEach(img => {
+      const clone = img.cloneNode(true);
+      clone.removeAttribute("sizes");
+      clone.removeAttribute("srcset");
+      awardsStrip.appendChild(clone);
+    });
+
+    awardsStrip.classList.add("is-visible");
   }
 
-  // Set active project with improved transitions
+  // Set active project (keeps logic, no timeline animations)
   function setActive(item) {
     if (!item || item.style.display === "none") return;
     if (activeItem === item) return;
-    
-    const prevItem = activeItem;
+
     activeItem = item;
-    
-    // Get video from .home-hero_item element
+
     const projectEl = item.querySelector(".home-hero_item");
     const videoSrc = projectEl?.dataset.video;
-    
+
     // Apply faded class to all items first
     items.forEach(i => {
       const link = i.querySelector(".home-hero_link");
       const text = i.querySelector(".home_hero_text");
       const pills = i.querySelectorAll(".home-category_ref_text:not([hidden])");
-      
+
       if (link) link.setAttribute("aria-current", "false");
-      
-      // Add faded class to all
+
       text?.classList.add("u-color-faded");
       pills.forEach(p => p.classList.add("u-color-faded"));
     });
-    
-    // Remove faded class from active item
+
+    // Unfade active
     const activeLink = item.querySelector(".home-hero_link");
     const activeText = item.querySelector(".home_hero_text");
     const activePills = item.querySelectorAll(".home-category_ref_text:not([hidden])");
-    
-    if (activeLink) {
-      activeLink.setAttribute("aria-current", "true");
-    }
-    
-    // Remove faded class from active elements
+
+    if (activeLink) activeLink.setAttribute("aria-current", "true");
     activeText?.classList.remove("u-color-faded");
     activePills.forEach(p => p.classList.remove("u-color-faded"));
-    
-    // Trigger video change with crossfade
+
+    // Trigger video change
     if (videoSrc && videoManager) {
       const linkEl = item.querySelector(".home-hero_link");
       if (linkEl) {
@@ -298,20 +116,20 @@ export default function initHomeHero(container) {
         videoManager.setActive(videoSrc, linkEl);
       }
     }
-    
-    // Update awards with delay for better sequencing
-    setTimeout(() => updateAwards(item), 150);
+
+    // Update awards (no animation)
+    updateAwards(item);
   }
 
-  // Preload videos (delayed to prioritize intro animation)
+  // Preload videos (same logic, no dependency on timelines)
   function preloadVideos() {
     const MAX_EAGER = 3;
     let count = 0;
-    
+
     items.forEach(item => {
       const projectEl = item.querySelector(".home-hero_item");
       const videoSrc = projectEl?.dataset.video;
-      
+
       if (videoSrc && videoManager) {
         const video = videoManager.createVideo(videoSrc);
         if (video && count < MAX_EAGER) {
@@ -326,9 +144,7 @@ export default function initHomeHero(container) {
   function hideMetaTags() {
     section.querySelectorAll(".home-category_ref_text").forEach(tag => {
       const text = (tag.textContent || "").trim().toLowerCase();
-      if (text === "selected") {
-        tag.setAttribute("hidden", "");
-      }
+      if (text === "selected") tag.setAttribute("hidden", "");
     });
   }
 
@@ -344,7 +160,7 @@ export default function initHomeHero(container) {
   }
 
   // Initialize category filter
-  const cleanupFilter = initCategoryFilter(section, videoManager, (firstVisible) => {
+  const cleanupFilter = initCategoryFilter(section, videoManager, () => {
     const firstItem = items.find(i => i.style.display !== "none");
     if (firstItem) setActive(firstItem);
   });
@@ -366,7 +182,6 @@ export default function initHomeHero(container) {
   // Cleanup function
   return () => {
     clearTimeout(hoverTimeout);
-    if (introTimeline) introTimeline.kill();
     listParent.removeEventListener("mouseenter", handleInteraction, true);
     listParent.removeEventListener("focusin", handleInteraction);
     listParent.removeEventListener("touchstart", handleInteraction);
