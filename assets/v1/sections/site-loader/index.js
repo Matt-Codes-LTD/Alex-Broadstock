@@ -22,36 +22,68 @@ export default function initSiteLoader(container) {
   const progressText = loaderEl.querySelector(".site-loader_progress-text");
   const fpsCounter = loaderEl.querySelector(".site-loader_fps-counter");
   const edgesBox = loaderEl.querySelector(".site-loader_edges");
-  const videoContainer = container.querySelector(".home-hero_video");
   const curtain = loaderEl.querySelector(".site-loader_curtain");
   const corners = loaderEl.querySelectorAll(".site-loader_corner");
   
-  // Hide hero content initially
-  const heroContent = container.querySelectorAll(".nav_wrap, .home-hero_menu, .home-hero_awards");
-  gsap.set(heroContent, { opacity: 0, visibility: "hidden" });
+  // Create video wrapper inside loader (like reference site)
+  const videoWrapper = document.createElement("div");
+  videoWrapper.className = "site-loader_video-wrapper";
+  videoWrapper.style.cssText = `
+    position: absolute;
+    width: 349px;
+    height: 198px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 0;
+    opacity: 0;
+    clip-path: inset(0 0 0 0);
+  `;
   
-  // Get first video URL and create/update video element
+  // Get first project video URL
   const firstProjectItem = container.querySelector('.home-hero_list:not([style*="display: none"]) .home-hero_item');
   const firstVideoUrl = firstProjectItem?.dataset?.video;
-  let firstVideo = videoContainer?.querySelector('.home-hero_video_el');
   
-  // CREATE VIDEO ELEMENT IF IT DOESN'T EXIST
-  if (!firstVideo && videoContainer && firstVideoUrl) {
-    firstVideo = document.createElement('video');
-    firstVideo.className = 'home-hero_video_el';
-    firstVideo.muted = true;
-    firstVideo.loop = true;
-    firstVideo.playsInline = true;
-    firstVideo.preload = 'auto';
-    firstVideo.crossOrigin = 'anonymous';
-    videoContainer.appendChild(firstVideo);
-  }
+  // Create video element
+  const video = document.createElement('video');
+  video.style.cssText = 'width: 100%; height: 100%; object-fit: cover;';
+  video.muted = true;
+  video.loop = true;
+  video.playsInline = true;
+  video.preload = 'auto';
+  video.crossOrigin = 'anonymous';
   
-  if (firstVideo && firstVideoUrl) {
-    firstVideo.src = firstVideoUrl;
-    firstVideo.load();
+  if (firstVideoUrl) {
+    video.src = firstVideoUrl;
+    video.load();
     console.log("[SiteLoader] Using video:", firstVideoUrl);
   }
+  
+  videoWrapper.appendChild(video);
+  
+  // Add curtain inside video wrapper
+  const videoCurtain = document.createElement("div");
+  videoCurtain.className = "site-loader_video-curtain";
+  videoCurtain.style.cssText = `
+    position: absolute;
+    top: -1%;
+    left: 0;
+    width: 100%;
+    height: 102%;
+    background: #020202;
+    z-index: 1;
+    transform: translateX(0);
+  `;
+  videoWrapper.appendChild(videoCurtain);
+  
+  // Insert video wrapper into loader container
+  loaderEl.querySelector(".site-loader_container").appendChild(videoWrapper);
+  
+  // Hide hero content initially
+  const heroContent = container.querySelectorAll(".nav_wrap, .home-hero_menu, .home-hero_awards");
+  const heroVideoContainer = container.querySelector(".home-hero_video");
+  gsap.set(heroContent, { opacity: 0, visibility: "hidden" });
+  gsap.set(heroVideoContainer, { opacity: 0 });
 
   // Check for reduced motion
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -62,18 +94,6 @@ export default function initSiteLoader(container) {
   // Initial states
   gsap.set(loaderEl, { display: "flex", opacity: 1, zIndex: 10000 });
   gsap.set(progressText, { opacity: 1 });
-  gsap.set(videoContainer, { 
-    width: "349px",
-    height: "198px",
-    position: "fixed",
-    top: "50%",
-    left: "50%",
-    transform: "translate(-50%, -50%)",
-    scale: 1.1,
-    opacity: 0,
-    zIndex: 9999  // Ensure video is above curtain initially
-  });
-  gsap.set(curtain, { xPercent: 0 });
   gsap.set(edgesBox, {
     "--sl-width": 67,
     "--sl-height": 67
@@ -94,7 +114,7 @@ export default function initSiteLoader(container) {
     tl.timeScale(10);
   }
 
-  // Progress animation
+  // Progress animation (0-3s)
   tl.to(progress, {
     value: 1,
     fps: 120,
@@ -116,75 +136,82 @@ export default function initSiteLoader(container) {
       }
     },
     onComplete: () => {
-      if (firstVideo) {
-        firstVideo.currentTime = 0.01;
-        firstVideo.play().catch(() => {});
-      }
+      // Start video playback
+      video.currentTime = 0.001;
+      video.play().catch(() => {});
     }
   })
   
-  // Fade out progress text
+  // Fade out progress text (3.3s)
   .to(progressText, { opacity: 0, duration: 0.3 })
   
-  // Show video with proper z-index
-  .to(videoContainer, { 
-    opacity: 1, 
-    zIndex: 9999,
-    duration: 0.5 
-  }, "-=0.2")
+  // Show video wrapper
+  .set(videoWrapper, { opacity: 1 })
   
-  // Slide curtain to reveal video
-  .to(curtain, { 
+  // Slide curtain to reveal video (3.5s)
+  .to(videoCurtain, { 
     xPercent: 100, 
     duration: 1.6, 
     ease: "power3.inOut" 
   })
   
-  // Scale video during curtain slide
-  .to(videoContainer, { 
+  // Scale video slightly during reveal
+  .to(video, { 
     scale: 1.2,
     duration: 1.6, 
     ease: "power3.inOut" 
   }, "<")
   
-  // Fade out corners and FPS
-  .to([corners, fpsCounter], {
-    opacity: 0,
-    duration: 0.6,
-    stagger: 0.02
-  }, "<0.5")
+  // Start morphing sequence
+  .add(() => {
+    // Fade out corners and FPS
+    gsap.to([corners, fpsCounter], {
+      opacity: 0,
+      duration: 0.6,
+      stagger: 0.02
+    });
+    
+    // Fade and scale out edges
+    gsap.to(edgesBox, {
+      opacity: 0,
+      scale: 1.5,
+      duration: 0.7,
+      ease: "power3.inOut"
+    });
+  })
   
-  // Fade out edges
-  .to(edgesBox, {
-    opacity: 0,
-    scale: 1.5,
-    duration: 0.7,
-    ease: "power3.inOut"
-  }, "<0.2")
-  
-  // Morph video to fullscreen
-  .to(videoContainer, {
-    width: "100%",
-    height: "100%",
-    scale: 1,
+  // Morph video to fullscreen (4.5s)
+  .to(videoWrapper, {
+    width: "100vw",
+    height: "100vh",
+    top: "50%",
+    left: "50%",
     duration: 1.8,
-    ease: "power3.inOut",
-    clearProps: "transform,zIndex",
-    onComplete: () => {
-      // Reset video container to original state
-      gsap.set(videoContainer, {
-        position: "absolute",
-        top: 0,
-        left: 0,
-        transform: "none",
-        zIndex: ""
-      });
-      // Mark video as active for home-hero module
-      if (firstVideo) {
-        firstVideo.classList.add('is-active');
-      }
-    }
+    ease: "power3.inOut"
   }, "-=0.5")
+  
+  // Continue scaling video during morph
+  .to(video, {
+    scale: 1,
+    duration: 2,
+    ease: "power3.inOut"
+  }, "<")
+  
+  // Transfer video to hero container
+  .add(() => {
+    // Clone video for seamless transfer
+    const heroVideo = video.cloneNode(true);
+    heroVideo.currentTime = video.currentTime;
+    heroVideo.className = 'home-hero_video_el is-active';
+    heroVideo.style.cssText = 'position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 1;';
+    
+    // Add to hero container
+    heroVideoContainer.appendChild(heroVideo);
+    heroVideo.play().catch(() => {});
+    
+    // Show hero container
+    gsap.set(heroVideoContainer, { opacity: 1 });
+  }, "-=0.3")
   
   // Fade in hero content
   .to(heroContent, {
@@ -195,11 +222,10 @@ export default function initSiteLoader(container) {
     ease: "power2.out"
   }, "-=0.3")
   
-  // Fade out loader wrapper
+  // Fade out loader
   .to(loaderEl, { 
     opacity: 0, 
-    duration: 0.5,
-    zIndex: -1
+    duration: 0.5
   }, "-=0.5");
 
   // Minimum display time
@@ -215,7 +241,7 @@ export default function initSiteLoader(container) {
   return () => {
     console.log("[SiteLoader] cleanup");
     tl.kill();
-    gsap.killTweensOf([loaderEl, progressText, videoContainer, curtain, corners, fpsCounter]);
+    gsap.killTweensOf([loaderEl, progressText, videoWrapper, curtain, corners, fpsCounter]);
     if (lock && lock.parentNode) {
       lock.remove();
     }
