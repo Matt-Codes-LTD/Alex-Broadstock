@@ -195,41 +195,29 @@ export default function initSiteLoader(container) {
     ease: "power2.inOut"
   })
   
-  // Phase 6: Initialize hero before showing
-  .call(async () => {
-    // Dispatch events to initialize hero module
-    window.dispatchEvent(new CustomEvent('siteLoaderMorphComplete'));
-    
-    // Wait for hero to initialize
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    if (heroVideoContainer && firstVideoUrl) {
-      let heroVideo = heroVideoContainer.querySelector('.home-hero_video_el');
-      if (!heroVideo) {
-        heroVideo = document.createElement('video');
-        heroVideo.className = 'home-hero_video_el is-active';
-        heroVideo.src = firstVideoUrl;
-        heroVideo.muted = true;
-        heroVideo.loop = true;
-        heroVideo.playsInline = true;
-        heroVideo.style.cssText = `
-          position: absolute;
-          inset: 0;
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          opacity: 1;
-        `;
-        heroVideoContainer.appendChild(heroVideo);
-      }
-      heroVideo.currentTime = video.currentTime;
-      heroVideo.play().catch(() => {});
+  // Phase 6: Transfer loader video to hero
+  .call(() => {
+    if (heroVideoContainer && video) {
+      // Clear any existing videos
+      heroVideoContainer.innerHTML = '';
+      
+      // Transfer the loader video directly
+      video.className = 'home-hero_video_el is-active';
+      video.style.cssText = `
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        opacity: 1;
+      `;
+      heroVideoContainer.appendChild(video);
       
       // Show hero container
-      gsap.set(heroVideoContainer, { 
-        opacity: 1,
-        scale: 1
-      });
+      gsap.set(heroVideoContainer, { opacity: 1 });
+      
+      // Dispatch events for hero initialization
+      window.dispatchEvent(new CustomEvent('siteLoaderMorphComplete'));
     }
   })
   
