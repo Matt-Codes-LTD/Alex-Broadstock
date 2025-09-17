@@ -42,8 +42,8 @@ export default function initSiteLoader(container) {
     left: "50%", top: "50%", xPercent: -50, yPercent: -50,
     zIndex: 1, opacity: 0, overflow: "hidden",
     transformOrigin: "50% 50%",
-    force3D: true,
-    rotationZ: 0.01 // Force GPU layer
+    // CHANGED: avoid forcing 3D to prevent Safari freezing video frames during transforms
+    force3D: false
   });
 
   // Get first video URL
@@ -68,7 +68,7 @@ export default function initSiteLoader(container) {
     width: "100%", height: "100%",
     background: "#020202",
     transformOrigin: "left center",
-    force3D: true
+    force3D: false
   });
   
   videoWrapper.appendChild(video);
@@ -174,9 +174,44 @@ export default function initSiteLoader(container) {
       scaleY: sy,
       duration,
       ease: "power3.inOut",
-      force3D: true
+      force3D: false // CHANGED: keep transforms 2D for smoother video playback
     });
   }
+
+  // --- Helpers to keep video playing during transfer ---
+  async function makeGhostVideoFrom(sourceVideo) {
+    // Create a second video that keeps playing inside the loader wrapper
+    const ghost = sourceVideo.cloneNode(false);
+    ghost.muted = true;
+    ghost.loop = true;
+    ghost.playsInline = true;
+    ghost.preload = "auto";
+    ghost.crossOrigin = "anonymous";
+    // Ensure src copies over even if set via property
+    ghost.src = sourceVideo.currentSrc || sourceVideo.src;
+
+    // Try to sync time & play
+    const syncAndPlay = async () => {
+      try {
+        // Wait for metadata so we can seek
+        if (ghost.readyState < 1) {
+          await new Promise(res => {
+            ghost.addEventListener("loadedmetadata", res, { once: true });
+            setTimeout(res, 300);
+          });
+        }
+        const t = Number.isFinite(sourceVideo.currentTime) ? sourceVideo.currentTime : 0;
+        try { ghost.currentTime = Math.max(0, t - 0.03); } catch {}
+        await ghost.play().catch(() => {});
+      } catch {}
+    };
+
+    // Insert ghost directly above the real video so stacking order is preserved
+    sourceVideo.parentNode.insertBefore(ghost, sourceVideo);
+    syncAndPlay();
+    return ghost;
+  }
+  // -----------------------------------------------------
 
   // Main timeline
   const tl = gsap.timeline({
@@ -256,37 +291,19 @@ export default function initSiteLoader(container) {
     return morphWrapperToHero(1.8);
   })
   
-  // Phase 8: Transfer video element when perfectly aligned
-  .call(() => {
+  // Phase 8: Transfer while keeping motion in the wrapper via a GHOST video (no posters)
+  .call(async () => {
     if (heroVideoContainer && video) {
-      // Calculate exact position for seamless transfer
-      const wrapperRect = videoWrapper.getBoundingClientRect();
-      const heroRect = heroVideoContainer.getBoundingClientRect();
-      
-      // Create placeholder in wrapper to maintain visual
-      const placeholder = video.cloneNode(false);
-      placeholder.style.cssText = video.style.cssText;
-      placeholder.style.pointerEvents = 'none';
-      
-      // Capture current frame as poster for placeholder
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0);
-      placeholder.poster = canvas.toDataURL();
-      
-      // Replace video with placeholder in wrapper
-      video.parentNode.insertBefore(placeholder, video);
-      video.remove();
-      
-      // Transfer actual video to hero
+      // 1) Create a ghost video inside the wrapper to keep motion visible above the hero
+      const ghost = await makeGhostVideoFrom(video);
+      videoWrapper.__ghost = ghost;
+
+      // 2) Move the real video to the hero (continuous playback)
       video.classList.add('home-hero_video_el', 'is-active');
       video.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:1;z-index:1;';
       heroVideoContainer.appendChild(video);
-      
-      // Keep wrapper visible for fade out
-      videoWrapper.__placeholder = placeholder;
+
+      // 3) Keep wrapper visible for the pause/fade while ghost keeps playing
     }
     
     // Signal hero with transferred video
@@ -296,7 +313,7 @@ export default function initSiteLoader(container) {
       isTransferred: true
     };
     window.dispatchEvent(new CustomEvent("siteLoaderMorphBegin", { detail }));
-    heroResumeTimeout = setTimeout(onHeroReadyForReveal, 1500);
+    heroResumeTimeout = setTimeout(onHeroReadyForReveal, 1000); // slightly shorter since we no longer show a static image
   })
   .addPause("await-hero-ready")
   
@@ -309,11 +326,19 @@ export default function initSiteLoader(container) {
     ease: "power2.out"
   })
   
-  // Phase 10: Fade loader wrapper with placeholder
+  // Phase 10: Fade loader wrapper; then clean up ghost
   .to(videoWrapper, {
     opacity: 0,
     duration: 0.5,
-    ease: "power2.inOut"
+    ease: "power2.inOut",
+    onComplete: () => {
+      const ghost = videoWrapper.__ghost;
+      if (ghost) {
+        try { ghost.pause?.(); } catch {}
+        ghost.remove();
+        delete videoWrapper.__ghost;
+      }
+    }
   }, "-=0.2")
   .to(loaderEl, {
     opacity: 0,
@@ -340,6 +365,11 @@ export default function initSiteLoader(container) {
     document.documentElement.classList.remove("is-preloading");
     window.removeEventListener("homeHeroReadyForReveal", onHeroReadyForReveal);
     if (heroResumeTimeout) clearTimeout(heroResumeTimeout);
+    const ghost = videoWrapper.__ghost;
+    if (ghost) {
+      try { ghost.pause?.(); } catch {}
+      ghost.remove();
+    }
     delete loaderEl.dataset.scriptInitialized;
   };
 }
