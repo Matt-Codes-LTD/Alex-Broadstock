@@ -40,7 +40,7 @@ document.addEventListener("DOMContentLoaded", () => {
         margin-top: -1px;
         transform: scaleY(0);
         transform-origin: 0% 100%;
-        background: var(--swatch--brand-paper, #FDFCF3);
+        background: var(--swatch--brand-ink, #FDFCF3);
       `;
       grid.appendChild(div);
     }
