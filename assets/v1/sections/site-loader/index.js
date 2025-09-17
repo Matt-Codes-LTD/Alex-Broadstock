@@ -238,11 +238,17 @@ export default function initSiteLoader(container) {
   .set([
     ".brand_logo",
     ".nav_link",
-    ".home-category_text",
-    ".home_hero_text",
-    ".home-category_ref_text:not([hidden])"
+    ".home-category_text"
   ], {
     visibility: "visible"
+  })
+  // Keep project elements hidden until animation
+  .set([
+    ".home_hero_text",
+    ".home-category_ref_text:not([hidden])",
+    ".home-awards_list"
+  ], {
+    opacity: 0
   })
   // Nav wrapper foundation
   .fromTo(".nav_wrap", {
