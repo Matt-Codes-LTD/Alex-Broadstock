@@ -31,17 +31,19 @@ export default function initSiteLoader(container) {
   // Create video wrapper with viewport-relative dimensions
   const videoWrapper = document.createElement("div");
   videoWrapper.className = "site-loader_video-wrapper";
-  videoWrapper.style.cssText = `
-    position: absolute;
-    width: calc(349 / ${vwScreen} * 100 * 1vw);
-    height: calc(198 / ${vwScreen} * 100 * 1vw);
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 0;
-    opacity: 0;
-    overflow: hidden;
-  `;
+  
+  // Use GSAP to set initial position (no CSS transforms)
+  gsap.set(videoWrapper, {
+    position: "absolute",
+    width: `calc(349 / ${vwScreen} * 100 * 1vw)`,
+    height: `calc(198 / ${vwScreen} * 100 * 1vw)`,
+    left: "50%",
+    top: "50%",
+    xPercent: -50,
+    yPercent: -50,
+    opacity: 0,
+    overflow: "hidden"
+  });
   
   // Get first project video URL
   const firstProjectItem = container.querySelector('.home-hero_list:not([style*="display: none"]) .home-hero_item');
@@ -71,16 +73,16 @@ export default function initSiteLoader(container) {
   // Add curtain inside video wrapper
   const videoCurtain = document.createElement("div");
   videoCurtain.className = "site-loader_video-curtain";
-  videoCurtain.style.cssText = `
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: #020202;
-    z-index: 1;
-    transform: translateX(0);
-  `;
+  gsap.set(videoCurtain, {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%", 
+    height: "100%",
+    background: "#020202",
+    zIndex: 1,
+    transform: "translateX(0)"
+  });
   videoWrapper.appendChild(videoCurtain);
   
   // Insert video wrapper into loader container
@@ -213,14 +215,7 @@ export default function initSiteLoader(container) {
     ease: "power3.inOut"
   })
   
-  // Clear transform and morph to fullscreen
-  .set(videoWrapper, {
-    transform: "none",
-    left: "50%",
-    top: "50%",
-    xPercent: -50,
-    yPercent: -50
-  })
+  // Morph video wrapper smoothly to fullscreen
   .to(videoWrapper, {
     width: "100vw",
     height: "100vh",
@@ -228,7 +223,7 @@ export default function initSiteLoader(container) {
     yPercent: 0,
     left: 0,
     top: 0,
-    duration: 1.8,
+    duration: 2,
     ease: "power3.inOut"
   }, "<")
   
