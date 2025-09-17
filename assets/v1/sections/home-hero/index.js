@@ -1,4 +1,6 @@
-// assets/v1/sections/home-hero/index.js
+// ============================================
+// FILE 2: assets/v1/sections/home-hero/index.js
+// ============================================
 import { createVideoManager } from "./video-manager.js";
 import { initCategoryFilter } from "./category-filter.js";
 
@@ -16,20 +18,38 @@ export default function initHomeHero(container) {
   const videoManager = createVideoManager(videoStage);
 
   let activeItem = null;
+  let handoff = null;
   let revealedOnce = false;
-  let firstActivated = false;
-
   const emitReadyOnce = () => {
     if (revealedOnce) return;
     revealedOnce = true;
     window.dispatchEvent(new CustomEvent("homeHeroReadyForReveal"));
   };
 
-  function hideMetaTags() {
-    section.querySelectorAll(".home-category_ref_text").forEach(tag => {
-      const text = (tag.textContent || "").trim().toLowerCase();
-      if (text === "selected") tag.setAttribute("hidden", "");
-    });
+  function initializeHero() {
+    hideMetaTags();
+    preloadVideos();
+    const firstVisible = items.find(item => item.style.display !== "none");
+    if (firstVisible) setActive(firstVisible, { useHandoff: true });
+    section.dataset.introComplete = "true";
+    console.log("[HomeHero] Intro setup complete (no timelines)");
+  }
+
+  const hasSiteLoader = document.querySelector(".site-loader_wrap");
+  if (hasSiteLoader && !window.__barbaNavigated) {
+    window.addEventListener("siteLoaderMorphComplete", (e) => {
+      handoff = e?.detail || null;
+      console.log("[HomeHero] Loader complete:", handoff);
+      
+      // Video already in place and playing, just register it
+      if (handoff?.videoElement) {
+        videoManager.adoptVideo(handoff.src, handoff.videoElement);
+      }
+      
+      initializeHero();
+    }, { once: true });
+  } else {
+    initializeHero();
   }
 
   function updateAwards(item) {
@@ -74,69 +94,42 @@ export default function initHomeHero(container) {
     const projectEl = item.querySelector(".home-hero_item");
     const videoSrc  = projectEl?.dataset.video;
     if (videoSrc) {
-      videoManager.setActive(videoSrc, activeLink, {
-        mode: opts.mode || "tween",
-        startAt: opts.startAt,
-        onVisible: emitReadyOnce
-      });
+      const useHandoff = !!opts.useHandoff && handoff?.src && handoff.src === videoSrc;
+      
+      // Skip setActive if we already have the preloaded video
+      if (useHandoff && handoff?.isPreloaded) {
+        // Video already in place, just emit ready
+        emitReadyOnce();
+      } else {
+        videoManager.setActive(videoSrc, activeLink, {
+          startAt: useHandoff ? handoff.currentTime : undefined,
+          mode: useHandoff ? "instant" : "tween",
+          onVisible: emitReadyOnce
+        });
+      }
     }
 
     updateAwards(item);
   }
 
   function preloadVideos() {
-    const MAX_EAGER = 3; let count = 0;
+    const MAX_EAGER = 3;
+    let count = 0;
     items.forEach(item => {
-      const videoSrc = item.querySelector(".home-hero_item")?.dataset.video;
+      const projectEl = item.querySelector(".home-hero_item");
+      const videoSrc  = projectEl?.dataset.video;
       if (videoSrc) {
-        const v = videoManager.createVideo(videoSrc);
-        if (v && count < MAX_EAGER) { videoManager.warmVideo(v); count++; }
+        const video = videoManager.createVideo(videoSrc);
+        if (video && count < MAX_EAGER) { videoManager.warmVideo(video); count++; }
       }
     });
   }
 
-  function initializeHero() {
-    hideMetaTags();
-    preloadVideos();
-
-    const firstVisible = items.find(item => item.style.display !== "none");
-    if (firstVisible && !firstActivated) {
-      firstActivated = true;
-      setActive(firstVisible, { mode: "tween" });
-    }
-    section.dataset.introComplete = "true";
-    console.log("[HomeHero] Intro setup complete");
-  }
-
-  // Provide the first (playing) video element to the loader on request
-  function provideFirstVideoToLoader() {
-    if (firstActivated) return;
-    const firstVisible = items.find(item => item.style.display !== "none");
-    if (!firstVisible) return;
-
-    const src = firstVisible.querySelector(".home-hero_item")?.dataset.video;
-    if (!src) return;
-
-    firstActivated = true;
-    setActive(firstVisible, { mode: "instant" });
-
-    requestAnimationFrame(() => {
-      const videoEl = videoManager.activeVideo;
-      if (videoEl) {
-        window.dispatchEvent(new CustomEvent("homeHeroFirstVideoReady", {
-          detail: { src, videoElement: videoEl }
-        }));
-      }
+  function hideMetaTags() {
+    section.querySelectorAll(".home-category_ref_text").forEach(tag => {
+      const text = (tag.textContent || "").trim().toLowerCase();
+      if (text === "selected") tag.setAttribute("hidden", "");
     });
-  }
-
-  const hasSiteLoader = document.querySelector(".site-loader_wrap");
-  if (hasSiteLoader && !window.__barbaNavigated) {
-    const onRequest = () => { provideFirstVideoToLoader(); };
-    window.addEventListener("siteLoaderRequestFirstVideo", onRequest, { once: true });
-    initializeHero();
-  } else {
-    initializeHero();
   }
 
   // Interaction

@@ -1,4 +1,6 @@
-// assets/v1/sections/home-hero/video-manager.js
+// ============================================
+// FILE 3: assets/v1/sections/home-hero/video-manager.js
+// ============================================
 import { prefersReducedMotion, prefersReducedData } from "./utils.js";
 
 export function createVideoManager(stage) {
