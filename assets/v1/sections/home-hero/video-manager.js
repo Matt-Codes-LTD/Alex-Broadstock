@@ -10,7 +10,7 @@ export function createVideoManager(stage) {
     if (!src) return null;
     let v = videoBySrc.get(src);
     if (v) return v;
-    
+
     v = document.createElement("video");
     v.className = "home-hero_video_el";
     v.src = src;
@@ -19,10 +19,8 @@ export function createVideoManager(stage) {
     v.playsInline = true;
     v.preload = "auto";
     v.crossOrigin = "anonymous";
-    
-    // Enhanced initial state
-    gsap.set(v, { opacity: 0 });
-    
+
+    gsap.set(v, { opacity: 0, transformOrigin: "50% 50%" });
     stage.appendChild(v);
     videoBySrc.set(src, v);
     return v;
@@ -31,60 +29,68 @@ export function createVideoManager(stage) {
   function warmVideo(v) {
     if (!v || v.__warmed || prefersReducedData) return;
     v.__warmed = true;
-    
     const start = () => {
-      v.play()
-        .then(() =>
-          setTimeout(() => {
-            if (!v.__keepAlive) v.pause?.();
-          }, 250)
-        )
-        .catch(() => {});
+      v.play().then(() => {
+        setTimeout(() => { if (!v.__keepAlive) v.pause?.(); }, 250);
+      }).catch(() => {});
     };
-    
-    v.readyState >= 2
-      ? start()
-      : v.addEventListener("canplaythrough", start, { once: true });
+    v.readyState >= 2 ? start() : v.addEventListener("canplaythrough", start, { once: true });
   }
 
   function fadeTargetsFor(link) {
-    const defaultFadeSel =
-      ".home-category_ref_text, .home-hero_title, .home-hero_name, .home-hero_heading";
-    return (
-      link?.querySelectorAll(
-        link.getAttribute("data-fade-target") || defaultFadeSel
-      ) || []
-    );
+    const defaultFadeSel = ".home-category_ref_text, .home-hero_title, .home-hero_name, .home-hero_heading";
+    return (link?.querySelectorAll(link.getAttribute("data-fade-target") || defaultFadeSel) || []);
   }
 
   function updateLinkState(prev, next) {
     if (prev && prev !== next) {
       prev.setAttribute("aria-current", "false");
-      fadeTargetsFor(prev).forEach((n) => n.classList.add("u-color-faded"));
+      fadeTargetsFor(prev).forEach(n => n.classList.add("u-color-faded"));
     }
     if (next) {
       next.setAttribute("aria-current", "true");
-      fadeTargetsFor(next).forEach((n) => n.classList.remove("u-color-faded"));
+      fadeTargetsFor(next).forEach(n => n.classList.remove("u-color-faded"));
     }
   }
 
   function restart(v) {
-    try {
-      "fastSeek" in v ? v.fastSeek(0) : (v.currentTime = 0);
-      v.play?.();
-    } catch {}
+    try { "fastSeek" in v ? v.fastSeek(0) : (v.currentTime = 0); v.play?.(); } catch {}
   }
 
-  function setActive(src, linkEl) {
+  function whenReady(v) {
+    return new Promise(res => {
+      if (v.readyState >= 2) return res();
+      const on = () => { v.removeEventListener("loadeddata", on); v.removeEventListener("canplay", on); res(); };
+      v.addEventListener("loadeddata", on, { once: true });
+      v.addEventListener("canplay", on, { once: true });
+      setTimeout(on, 1000); // safety
+    });
+  }
+
+  async function seekTo(v, t) {
+    await new Promise(res => {
+      if (v.readyState >= 1) return res();
+      v.addEventListener("loadedmetadata", res, { once: true });
+      setTimeout(res, 500);
+    });
+    try {
+      const dur = v.duration || 0;
+      let target = Math.max(0, Math.min(Number.isFinite(dur) && dur > 0 ? dur - 0.05 : t, t));
+      v.currentTime = target;
+    } catch {}
+    return v;
+  }
+
+  function setActive(src, linkEl, opts = {}) {
     if (transitionInProgress) return;
-    
+
     const next = videoBySrc.get(src) || createVideo(src);
     if (!next) return;
-    
+
     next.__keepAlive = true;
     if (activeVideo && activeVideo !== next) activeVideo.__keepAlive = false;
 
-    // Same video, just update link state
+    // Same video, just update link
     if (next === activeVideo) {
       if (linkEl && linkEl !== activeLink) {
         updateLinkState(activeLink, linkEl);
@@ -93,108 +99,84 @@ export function createVideoManager(stage) {
       return;
     }
 
-    // Start transition
     transitionInProgress = true;
     const previousVideo = activeVideo;
     activeVideo = next;
 
-    // Create smooth crossfade timeline
+    // configurable micro-tween
+    const fromScale   = opts.tweenFromScale ?? 1.03;   // was 1.02
+    const tweenDur    = opts.tweenDuration  ?? 0.7;
+    const tweenEase   = opts.tweenEase      ?? "power3.out";
+
     const tl = gsap.timeline({
       onComplete: () => {
         transitionInProgress = false;
-        // Clean up previous video
         if (previousVideo) {
           previousVideo.classList.remove("is-active");
-          // Pause previous video after fade
-          setTimeout(() => {
-            if (!previousVideo.__keepAlive) {
-              previousVideo.pause?.();
-            }
-          }, 100);
+          setTimeout(() => { if (!previousVideo.__keepAlive) previousVideo.pause?.(); }, 100);
         }
       }
     });
 
-    // Prepare new video
-    if (!prefersReducedMotion) {
-      // Ensure new video is ready and playing
-      const prepareNewVideo = () => {
+    const playNew = async () => {
+      await whenReady(next);
+      if (opts.startAt != null) {
+        await seekTo(next, Math.max(0, opts.startAt));
+        await next.play().catch(() => {});
+      } else {
         restart(next);
+      }
+    };
+
+    if (!prefersReducedMotion) {
+      const prepare = async () => {
+        await playNew();
         next.classList.add("is-active");
-        
-        // If there's a previous video, crossfade
+
         if (previousVideo) {
-          // Set initial states
-          gsap.set(next, { opacity: 0, scale: 1.02 });
-          gsap.set(previousVideo, { opacity: 1, scale: 1 });
-          
-          // Crossfade animation
-          tl.to(previousVideo, {
-            opacity: 0,
-            scale: 1,
-            duration: 0.6,
-            ease: "power2.out"
-          }, 0)
-          .to(next, {
-            opacity: 1,
-            scale: 1,
-            duration: 0.7,
-            ease: "power2.out"
-          }, 0.1); // Slight delay for overlap
+          gsap.set(next, { opacity: 0, scale: fromScale, transformOrigin: "50% 50%" });
+          gsap.set(previousVideo, { opacity: 1, scale: 1, transformOrigin: "50% 50%" });
+
+          tl.to(previousVideo, { opacity: 0, scale: 1, duration: tweenDur * 0.86, ease: "power2.out" }, 0)
+            .to(next, {
+              opacity: 1,
+              scale: 1,
+              duration: tweenDur,
+              ease: tweenEase,
+              onComplete: () => { opts.onVisible?.(); }
+            }, 0.06); // tiny overlap
         } else {
-          // No previous video, just fade in
-          gsap.set(next, { opacity: 0, scale: 1.02 });
-          next.classList.add("is-active");
-          
+          gsap.set(next, { opacity: 0, scale: fromScale, transformOrigin: "50% 50%" });
           tl.to(next, {
             opacity: 1,
             scale: 1,
-            duration: 0.5,
-            ease: "power2.out"
+            duration: tweenDur * 0.86,
+            ease: tweenEase,
+            onComplete: () => { opts.onVisible?.(); }
           });
         }
       };
 
-      // Wait for video to be ready if needed
-      if (next.readyState >= 2) {
-        prepareNewVideo();
-      } else {
-        const onReady = () => {
-          prepareNewVideo();
-          next.removeEventListener("loadeddata", onReady);
-          next.removeEventListener("canplay", onReady);
-        };
-        next.addEventListener("loadeddata", onReady, { once: true });
-        next.addEventListener("canplay", onReady, { once: true });
-        
-        // Fallback timeout
-        setTimeout(onReady, 1000);
-      }
+      if (next.readyState >= 2) prepare();
+      else setTimeout(prepare, 0);
     } else {
-      // Reduced motion: immediate switch
-      if (previousVideo) {
-        previousVideo.classList.remove("is-active");
-        gsap.set(previousVideo, { opacity: 0 });
-      }
+      if (previousVideo) { previousVideo.classList.remove("is-active"); gsap.set(previousVideo, { opacity: 0 }); }
       next.classList.add("is-active");
       gsap.set(next, { opacity: 1, scale: 1 });
-      restart(next);
+      playNew().then(() => opts.onVisible?.());
       transitionInProgress = false;
     }
 
-    // Update link state
     if (linkEl && linkEl !== activeLink) {
       updateLinkState(activeLink, linkEl);
       activeLink = linkEl;
     }
   }
 
-  // Enhanced preloading for smoother transitions
   function preloadNext(currentSrc) {
     const videos = Array.from(videoBySrc.keys());
     const currentIndex = videos.indexOf(currentSrc);
     const nextSrc = videos[currentIndex + 1] || videos[0];
-    
     if (nextSrc) {
       const nextVideo = videoBySrc.get(nextSrc);
       if (nextVideo && !nextVideo.__warmed) {
@@ -206,8 +188,8 @@ export function createVideoManager(stage) {
   return {
     createVideo,
     warmVideo,
-    setActive: (src, linkEl) => {
-      setActive(src, linkEl);
+    setActive: (src, linkEl, opts) => {
+      setActive(src, linkEl, opts);
       preloadNext(src);
     },
     get activeLink() { return activeLink; },
