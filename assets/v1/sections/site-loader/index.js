@@ -17,79 +17,30 @@ export default function initSiteLoader(container) {
   lock.textContent = `html.is-preloading, html.is-preloading body { overflow:hidden!important }`;
   document.head.appendChild(lock);
 
-  // Elements
+  // Loader chrome
   const progressText = loaderEl.querySelector(".site-loader_progress-text");
   const fpsCounter   = loaderEl.querySelector(".site-loader_fps-counter");
   const edgesBox     = loaderEl.querySelector(".site-loader_edges");
   const corners      = loaderEl.querySelectorAll(".site-loader_corner");
+  const curtainEl    = loaderEl.querySelector(".site-loader_curtain");
 
-  // Viewport base for responsive units
+  // Hero area
+  const heroVideoContainer = container.querySelector(".home-hero_video");
+  const heroContent = container.querySelectorAll(".nav_wrap, .home-hero_menu, .home-hero_awards");
+
+  // Hide hero content (not the video)
+  gsap.set(heroContent, { opacity: 0, visibility: "hidden" });
+  gsap.set(heroVideoContainer, { opacity: 1, zIndex: 0 });
+
+  // Sizing baseline
   const vwScreen = window.innerWidth <= 479 ? 479 :
                    window.innerWidth <= 767 ? 767 :
                    window.innerWidth <= 991 ? 991 : 1920;
 
-  // Video dims (px)
-  const videoWidth  = 349 * (window.innerWidth / vwScreen);
-  const videoHeight = 198 * (window.innerWidth / vwScreen);
+  const initialVideoWidth  = 349 * (window.innerWidth / vwScreen);
+  const initialVideoHeight = 198 * (window.innerWidth / vwScreen);
 
-  // Create video wrapper
-  const videoWrapper = document.createElement("div");
-  videoWrapper.className = "site-loader_video-wrapper";
-  gsap.set(videoWrapper, {
-    position: "fixed",
-    width: videoWidth,
-    height: videoHeight,
-    left: "50%", top: "50%", xPercent: -50, yPercent: -50,
-    zIndex: 1, opacity: 0, overflow: "hidden",
-    transformOrigin: "50% 50%",
-    force3D: true,
-    rotationZ: 0.01 // Force GPU layer
-  });
-
-  // Get first video URL
-  const firstProjectItem = container.querySelector('.home-hero_list:not([style*="display: none"]) .home-hero_item');
-  const firstVideoUrl = firstProjectItem?.dataset?.video;
-
-  // Create video element
-  const video = document.createElement("video");
-  video.style.cssText = "width:100%;height:100%;object-fit:cover;display:block;";
-  video.muted = true;
-  video.loop = true;
-  video.playsInline = true;
-  video.preload = "auto";
-  video.crossOrigin = "anonymous";
-  
-  // Create curtain
-  const videoCurtain = document.createElement("div");
-  videoCurtain.className = "site-loader_video-curtain";
-  gsap.set(videoCurtain, {
-    position: "absolute",
-    top: 0, left: 0,
-    width: "100%", height: "100%",
-    background: "#020202",
-    transformOrigin: "left center",
-    force3D: true
-  });
-  
-  videoWrapper.appendChild(video);
-  videoWrapper.appendChild(videoCurtain);
-
-  // Insert into DOM
-  const loaderContainer = loaderEl.querySelector(".site-loader_container");
-  const edgesBoxEl = loaderEl.querySelector(".site-loader_edges");
-  if (edgesBoxEl) {
-    edgesBoxEl.parentNode.insertBefore(videoWrapper, edgesBoxEl);
-  } else {
-    loaderContainer.appendChild(videoWrapper);
-  }
-
-  // Hide hero during loader
-  const heroContent = container.querySelectorAll(".nav_wrap, .home-hero_menu, .home-hero_awards");
-  const heroVideoContainer = container.querySelector(".home-hero_video");
-  gsap.set(heroContent, { opacity: 0, visibility: "hidden" });
-  gsap.set(heroVideoContainer, { opacity: 0, zIndex: 0 });
-
-  // Custom ease
+  // Ease
   gsap.registerEase("custom2InOut", p => (p < 0.5 ? 2*p*p : 1 - ((-2*p + 2)**2)/2));
 
   // Initial states
@@ -97,88 +48,70 @@ export default function initSiteLoader(container) {
   gsap.set(progressText, { opacity: 1 });
   gsap.set(edgesBox, { "--sl-width": 67, "--sl-height": 67 });
 
-  // State
   let progress = { value: 0, fps: 24 };
   let heroResumeTimeout = null;
-  let videoReady = false;
+  let heroVideo = null;
 
-  // Pre-load video completely
-  const prepareVideo = () => new Promise((resolve) => {
-    if (!firstVideoUrl) {
-      resolve();
-      return;
-    }
-    
-    video.src = firstVideoUrl;
-    
-    const ensureReady = async () => {
-      // Wait for video to be loadable
-      if (video.readyState < 3) {
-        await new Promise(r => {
-          video.addEventListener('canplaythrough', r, { once: true });
-        });
-      }
-      
-      // Start playing to decode frames
-      video.currentTime = 0.001;
-      await video.play().catch(() => {});
-      
-      // Wait for actual frame rendering
-      if ('requestVideoFrameCallback' in video) {
-        await new Promise(r => {
-          video.requestVideoFrameCallback(() => {
-            videoReady = true;
-            resolve();
-          });
-        });
-      } else {
-        // Fallback: wait for multiple frames
-        await new Promise(r => {
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              requestAnimationFrame(() => {
-                videoReady = true;
-                resolve();
-              });
-            });
-          });
-        });
-      }
-    };
-    
-    ensureReady();
+  // Ask HomeHero for the first, actual video element
+  const waitForHeroVideo = () => new Promise(resolve => {
+    const onReady = (e) => resolve(e.detail?.videoElement || null);
+    window.addEventListener("homeHeroFirstVideoReady", onReady, { once: true });
+    window.dispatchEvent(new CustomEvent("siteLoaderRequestFirstVideo"));
   });
 
-  // Resume handler
-  const onHeroReadyForReveal = () => {
-    tl.play();
-  };
-  window.addEventListener("homeHeroReadyForReveal", onHeroReadyForReveal, { once: true });
+  // Pin the hero video inside the expanding edges box (no DOM move)
+  function placeHeroVideoIntoLoaderBox() {
+    if (!heroVideo || !edgesBox) return;
 
-  // Morph helper
-  function morphWrapperToHero(duration = 1.8) {
-    if (!heroVideoContainer) return;
-    
-    const from = videoWrapper.getBoundingClientRect();
-    const to = heroVideoContainer.getBoundingClientRect();
-    
-    const dx = (to.left + to.width/2) - (from.left + from.width/2);
-    const dy = (to.top + to.height/2) - (from.top + from.height/2);
-    const sx = to.width / from.width;
-    const sy = to.height / from.height;
-    
-    return gsap.to(videoWrapper, {
-      x: dx,
-      y: dy,
-      scaleX: sx,
-      scaleY: sy,
-      duration,
-      ease: "power3.inOut",
-      force3D: true
+    const rect = edgesBox.getBoundingClientRect();
+    const w = rect.width  || initialVideoWidth;
+    const h = rect.height || initialVideoHeight;
+    const x = rect.left   || (window.innerWidth - w) / 2;
+    const y = rect.top    || (window.innerHeight - h) / 2;
+
+    gsap.set(heroVideo, {
+      position: "fixed",
+      top: y, left: x,
+      width: w, height: h,
+      x: 0, y: 0, xPercent: 0, yPercent: 0,
+      opacity: 1,
+      zIndex: 1, // below loader chrome (z=2/3/4), above page
+      willChange: "top,left,width,height,transform"
     });
   }
 
-  // Main timeline
+  // Animate hero video back to its stage rect
+  function morphHeroVideoToStage(duration = 1.8) {
+    if (!heroVideo || !heroVideoContainer) return;
+
+    const to = heroVideoContainer.getBoundingClientRect();
+    return gsap.to(heroVideo, {
+      top: to.top,
+      left: to.left,
+      width: to.width,
+      height: to.height,
+      duration,
+      ease: "power3.inOut",
+      onComplete: () => {
+        gsap.set(heroVideo, {
+          clearProps: "position,top,left,width,height,x,y,xPercent,yPercent,willChange,zIndex,opacity"
+        });
+        heroVideo.classList.add("home-hero_video_el", "is-active");
+      }
+    });
+  }
+
+  // Keep video aligned on resize while loader is active
+  const onResize = () => {
+    if (loaderEl.style.display !== "none" && heroVideo) placeHeroVideoIntoLoaderBox();
+  };
+  window.addEventListener("resize", onResize);
+
+  // Resume handler
+  const onHeroReadyForReveal = () => { tl.play(); };
+  window.addEventListener("homeHeroReadyForReveal", onHeroReadyForReveal, { once: true });
+
+  // Timeline
   const tl = gsap.timeline({
     onComplete: () => {
       loaderEl.style.display = "none";
@@ -188,12 +121,9 @@ export default function initSiteLoader(container) {
     }
   });
 
-  // Phase 1: Progress animation (video loads in parallel)
+  // Phase 1: progress (also keeps video pinned to the expanding box)
   tl.to(progress, {
-    value: 1,
-    fps: 120,
-    duration: 3,
-    ease: "sine.inOut",
+    value: 1, fps: 120, duration: 3, ease: "sine.inOut",
     onUpdate: () => {
       const pct = Math.round(progress.value * 100);
       if (progressText) progressText.textContent = pct.toString().padStart(2, "0");
@@ -203,134 +133,59 @@ export default function initSiteLoader(container) {
         gsap.set(edgesBox, { "--sl-width": width, "--sl-height": height });
       }
       if (fpsCounter) fpsCounter.textContent = `FPS: ${Math.round(progress.fps)}`;
+      placeHeroVideoIntoLoaderBox();
     }
   })
-  
-  // Phase 2: Ensure video is ready
+
+  // Phase 2: get the real hero video and ensure it's playing
   .call(async () => {
-    if (!videoReady) {
-      await prepareVideo();
-    }
-    // Video is now playing and rendered
+    heroVideo = await waitForHeroVideo();
+    if (heroVideo && heroVideo.play) { try { await heroVideo.play(); } catch {} }
+    placeHeroVideoIntoLoaderBox();
   })
-  
-  // Phase 3: Fade progress text
+
+  // Phase 3: fade counter
   .to(progressText, { opacity: 0, duration: 0.3 })
-  
-  // Phase 4: Show video wrapper (video already playing inside)
-  .to(videoWrapper, { 
-    opacity: 1, 
-    duration: 0.3, 
-    ease: "power2.out"
-  })
-  
-  // Small pause to ensure compositing is done
+
+  // Phase 4: slight settle
   .set({}, {}, "+=0.1")
-  
-  // Phase 5: Reveal video by sliding curtain
-  .to(videoCurtain, {
+
+  // Phase 5: slide the BLACK curtain off to reveal the video beneath
+  .to(curtainEl, {
     xPercent: 100,
     duration: 1.6,
     ease: "custom2InOut"
   })
-  
-  // Phase 6: Fade UI elements
-  .to([corners, fpsCounter], {
-    opacity: 0,
-    duration: 0.6,
-    stagger: 0.02
-  })
-  .to(edgesBox, {
-    opacity: 0,
-    scale: 1.5,
-    duration: 0.7,
-    ease: "power3.inOut"
-  }, "<0.024")
-  
-  // Phase 7: Morph to hero position (complete before transfer)
-  .add(() => {
-    if (heroVideoContainer) {
-      // Pre-show hero container at exact position
-      gsap.set(heroVideoContainer, { opacity: 1, zIndex: 0 });
-    }
-    return morphWrapperToHero(1.8);
-  })
-  
-  // Phase 8: Transfer video element when perfectly aligned
+
+  // Phase 6: fade loader chrome
+  .to([corners, fpsCounter], { opacity: 0, duration: 0.6, stagger: 0.02 })
+  .to(edgesBox, { opacity: 0, scale: 1.5, duration: 0.7, ease: "power3.inOut" }, "<0.024")
+
+  // Phase 7: morph hero video to its stage rect (same element, still playing)
+  .add(() => morphHeroVideoToStage(1.8))
+
+  // Phase 8: signal + wait for hero to be ready
   .call(() => {
-    if (heroVideoContainer && video) {
-      // Calculate exact position for seamless transfer
-      const wrapperRect = videoWrapper.getBoundingClientRect();
-      const heroRect = heroVideoContainer.getBoundingClientRect();
-      
-      // Create placeholder in wrapper to maintain visual
-      const placeholder = video.cloneNode(false);
-      placeholder.style.cssText = video.style.cssText;
-      placeholder.style.pointerEvents = 'none';
-      
-      // Capture current frame as poster for placeholder
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0);
-      placeholder.poster = canvas.toDataURL();
-      
-      // Replace video with placeholder in wrapper
-      video.parentNode.insertBefore(placeholder, video);
-      video.remove();
-      
-      // Transfer actual video to hero
-      video.classList.add('home-hero_video_el', 'is-active');
-      video.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:1;z-index:1;';
-      heroVideoContainer.appendChild(video);
-      
-      // Keep wrapper visible for fade out
-      videoWrapper.__placeholder = placeholder;
-    }
-    
-    // Signal hero with transferred video
-    const detail = {
-      src: firstVideoUrl || null,
-      videoElement: video,
-      isTransferred: true
-    };
-    window.dispatchEvent(new CustomEvent("siteLoaderMorphBegin", { detail }));
-    heroResumeTimeout = setTimeout(onHeroReadyForReveal, 1500);
+    window.dispatchEvent(new CustomEvent("siteLoaderMorphBegin", {
+      detail: {
+        src: heroVideo?.currentSrc || heroVideo?.src || null,
+        videoElement: heroVideo,
+        isTransferred: true
+      }
+    }));
+    heroResumeTimeout = setTimeout(onHeroReadyForReveal, 1000);
   })
   .addPause("await-hero-ready")
-  
-  // Phase 9: Reveal UI
-  .to(heroContent, {
-    visibility: "visible",
-    opacity: 1,
-    duration: 0.4,
-    stagger: 0.1,
-    ease: "power2.out"
-  })
-  
-  // Phase 10: Fade loader wrapper with placeholder
-  .to(videoWrapper, {
-    opacity: 0,
-    duration: 0.5,
-    ease: "power2.inOut"
-  }, "-=0.2")
-  .to(loaderEl, {
-    opacity: 0,
-    duration: 0.3,
-    ease: "power2.out"
-  }, "-=0.3")
-  .call(() => {
-    window.dispatchEvent(new CustomEvent("siteLoaderComplete"));
-  });
 
-  // Start after minimum time
+  // Phase 9: reveal nav + lists
+  .to(heroContent, { visibility: "visible", opacity: 1, duration: 0.4, stagger: 0.1, ease: "power2.out" })
+
+  // Phase 10: fade loader
+  .to(loaderEl, { opacity: 0, duration: 0.3, ease: "power2.out" })
+  .call(() => { window.dispatchEvent(new CustomEvent("siteLoaderComplete")); });
+
+  // Start after min time
   tl.pause();
-  
-  // Start video preload immediately
-  prepareVideo();
-  
-  // Play timeline after 2s minimum
   setTimeout(() => tl.play(), 2000);
 
   // Cleanup
@@ -339,6 +194,7 @@ export default function initSiteLoader(container) {
     if (lock?.parentNode) lock.remove();
     document.documentElement.classList.remove("is-preloading");
     window.removeEventListener("homeHeroReadyForReveal", onHeroReadyForReveal);
+    window.removeEventListener("resize", onResize);
     if (heroResumeTimeout) clearTimeout(heroResumeTimeout);
     delete loaderEl.dataset.scriptInitialized;
   };
