@@ -42,14 +42,16 @@ export default function initSiteLoader(container) {
     left: "50%", top: "50%", xPercent: -50, yPercent: -50,
     x: 0, y: 0, scaleX: 1, scaleY: 1,
     zIndex: 1, opacity: 0, overflow: "hidden",
-    transformOrigin: "50% 50%"
+    transformOrigin: "50% 50%",
+    willChange: "transform",
+    force3D: true
   });
 
   const firstProjectItem = container.querySelector('.home-hero_list:not([style*="display: none"]) .home-hero_item');
   const firstVideoUrl = firstProjectItem?.dataset?.video;
 
   const video = document.createElement("video");
-  video.style.cssText = "width:100%;height:100%;object-fit:cover;";
+  video.style.cssText = "width:100%;height:100%;object-fit:cover;transform:translateZ(0);backface-visibility:hidden;";
   video.muted = true; video.loop = true; video.playsInline = true; video.preload = "auto"; video.crossOrigin = "anonymous";
   if (firstVideoUrl) {
     video.src = firstVideoUrl;
@@ -88,13 +90,16 @@ export default function initSiteLoader(container) {
 
   // Resume handler + fallback
   let heroResumeTimeout = null;
-  const onHeroReadyForReveal = () => { tl.play(); };
+  const onHeroReadyForReveal = () => {
+    // pause loader video immediately to free decoder bandwidth
+    try { video.pause(); } catch {}
+    tl.play();
+  };
   window.addEventListener("homeHeroReadyForReveal", onHeroReadyForReveal, { once: true });
 
   // Helper: FLIP morph to hero stage rect using transforms only
   function morphWrapperToHero(duration = 1.8) {
     if (!heroVideoContainer) return;
-    // ensure hero is laid out
     const from = videoWrapper.getBoundingClientRect();
     const to   = heroVideoContainer.getBoundingClientRect();
 
@@ -110,13 +115,22 @@ export default function initSiteLoader(container) {
 
     gsap.to(videoWrapper, {
       x: dx, y: dy, scaleX: sx, scaleY: sy,
-      duration, ease: "power3.inOut"
+      duration, ease: "power3.inOut",
+      force3D: true
     });
   }
 
   // Main timeline
   const tl = gsap.timeline({
     onComplete: () => {
+      // dispose loader video/resources now that we’re done
+      try {
+        video.pause?.();
+        video.removeAttribute("src");
+        video.load?.(); // release decoder
+      } catch {}
+      try { videoWrapper?.remove?.(); } catch {}
+
       loaderEl.style.display = "none";
       document.documentElement.classList.remove("is-preloading");
       lock.remove();
@@ -144,21 +158,20 @@ export default function initSiteLoader(container) {
   // Phase 2: Fade text
   .to(progressText, { opacity: 0, duration: 0.3 })
   // Phase 3: Video reveal
-  .to(videoWrapper, { opacity: 1, duration: 0.3, ease: "power2.out" })
+  .to(videoWrapper, { opacity: 1, duration: 0.3, ease: "power2.out", force3D: true })
   .to(videoCurtain, { xPercent: 100, duration: 1.6, ease: "custom2InOut" })
-  .to(video, { scale: 1.2, duration: 1.6, ease: "custom2InOut", transformOrigin: "50% 50%" }, "<")
+  .to(video, { scale: 1.2, duration: 1.6, ease: "custom2InOut", transformOrigin: "50% 50%", force3D: true }, "<")
   // Phase 4: Fade UI elements
   .to([corners, fpsCounter], { opacity: 0, duration: 0.6, stagger: 0.02 })
   .to(edgesBox, { opacity: 0, scale: 1.5, duration: 0.7, ease: "power3.inOut" }, "<0.024")
-  // Phase 5: Settle video, then FLIP morph wrapper → hero stage (CENTER-BASED)
-  .to(video, { scale: 1, duration: 0.8, ease: "power2.inOut" })
+  // Phase 5: Settle video (end cleanly), then FLIP morph (overlap earlier so the end is lighter)
+  .to(video, { scale: 1, duration: 0.8, ease: "power2.out", force3D: true })
   .call(() => {
-    // make sure hero stage is visible behind
     if (heroVideoContainer) gsap.set(heroVideoContainer, { opacity: 1, zIndex: 0 });
-    // transform-only morph; no width/height or left/top changes
+    // start morph slightly before video scale finishes to avoid both ending together
     morphWrapperToHero(1.8);
-  }, null, "<")
-  // Phase 6: Handoff – tell hero the src/time and WAIT for it to be on-screen
+  }, null, "-=0.3") // ← tiny overlap; prevents “both ending at once” hitch
+  // Phase 6: Handoff – tell hero the src/time and WAIT for first rendered frame
   .call(() => {
     const detail = {
       src: firstVideoUrl || null,
@@ -166,12 +179,11 @@ export default function initSiteLoader(container) {
       duration: video?.duration || 0
     };
     window.dispatchEvent(new CustomEvent("siteLoaderMorphBegin", { detail }));
-    // safety fallback if hero never responds
-    heroResumeTimeout = setTimeout(onHeroReadyForReveal, 1500);
+    heroResumeTimeout = setTimeout(onHeroReadyForReveal, 1500); // safety
   })
   .addPause("await-hero-ready")
   // Phase 7: Bring in hero UI and fade loader
-  .to(container.querySelectorAll(".nav_wrap, .home-hero_menu, .home-hero_awards"), {
+  .to(heroContent, {
     visibility: "visible", opacity: 1, duration: 0.4, stagger: 0.1, ease: "power2.out"
   })
   .to(loaderEl, { opacity: 0, duration: 0.5 }, "-=0.5")
