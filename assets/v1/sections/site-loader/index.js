@@ -11,20 +11,10 @@ export default function initSiteLoader(container) {
   if (!loaderEl || loaderEl.dataset.scriptInitialized) return () => {};
   loaderEl.dataset.scriptInitialized = "true";
 
-  // Lock scroll and disable transitions
+  // Lock scroll
   document.documentElement.classList.add("is-preloading");
   const lock = document.createElement("style");
-  lock.textContent = `
-    html.is-preloading, html.is-preloading body { 
-      overflow: hidden !important;
-    }
-    .is-preloading .home-hero_video,
-    .is-preloading .home-hero_video_el,
-    .is-preloading .home-hero_wrap * {
-      transition: none !important;
-      transform: none !important;
-    }
-  `;
+  lock.textContent = `html.is-preloading, html.is-preloading body { overflow:hidden!important }`;
   document.head.appendChild(lock);
 
   // Get elements
