@@ -1,4 +1,4 @@
-// barba-bootstrap.js - Finer grid transition (20x12 = 240 cells)
+// barba-bootstrap.js - Optimized transition grid
 
 import { initPageScripts, initGlobal } from "./page-scripts.js";
 
@@ -10,10 +10,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   initGlobal();
 
-  // Create the transition grid overlay - finer grid for smoother effect
+  // Create the transition grid overlay with optimizations
   const createTransitionGrid = () => {
-    const COLS = 20; // More columns for finer control
-    const ROWS = 12; // More rows for smoother vertical transition
+    const COLS = 20;
+    const ROWS = 12;
     
     const grid = document.createElement('div');
     grid.className = 'transition-grid';
@@ -28,9 +28,14 @@ document.addEventListener("DOMContentLoaded", () => {
       grid-template-rows: repeat(${ROWS}, 1fr);
       pointer-events: none;
       z-index: 10000;
+      will-change: transform;
+      contain: layout style paint;
     `;
     
-    // Create 240 divs for finer transition control
+    // Pre-create fragment for better performance
+    const fragment = document.createDocumentFragment();
+    const divs = [];
+    
     for (let i = 0; i < COLS * ROWS; i++) {
       const div = document.createElement('div');
       div.style.cssText = `
@@ -41,16 +46,22 @@ document.addEventListener("DOMContentLoaded", () => {
         transform: scaleY(0);
         transform-origin: 0% 100%;
         background: var(--swatch--brand-ink, #FDFCF3);
+        will-change: transform;
+        backface-visibility: hidden;
+        contain: layout style paint;
       `;
-      grid.appendChild(div);
+      divs.push(div);
+      fragment.appendChild(div);
     }
     
+    grid.appendChild(fragment);
     document.body.appendChild(grid);
-    return { grid, cols: COLS, rows: ROWS };
+    
+    return { grid, cols: COLS, rows: ROWS, divs };
   };
 
   // Initialize the grid but keep it hidden
-  const { grid: transitionGrid, cols: GRID_COLS, rows: GRID_ROWS } = createTransitionGrid();
+  const { grid: transitionGrid, cols: GRID_COLS, rows: GRID_ROWS, divs: gridDivs } = createTransitionGrid();
 
   // Register custom ease that matches 'o4' from the original
   gsap.registerEase("o4", function(progress) {
@@ -157,6 +168,27 @@ document.addEventListener("DOMContentLoaded", () => {
     return tl;
   }
 
+  // Pre-calculate stagger delays for consistent performance
+  const staggerCache = new Map();
+  function getStaggerDelay(index, cols, rows) {
+    if (staggerCache.has(index)) return staggerCache.get(index);
+    
+    const row = Math.floor(index / cols);
+    const col = index % cols;
+    const centerCol = Math.floor(cols / 2);
+    const centerRow = Math.floor(rows / 2);
+    
+    const distFromCenter = Math.sqrt(
+      Math.pow(col - centerCol, 2) + 
+      Math.pow(row - centerRow, 2)
+    );
+    
+    // Deterministic stagger without random
+    const delay = (distFromCenter * 0.025) + (index * 0.0005);
+    staggerCache.set(index, delay);
+    return delay;
+  }
+
   barba.init({
     transitions: [
       {
@@ -180,15 +212,17 @@ document.addEventListener("DOMContentLoaded", () => {
           }, 100);
         },
 
-        leave({ current }) {
+        async leave({ current }) {
           // Mark as navigating when transition starts
           document.body.classList.add('barba-navigating');
           
+          // Async cleanup to avoid blocking
           if (current?.container?.__cleanup) {
-            current.container.__cleanup();
-            delete current.container.__cleanup;
+            requestAnimationFrame(() => {
+              current.container.__cleanup();
+              delete current.container.__cleanup;
+            });
           }
-          return Promise.resolve();
         },
 
         async enter({ current, next }) {
@@ -211,60 +245,42 @@ document.addEventListener("DOMContentLoaded", () => {
             opacity: '0'
           });
 
-          const gridDivs = transitionGrid.querySelectorAll('div');
-          const CENTER_COL = Math.floor(GRID_COLS / 2); // Center column for radial effect
-          const CENTER_ROW = Math.floor(GRID_ROWS / 2); // Center row for radial effect
-          
           // Enable grid interaction
           document.body.style.cursor = 'none';
           transitionGrid.style.pointerEvents = 'all';
+          
+          // Force layout before animation
+          transitionGrid.offsetHeight;
 
-          // Create a promise-based animation sequence matching the original
+          // Create a promise-based animation sequence
           return new Promise((resolve) => {
-            // PHASE 1: onEnter - Grid scales up from bottom
+            // PHASE 1: Grid scales up
             gsap.to(gridDivs, {
               scaleY: 1,
               transformOrigin: '0% 100%',
-              duration: 0.8,  // Increased from 0.5
+              duration: 0.7,
               ease: 'o4',
               stagger: function(index) {
-                // More sophisticated stagger with finer grid
-                const row = Math.floor(index / GRID_COLS);
-                const col = index % GRID_COLS;
-                
-                // Calculate distance from center for radial effect
-                const distFromCenter = Math.sqrt(
-                  Math.pow(col - CENTER_COL, 2) + 
-                  Math.pow(row - CENTER_ROW, 2)
-                );
-                
-                // Base delay on distance from center + some randomness
-                return (distFromCenter * 0.03) + 0.15 * (Math.random() - 0.5);  // Increased stagger
+                return getStaggerDelay(index, GRID_COLS, GRID_ROWS);
               },
               onComplete: () => {
-                // PHASE 2: onEntered - Swap content and grid scales down from top
+                // PHASE 2: Swap content instantly
                 oldMain.style.opacity = '0';
                 newMain.style.opacity = '1';
                 
+                // Force paint to ensure opacity change is applied
+                newMain.offsetHeight;
+                
+                // PHASE 3: Grid scales down
                 gsap.to(gridDivs, {
                   scaleY: 0,
                   transformOrigin: '0% 0%',
-                  duration: 0.8,  // Increased from 0.5
+                  duration: 0.7,
                   ease: 'o4',
                   stagger: function(index) {
-                    // Similar stagger for exit
-                    const row = Math.floor(index / GRID_COLS);
-                    const col = index % GRID_COLS;
-                    
-                    const distFromCenter = Math.sqrt(
-                      Math.pow(col - CENTER_COL, 2) + 
-                      Math.pow(row - CENTER_ROW, 2)
-                    );
-                    
-                    return (distFromCenter * 0.03) + 0.15 * (Math.random() - 0.5);  // Increased stagger
+                    return getStaggerDelay(index, GRID_COLS, GRID_ROWS);
                   },
                   onComplete: () => {
-                    // PHASE 3: onExited - Clean up
                     console.log('exited');
                     
                     // Reset styles
@@ -281,7 +297,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     document.body.style.cursor = 'default';
                     transitionGrid.style.pointerEvents = 'none';
                     
-                    // Remove navigation class when complete
+                    // Remove navigation class
                     document.body.classList.remove('barba-navigating');
                     
                     // Animate nav for project pages
@@ -295,6 +311,9 @@ document.addEventListener("DOMContentLoaded", () => {
           });
         }
       }
-    ]
+    ],
+    // Prefetch on hover for smoother transitions
+    prefetch: true,
+    cacheIgnore: false
   });
 });
