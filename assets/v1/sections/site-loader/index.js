@@ -274,7 +274,7 @@ export default function initSiteLoader(container) {
     stagger: 0.08,
     ease: "power2.out"
   }, "-=0.4")
-  // Category filters (simultaneous with nav links)
+  // Category filters
   .fromTo(".home-category_text", {
     opacity: 0,
     y: 15,
@@ -284,13 +284,10 @@ export default function initSiteLoader(container) {
     y: 0,
     rotateX: 0,
     duration: 0.6,
-    stagger: {
-      each: 0.05,
-      from: "start"
-    },
+    stagger: 0.05,
     ease: "power3.out"
   }, "-=0.5")
-  // Project names stagger in sequence
+  // Project names - start after categories finish
   .fromTo(".home-hero_list:not([style*='display: none']) .home_hero_text", {
     opacity: 0,
     x: -30,
@@ -300,10 +297,10 @@ export default function initSiteLoader(container) {
     x: 0,
     filter: "blur(0px)",
     duration: 0.5,
-    stagger: 0.08,
+    stagger: 0.06,
     ease: "power2.out"
-  }, "-=0.2")
-  // Project tags stagger after names
+  }, ">-0.1") // Start right after previous animation
+  // Project tags - stagger after each project name
   .fromTo(".home-hero_list:not([style*='display: none']) .home-category_ref_text:not([hidden])", {
     opacity: 0,
     scale: 0.8,
@@ -313,10 +310,10 @@ export default function initSiteLoader(container) {
     scale: 1,
     x: 0,
     duration: 0.4,
-    stagger: 0.04,
+    stagger: 0.03,
     ease: "back.out(1.3)"
-  }, "-=0.3")
-  // Awards strip
+  }, ">-0.1") // Start right after previous
+  // Awards strip - after tags
   .fromTo(".home-awards_list", {
     opacity: 0,
     y: 20,
@@ -341,7 +338,7 @@ export default function initSiteLoader(container) {
         clearProps: "transform,filter"
       });
     }
-  }, "-=0.2")
+  }, ">-0.1")
   // Fade loader and wrapper
   .to([videoWrapper, loaderEl], { 
     opacity: 0, 
