@@ -82,7 +82,7 @@ export default function initSiteLoader(container) {
   // Curtain
   const videoCurtain = document.createElement("div");
   videoCurtain.className = "site-loader_video-curtain";
-  gsap.set(videoCurtain, {position:"absolute",top:0,left:0,width:"100%",height:"100%",background:"#020202"});
+  gsap.set(videoCurtain, {position:"absolute",top:0,left:0,width:"100%",height:"100%",background:"var(--swatch--brand-ink)"});
   videoWrapper.appendChild(videoCurtain);
 
   // Insert
