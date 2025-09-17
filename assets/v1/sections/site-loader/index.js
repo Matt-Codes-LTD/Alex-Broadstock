@@ -247,27 +247,46 @@ export default function initSiteLoader(container) {
     ease: "power3.inOut"
   }, "<0.024")
   
-  // Phase 7: Morph to hero position with video inside
+  // Phase 7: Morph to hero position (complete before transfer)
   .add(() => {
     if (heroVideoContainer) {
-      // Pre-show hero container behind loader
+      // Pre-show hero container at exact position
       gsap.set(heroVideoContainer, { opacity: 1, zIndex: 0 });
     }
-    // Morph wrapper WITH video still inside
     return morphWrapperToHero(1.8);
   })
   
-  // Phase 8: Transfer video element after morph complete
+  // Phase 8: Transfer video element when perfectly aligned
   .call(() => {
     if (heroVideoContainer && video) {
-      // Now transfer the video element
+      // Calculate exact position for seamless transfer
+      const wrapperRect = videoWrapper.getBoundingClientRect();
+      const heroRect = heroVideoContainer.getBoundingClientRect();
+      
+      // Create placeholder in wrapper to maintain visual
+      const placeholder = video.cloneNode(false);
+      placeholder.style.cssText = video.style.cssText;
+      placeholder.style.pointerEvents = 'none';
+      
+      // Capture current frame as poster for placeholder
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0);
+      placeholder.poster = canvas.toDataURL();
+      
+      // Replace video with placeholder in wrapper
+      video.parentNode.insertBefore(placeholder, video);
       video.remove();
+      
+      // Transfer actual video to hero
       video.classList.add('home-hero_video_el', 'is-active');
       video.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:1;z-index:1;';
       heroVideoContainer.appendChild(video);
       
-      // Make wrapper transparent since video moved out
-      videoWrapper.style.background = 'transparent';
+      // Keep wrapper visible for fade out
+      videoWrapper.__placeholder = placeholder;
     }
     
     // Signal hero with transferred video
