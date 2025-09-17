@@ -82,7 +82,7 @@ export default function initSiteLoader(container) {
   // Curtain
   const videoCurtain = document.createElement("div");
   videoCurtain.className = "site-loader_video-curtain";
-  gsap.set(videoCurtain, {position:"absolute",top:0,left:0,width:"100%",height:"100%",background:"var(--swatch--brand-ink)"});
+  gsap.set(videoCurtain, {position:"absolute",top:0,left:0,width:"100%",height:"100%",background:"#020202"});
   videoWrapper.appendChild(videoCurtain);
 
   // Insert
@@ -214,19 +214,23 @@ export default function initSiteLoader(container) {
   })
   // Phase 3: Video reveal (smooth now that frames are ready)
   .to(videoWrapper, { opacity: 1, duration: 0.3, ease: "power2.out" })
-  .to(videoCurtain, { xPercent: 100, duration: 1.6, ease: "custom2InOut" })
-  // Phase 4: Fade UI elements
-  .to([corners, fpsCounter], { opacity: 0, duration: 0.6, stagger: 0.02 })
+  .to(videoCurtain, { 
+    xPercent: 100, 
+    duration: 1.6, 
+    ease: "custom2InOut",
+    onComplete: () => {
+      // Start morphing immediately when curtain finishes
+      morphWrapperToHero(1.8);
+    }
+  })
+  // Phase 4: Fade UI elements while morphing happens
+  .to([corners, fpsCounter], { opacity: 0, duration: 0.6, stagger: 0.02 }, "-=1.4")
   .to(edgesBox, { opacity: 0, scale: 1.5, duration: 0.7, ease: "power3.inOut" }, "<0.024")
-  // Phase 5: FLIP morph wrapper → hero stage (scale wrapper only, not video)
+  // Phase 5: Handoff happens during morph
   .call(() => {
     // Pre-position hero stage behind loader
     if (heroVideoContainer) gsap.set(heroVideoContainer, { opacity: 1, zIndex: 0 });
-    // Start morphing wrapper to hero position
-    morphWrapperToHero(1.8);
-  })
-  // Phase 6: Handoff with frame sync
-  .call(() => {
+    
     const detail = {
       src: firstVideoUrl || null,
       currentTime: video?.currentTime || 0,
@@ -236,9 +240,9 @@ export default function initSiteLoader(container) {
     };
     window.dispatchEvent(new CustomEvent("siteLoaderMorphBegin", { detail }));
     heroResumeTimeout = setTimeout(onHeroReadyForReveal, 1500);
-  })
+  }, null, "-=1.2")
   .addPause("await-hero-ready")
-  // Phase 7: Move loader behind content, then staggered reveal
+  // Phase 6: Move loader behind content, then staggered reveal
   .set(loaderEl, { zIndex: 1 }) // Move loader behind content
   .set([
     ".nav_wrap",
