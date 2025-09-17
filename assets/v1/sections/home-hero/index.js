@@ -25,86 +25,76 @@ export default function initHomeHero(container) {
   let activeItem = null;
   let loaderVideoAdopted = false;
 
-  // Initialize (no timelines)
-  function initializeHero() {
+  // Initialize
+  function initializeHero(skipFirstVideo = false) {
     hideMetaTags();
     
     // Only preload if we didn't adopt a loader video
-    if (!loaderVideoAdopted) {
+    if (!skipFirstVideo) {
       preloadVideos();
       const firstVisible = items.find(item => item.style.display !== "none");
       if (firstVisible) setActive(firstVisible);
     }
 
     section.dataset.introComplete = "true";
-    console.log("[HomeHero] Intro setup complete (no timelines)");
+    console.log("[HomeHero] Init complete");
   }
 
-  // Wait for site loader morph if present, then init
+  // Listen for site loader handoff
   const hasSiteLoader = document.querySelector(".site-loader_wrap");
   if (hasSiteLoader && !window.__barbaNavigated) {
     window.addEventListener(
       "siteLoaderMorphComplete",
       (event) => {
-        console.log("[HomeHero] Morph complete, checking for loader video");
+        console.log("[HomeHero] Receiving video from loader");
         
-        // Adopt the loader's video if provided
         if (event.detail && event.detail.video) {
-          const loaderVideo = event.detail.video;
-          const loaderSrc = event.detail.currentSrc;
+          const video = event.detail.video;
+          const videoSrc = event.detail.currentSrc;
           
-          console.log("[HomeHero] Adopting loader video:", loaderSrc);
-          
-          // The video should already be in our container from the loader
-          if (!videoStage.contains(loaderVideo)) {
-            console.warn("[HomeHero] Video not found in container, this shouldn't happen");
-            videoStage.appendChild(loaderVideo);
-          }
-          
-          // Register it with video manager
-          videoManager.adoptVideo(loaderSrc, loaderVideo);
-          loaderVideoAdopted = true;
-          
-          // Set first project as active without video restart
-          const firstVisible = items.find(item => item.style.display !== "none");
-          if (firstVisible) {
-            const linkEl = firstVisible.querySelector(".home-hero_link");
-            const projectEl = firstVisible.querySelector(".home-hero_item");
+          // The video should already be in our container
+          if (videoStage.contains(video)) {
+            console.log("[HomeHero] Video successfully transferred");
             
-            if (linkEl && projectEl) {
-              // Update the link's data-video to match
-              linkEl.dataset.video = loaderSrc;
-              
-              // Set as active without restarting
-              videoManager.setActiveWithoutRestart(loaderSrc, linkEl);
-              
-              // Update UI state
-              activeItem = firstVisible;
-              updateActiveStates(firstVisible);
-              updateAwards(firstVisible);
+            // Register it with video manager
+            videoManager.registerExistingVideo(videoSrc, video);
+            loaderVideoAdopted = true;
+            
+            // Set first project as active without restarting video
+            const firstVisible = items.find(item => item.style.display !== "none");
+            if (firstVisible) {
+              const linkEl = firstVisible.querySelector(".home-hero_link");
+              if (linkEl) {
+                linkEl.dataset.video = videoSrc;
+                // Update active states without video change
+                activeItem = firstVisible;
+                updateActiveStates(firstVisible);
+                updateAwards(firstVisible);
+                videoManager.setActiveLink(linkEl);
+              }
             }
+            
+            // Preload other videos after a delay
+            setTimeout(() => preloadVideos(true), 1000);
           }
-          
-          // Preload other videos in background
-          setTimeout(() => preloadVideos(true), 1000);
         }
         
-        initializeHero();
+        initializeHero(loaderVideoAdopted);
       },
       { once: true }
     );
   } else {
+    // No loader, initialize immediately
     initializeHero();
   }
 
-  // Awards management (no timelines/animations)
+  // Awards management
   function updateAwards(item) {
     if (!awardsStrip) return;
 
     const awardsContainer = item?.querySelector(".home-project_awards");
     const newAwardImages = awardsContainer?.querySelectorAll("img") || [];
 
-    // Clear existing
     awardsStrip.innerHTML = "";
 
     if (!newAwardImages.length) {
@@ -112,7 +102,6 @@ export default function initHomeHero(container) {
       return;
     }
 
-    // Add new awards instantly
     newAwardImages.forEach(img => {
       const clone = img.cloneNode(true);
       clone.removeAttribute("sizes");
@@ -125,7 +114,6 @@ export default function initHomeHero(container) {
 
   // Update UI states for active project
   function updateActiveStates(item) {
-    // Apply faded class to all items first
     items.forEach(i => {
       const link = i.querySelector(".home-hero_link");
       const text = i.querySelector(".home_hero_text");
@@ -136,7 +124,6 @@ export default function initHomeHero(container) {
       pills.forEach(p => p.classList.add("u-color-faded"));
     });
 
-    // Unfade active
     const activeLink = item.querySelector(".home-hero_link");
     const activeText = item.querySelector(".home_hero_text");
     const activePills = item.querySelectorAll(".home-category_ref_text:not([hidden])");
@@ -167,17 +154,16 @@ export default function initHomeHero(container) {
       }
     }
 
-    // Update awards (no animation)
     updateAwards(item);
   }
 
-  // Preload videos (skip first if adopted from loader)
+  // Preload videos
   function preloadVideos(skipFirst = false) {
     const MAX_EAGER = 3;
-    let count = skipFirst ? 1 : 0; // Skip first if we adopted it
+    let count = skipFirst ? 1 : 0;
 
     items.forEach((item, index) => {
-      if (skipFirst && index === 0) return; // Skip first video if adopted
+      if (skipFirst && index === 0) return;
       
       const projectEl = item.querySelector(".home-hero_item");
       const videoSrc = projectEl?.dataset.video;
@@ -200,7 +186,7 @@ export default function initHomeHero(container) {
     });
   }
 
-  // Improved event handlers with debouncing
+  // Event handlers with debouncing
   let hoverTimeout;
   function handleInteraction(e) {
     const item = e.target.closest(".home-hero_list");

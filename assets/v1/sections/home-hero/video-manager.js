@@ -20,12 +20,44 @@ export function createVideoManager(stage) {
     v.preload = 'auto';
     v.crossOrigin = 'anonymous';
     
-    // Enhanced initial state
+    // Initial state - hidden
     gsap.set(v, { opacity: 0 });
     
     stage.appendChild(v);
     videoBySrc.set(src, v);
     return v;
+  }
+
+  // NEW: Register an existing video element (from loader)
+  function registerExistingVideo(src, videoElement) {
+    if (!src || !videoElement) return;
+    
+    console.log('[VideoManager] Registering existing video:', src);
+    
+    // Store the video
+    videoBySrc.set(src, videoElement);
+    
+    // Mark it as warmed and active
+    videoElement.__warmed = true;
+    videoElement.__keepAlive = true;
+    
+    // Ensure it has the right class
+    if (!videoElement.classList.contains('home-hero_video_el')) {
+      videoElement.classList.add('home-hero_video_el');
+    }
+    
+    // Set as active
+    activeVideo = videoElement;
+    
+    console.log('[VideoManager] Video registered successfully');
+  }
+
+  // NEW: Set active link without changing video
+  function setActiveLink(linkEl) {
+    if (linkEl && linkEl !== activeLink) {
+      updateLinkState(activeLink, linkEl);
+      activeLink = linkEl;
+    }
   }
 
   function warmVideo(v) {
@@ -73,58 +105,6 @@ export function createVideoManager(stage) {
       'fastSeek' in v ? v.fastSeek(0) : (v.currentTime = 0);
       v.play?.();
     } catch {}
-  }
-
-  // NEW: Adopt a video that's already playing from the loader
-  function adoptVideo(src, videoElement) {
-    if (!src || !videoElement) return;
-    
-    console.log('[VideoManager] Adopting video:', src);
-    
-    // Register the adopted video
-    videoBySrc.set(src, videoElement);
-    videoElement.__warmed = true;
-    videoElement.__keepAlive = true;
-    
-    // Ensure it has the right class
-    if (!videoElement.classList.contains('home-hero_video_el')) {
-      videoElement.classList.add('home-hero_video_el');
-    }
-    
-    // Ensure it's marked as active
-    videoElement.classList.add('is-active');
-    
-    // Set as active without triggering transitions
-    activeVideo = videoElement;
-    
-    console.log('[VideoManager] Video adopted successfully');
-  }
-
-  // NEW: Set active without restarting (for adopted videos)
-  function setActiveWithoutRestart(src, linkEl) {
-    const video = videoBySrc.get(src);
-    if (!video) {
-      console.warn('[VideoManager] Video not found for setActiveWithoutRestart:', src);
-      return;
-    }
-    
-    console.log('[VideoManager] Setting active without restart:', src);
-    
-    // Update state without restarting video
-    activeVideo = video;
-    activeLink = linkEl;
-    
-    // Ensure video has active class
-    video.classList.add('is-active');
-    
-    // Update link states
-    if (linkEl) {
-      linkEl.setAttribute('aria-current', 'true');
-      fadeTargetsFor(linkEl).forEach((n) => n.classList.remove('u-color-faded'));
-    }
-    
-    // Don't restart or transition - video is already playing perfectly
-    return;
   }
 
   function setActive(src, linkEl) {
@@ -258,8 +238,8 @@ export function createVideoManager(stage) {
   return {
     createVideo,
     warmVideo,
-    adoptVideo, // NEW
-    setActiveWithoutRestart, // NEW
+    registerExistingVideo, // NEW
+    setActiveLink, // NEW
     setActive: (src, linkEl) => {
       setActive(src, linkEl);
       preloadNext(src);
