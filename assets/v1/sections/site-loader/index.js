@@ -294,42 +294,40 @@ export default function initSiteLoader(container) {
     stagger: 0.05,
     ease: "power3.out"
   }, "-=0.5")
-  // Project rows - same animation as nav categories
+  // Project rows - animate name and tags together per row
   .add(() => {
     const visibleRows = container.querySelectorAll(".home-hero_list:not([style*='display: none'])");
     visibleRows.forEach((row, index) => {
       const name = row.querySelector(".home_hero_text");
       const tags = row.querySelectorAll(".home-category_ref_text:not([hidden])");
       
-      // Animate name with same style as categories
+      // Animate name from left
       if (name) {
         gsap.fromTo(name, {
           opacity: 0,
-          y: 15,
-          rotateX: -45
+          x: -30,
+          filter: "blur(4px)"
         }, {
           opacity: 1,
-          y: 0,
-          rotateX: 0,
-          duration: 0.6,
-          ease: "power3.out",
+          x: 0,
+          filter: "blur(0px)",
+          duration: 0.5,
+          ease: "power2.out",
           delay: index * 0.05
         });
       }
       
-      // Animate tags with same style
+      // Animate tags from right simultaneously
       if (tags.length) {
         gsap.fromTo(tags, {
           opacity: 0,
-          y: 15,
-          rotateX: -45
+          x: 20
         }, {
           opacity: 1,
-          y: 0,
-          rotateX: 0,
-          duration: 0.6,
-          ease: "power3.out",
-          delay: index * 0.05 + 0.02,
+          x: 0,
+          duration: 0.5,
+          ease: "power2.out",
+          delay: index * 0.05,
           stagger: 0.02
         });
       }
