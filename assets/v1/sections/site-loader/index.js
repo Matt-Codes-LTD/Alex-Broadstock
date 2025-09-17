@@ -78,7 +78,7 @@ export default function initSiteLoader(container) {
   else loaderContainer.appendChild(videoWrapper);
 
   // Hide hero during loader
-  const heroContent = container.querySelectorAll(".nav_wrap, .home-hero_menu, .home-hero_awards");
+  const heroContent = container.querySelectorAll(".nav_wrap, .home-hero_menu, .home-awards_list");
   const heroVideoContainer = container.querySelector(".home-hero_video");
   gsap.set(heroContent, { opacity: 0, visibility: "hidden" });
   gsap.set(heroVideoContainer, { opacity: 0, zIndex: 0 });
@@ -229,7 +229,12 @@ export default function initSiteLoader(container) {
     ".nav_wrap",
     ".home_hero_categories", 
     ".home-hero_menu",
-    ".home-awards_list",
+    ".home-awards_list"
+  ], {
+    visibility: "visible",
+    opacity: 1  // Ensure parent containers are visible
+  })
+  .set([
     ".brand_logo",
     ".nav_link",
     ".home-category_text",
@@ -285,8 +290,8 @@ export default function initSiteLoader(container) {
     },
     ease: "power3.out"
   }, "-=0.3")
-  // Project list items
-  .fromTo(".home-hero_menu .home_hero_text", {
+  // Project list items - Updated selector
+  .fromTo(".home_hero_text", {
     opacity: 0,
     x: -30,
     filter: "blur(4px)"
@@ -301,8 +306,8 @@ export default function initSiteLoader(container) {
     },
     ease: "power2.out"
   }, "-=0.4")
-  // Project tags
-  .fromTo(".home-hero_menu .home-category_ref_text:not([hidden])", {
+  // Project tags - Updated selector
+  .fromTo(".home-category_ref_text:not([hidden])", {
     opacity: 0,
     scale: 0.8,
     x: 20
