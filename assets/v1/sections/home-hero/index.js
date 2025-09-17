@@ -35,15 +35,41 @@ export default function initHomeHero(container) {
 
   const hasSiteLoader = document.querySelector(".site-loader_wrap");
   if (hasSiteLoader && !window.__barbaNavigated) {
-    window.addEventListener("siteLoaderMorphBegin", (e) => {
+    window.addEventListener("siteLoaderMorphBegin", async (e) => {
       handoff = e?.detail || null;
       console.log("[HomeHero] Handoff received:", handoff);
       
-      // Pre-warm the hero video to match loader timing
-      if (handoff?.src) {
+      // Pre-sync hero video to exact frame
+      if (handoff?.src && handoff?.currentTime != null) {
         const heroVideo = videoManager.createVideo(handoff.src);
-        if (heroVideo && handoff.currentTime != null) {
+        if (heroVideo) {
+          // Match exact time
           heroVideo.currentTime = handoff.currentTime;
+          await heroVideo.play().catch(() => {});
+          
+          // Wait for frame sync if loader video provided
+          if (handoff.loaderVideo) {
+            await new Promise(resolve => {
+              const syncFrames = () => {
+                // Sync to loader's current time
+                heroVideo.currentTime = handoff.loaderVideo.currentTime;
+                
+                if ('requestVideoFrameCallback' in heroVideo) {
+                  heroVideo.requestVideoFrameCallback(() => resolve());
+                } else {
+                  requestAnimationFrame(() => {
+                    requestAnimationFrame(() => resolve());
+                  });
+                }
+              };
+              
+              if (heroVideo.readyState >= 3) {
+                syncFrames();
+              } else {
+                heroVideo.addEventListener('canplaythrough', syncFrames, { once: true });
+              }
+            });
+          }
         }
       }
       

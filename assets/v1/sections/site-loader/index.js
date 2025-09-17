@@ -248,7 +248,7 @@ export default function initSiteLoader(container) {
     ease: "power3.inOut"
   }, "<0.024")
   
-  // Phase 7: Morph to hero position
+  // Phase 7: Morph to hero position (complete before handoff)
   .add(() => {
     if (heroVideoContainer) {
       gsap.set(heroVideoContainer, { opacity: 1, zIndex: 0 });
@@ -256,19 +256,21 @@ export default function initSiteLoader(container) {
     return morphWrapperToHero(1.8);
   })
   
-  // Phase 8: Handoff
+  // Phase 8: Handoff when morph complete
   .call(() => {
     const detail = {
       src: firstVideoUrl || null,
       currentTime: video?.currentTime || 0,
-      duration: video?.duration || 0
+      duration: video?.duration || 0,
+      loaderVideo: video,
+      loaderWrapper: videoWrapper
     };
     window.dispatchEvent(new CustomEvent("siteLoaderMorphBegin", { detail }));
     heroResumeTimeout = setTimeout(onHeroReadyForReveal, 1500);
   })
   .addPause("await-hero-ready")
   
-  // Phase 9: Final reveal
+  // Phase 9: Hero confirmed ready - reveal UI first
   .to(heroContent, {
     visibility: "visible",
     opacity: 1,
@@ -276,10 +278,17 @@ export default function initSiteLoader(container) {
     stagger: 0.1,
     ease: "power2.out"
   })
-  .to([videoWrapper, loaderEl], {
+  
+  // Phase 10: Fade loader AFTER hero is showing (videos are aligned)
+  .to(videoWrapper, {
     opacity: 0,
-    duration: 0.6,
+    duration: 0.5,
     ease: "power2.inOut"
+  }, "-=0.2")
+  .to(loaderEl, {
+    opacity: 0,
+    duration: 0.3,
+    ease: "power2.out"
   }, "-=0.3")
   .call(() => {
     window.dispatchEvent(new CustomEvent("siteLoaderComplete"));
