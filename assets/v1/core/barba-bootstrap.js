@@ -8,21 +8,43 @@ document.addEventListener("DOMContentLoaded", () => {
   window.__barbaNavigated = false;
   initGlobal();
 
-  // Create the split transition overlay
-  const transitionOverlay = document.createElement('div');
-  transitionOverlay.style.cssText = `
+  // Create split screen overlay with two sliding panels
+  const splitOverlay = document.createElement('div');
+  splitOverlay.style.cssText = `
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: #000;
-    z-index: 9999;
     pointer-events: none;
-    clip-path: polygon(50% 0, 50% 0, 50% 100%, 50% 100%);
-    -webkit-clip-path: polygon(50% 0, 50% 0, 50% 100%, 50% 100%);
+    z-index: 9999;
   `;
-  document.body.appendChild(transitionOverlay);
+  
+  const leftPanel = document.createElement('div');
+  leftPanel.style.cssText = `
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 50%;
+    height: 100%;
+    background: #000;
+    transform: translateX(-100%);
+  `;
+  
+  const rightPanel = document.createElement('div');
+  rightPanel.style.cssText = `
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 50%;
+    height: 100%;
+    background: #000;
+    transform: translateX(100%);
+  `;
+  
+  splitOverlay.appendChild(leftPanel);
+  splitOverlay.appendChild(rightPanel);
+  document.body.appendChild(splitOverlay);
 
   // Nav animation function for project pages
   function animateProjectNav(container) {
@@ -112,7 +134,7 @@ document.addEventListener("DOMContentLoaded", () => {
   barba.init({
     transitions: [
       {
-        name: "split-screen-transition",
+        name: "split-sliding-transition",
 
         once({ next }) {
           const main = next.container;
@@ -121,7 +143,7 @@ document.addEventListener("DOMContentLoaded", () => {
           animateProjectNav(main);
         },
 
-        async leave({ current }) {
+        leave({ current }) {
           document.body.classList.add('barba-navigating');
           window.__barbaNavigated = true;
           
@@ -129,49 +151,70 @@ document.addEventListener("DOMContentLoaded", () => {
             current.container.__cleanup();
             delete current.container.__cleanup;
           }
-
-          // Expand overlay to cover screen
-          await gsap.to(transitionOverlay, {
-            clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%)',
-            duration: 0.6,
-            ease: "cubic-bezier(0.5,0.25,0,1)"
-          });
+          
+          // Just mark completion, don't animate yet
+          return Promise.resolve();
         },
 
-        enter({ current, next }) {
+        async enter({ current, next }) {
           const oldMain = current.container;
           const newMain = next.container;
           
           // Initialize new page scripts
           newMain.__cleanup = initPageScripts(newMain);
           
-          // Position new page behind overlay
-          gsap.set(newMain, { 
-            opacity: 1,
-            visibility: 'visible'
+          // Stack containers on top of each other
+          Object.assign(oldMain.style, { 
+            position: 'fixed',
+            top: '0',
+            left: '0',
+            width: '100%',
+            height: '100%',
+            zIndex: '1'
           });
           
-          // Hide old page
-          if (oldMain) {
-            gsap.set(oldMain, { display: 'none' });
-          }
-
-          // Contract overlay to reveal new page
-          return gsap.to(transitionOverlay, {
-            clipPath: 'polygon(50% 0, 50% 0, 50% 100%, 50% 100%)',
-            duration: 0.6,
-            ease: "cubic-bezier(0.5,0.25,0,1)",
-            onComplete: () => {
-              // Clean up old container
-              if (oldMain && oldMain.parentNode) {
-                oldMain.remove();
-              }
-              
-              window.scrollTo(0, 0);
-              document.body.classList.remove('barba-navigating');
-              animateProjectNav(newMain);
-            }
+          Object.assign(newMain.style, { 
+            position: 'fixed',
+            top: '0',
+            left: '0',
+            width: '100%',
+            height: '100%',
+            zIndex: '0',
+            opacity: '1'
           });
+
+          // Animate panels sliding in from sides
+          await gsap.timeline()
+            .set([leftPanel, rightPanel], { 
+              transform: 'translateX(0%)'
+            })
+            .to(leftPanel, {
+              transform: 'translateX(-100%)',
+              duration: 1,
+              ease: "cubic-bezier(0.5,0.25,0,1)",
+              delay: 0.3
+            })
+            .to(rightPanel, {
+              transform: 'translateX(100%)',
+              duration: 1,
+              ease: "cubic-bezier(0.5,0.25,0,1)"
+            }, "<");
+
+          // Clean up
+          newMain.style.position = '';
+          newMain.style.top = '';
+          newMain.style.left = '';
+          newMain.style.width = '';
+          newMain.style.height = '';
+          newMain.style.zIndex = '';
+          
+          if (oldMain && oldMain.parentNode) {
+            oldMain.remove();
+          }
+          
+          window.scrollTo(0, 0);
+          document.body.classList.remove('barba-navigating');
+          animateProjectNav(newMain);
         }
       }
     ]
