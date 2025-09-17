@@ -2,8 +2,9 @@
 // FILE 1: assets/v1/sections/site-loader/index.js
 // ============================================
 export default function initSiteLoader(container) {
-  if (window.__barbaNavigated) {
-    console.log("[SiteLoader] Skipping - Barba navigation");
+  // Double-check: skip if not initial page load
+  if (!window.__initialPageLoad) {
+    console.log("[SiteLoader] Skipping - not initial page load");
     return () => {};
   }
 

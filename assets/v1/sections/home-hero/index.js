@@ -36,7 +36,7 @@ export default function initHomeHero(container) {
   }
 
   const hasSiteLoader = document.querySelector(".site-loader_wrap");
-  if (hasSiteLoader && !window.__barbaNavigated) {
+  if (hasSiteLoader && window.__initialPageLoad) {
     window.addEventListener("siteLoaderMorphBegin", async (e) => {
       handoff = e?.detail || null;
       console.log("[HomeHero] Handoff received:", handoff);

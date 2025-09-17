@@ -5,8 +5,8 @@ import { initPageScripts, initGlobal } from "./page-scripts.js";
 document.addEventListener("DOMContentLoaded", () => {
   console.log("[Barba] init starting…");
 
-  // Clear navigation flag on initial load
-  window.__barbaNavigated = false;
+  // Track if this is the initial page load
+  window.__initialPageLoad = true;
 
   initGlobal();
 
@@ -173,12 +173,16 @@ document.addEventListener("DOMContentLoaded", () => {
           
           // Animate nav on initial page load if it's a project page
           animateProjectNav(main);
+          
+          // Clear the initial load flag after the first page is loaded
+          setTimeout(() => {
+            window.__initialPageLoad = false;
+          }, 100);
         },
 
         leave({ current }) {
           // Mark as navigating when transition starts
           document.body.classList.add('barba-navigating');
-          window.__barbaNavigated = true; // Set flag for navigation
           
           if (current?.container?.__cleanup) {
             current.container.__cleanup();

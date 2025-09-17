@@ -16,9 +16,9 @@ export function initPageScripts(container) {
   cleanups.push(initHomeHero(container));
   cleanups.push(initProjectPlayer(container));
 
-  // Site loader - only on home page direct visits/refreshes
-  if (container.dataset.barbaNamespace === "home") {
-    console.log("[SiteLoader] Checking for home page init");
+  // Site loader - only on home page initial load or refresh
+  if (container.dataset.barbaNamespace === "home" && window.__initialPageLoad) {
+    console.log("[SiteLoader] Initializing for home page initial load");
     cleanups.push(initSiteLoader(container));
   }
 
