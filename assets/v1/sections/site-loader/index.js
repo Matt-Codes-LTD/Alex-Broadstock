@@ -195,31 +195,22 @@ export default function initSiteLoader(container) {
     ease: "power2.inOut"
   })
   
-  // Phase 6: Transfer loader video to hero
+  // Phase 6: Crossfade to hero
   .call(() => {
-    if (heroVideoContainer && video) {
-      // Clear any existing videos
-      heroVideoContainer.innerHTML = '';
+    if (heroVideoContainer) {
+      // Show hero container behind loader
+      gsap.set(heroVideoContainer, { 
+        opacity: 1,
+        zIndex: 0
+      });
       
-      // Transfer the loader video directly
-      video.className = 'home-hero_video_el is-active';
-      video.style.cssText = `
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        opacity: 1;
-      `;
-      heroVideoContainer.appendChild(video);
-      
-      // Show hero container
-      gsap.set(heroVideoContainer, { opacity: 1 });
-      
-      // Dispatch events for hero initialization
+      // Dispatch event to initialize hero (it will create its own videos)
       window.dispatchEvent(new CustomEvent('siteLoaderMorphComplete'));
     }
   })
+  
+  // Brief pause to ensure hero video is ready
+  .to({}, { duration: 0.5 })
   
   // Fade in UI after hero is ready
   .to(heroContent, {
