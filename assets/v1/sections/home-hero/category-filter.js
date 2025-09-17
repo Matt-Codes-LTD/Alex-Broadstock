@@ -4,7 +4,7 @@ import { normalize, prefersReducedMotion } from "./utils.js";
 /**
  * Initialize and bind category filtering
  */
-export function initCategoryFilter(section, videoManager) {
+export function initCategoryFilter(section, videoManager, setActiveCallback) {
   const catWrap = document.querySelector(".home_hero_categories");
   if (!catWrap) return () => {};
 
@@ -29,12 +29,12 @@ export function initCategoryFilter(section, videoManager) {
     e.preventDefault();
     const label = btn.textContent || "All";
     setActiveCat(label);
-    applyFilterFLIP(section, label, videoManager);
+    applyFilterFLIP(section, label, videoManager, setActiveCallback);
   }
 
   // Default state = "All"
   setActiveCat("All");
-  applyFilterFLIP(section, "All", videoManager);
+  applyFilterFLIP(section, "All", videoManager, setActiveCallback);
 
   catWrap.addEventListener("click", onClick, { passive: false });
 
@@ -44,7 +44,7 @@ export function initCategoryFilter(section, videoManager) {
 /**
  * Apply FLIP filtering animation
  */
-export function applyFilterFLIP(section, label, videoManager) {
+export function applyFilterFLIP(section, label, videoManager, setActiveCallback) {
   // SKIP animation if navigating to a project page
   if (section.dataset.navigating === "true") return;
   
@@ -79,7 +79,7 @@ export function applyFilterFLIP(section, label, videoManager) {
     }
   });
 
-  let firstVisibleLink = null;
+  let firstVisibleItem = null;
   items.forEach((it) => {
     const shouldShow = toStayOrEnter.includes(it);
     if (shouldShow) {
@@ -87,8 +87,8 @@ export function applyFilterFLIP(section, label, videoManager) {
         it.style.display = "";
         it.style.opacity = "0";
       }
-      if (!firstVisibleLink) {
-        firstVisibleLink = it.querySelector(".home-hero_link");
+      if (!firstVisibleItem) {
+        firstVisibleItem = it;
       }
     } else if (!toExit.includes(it)) {
       it.style.display = "none";
@@ -201,15 +201,9 @@ export function applyFilterFLIP(section, label, videoManager) {
       });
       listParent.style.pointerEvents = "";
 
-      // FIXED: Always activate the first visible item after category change
-      if (firstVisibleLink) {
-        const firstItem = firstVisibleLink.closest('.home-hero_list');
-        const projectEl = firstItem?.querySelector('.home-hero_item');
-        const videoSrc = projectEl?.dataset?.video;
-        
-        if (videoSrc) {
-          videoManager.setActive(videoSrc, firstVisibleLink);
-        }
+      // Call the setActive callback from home-hero/index.js
+      if (setActiveCallback && firstVisibleItem) {
+        setActiveCallback(firstVisibleItem);
       }
     });
   });

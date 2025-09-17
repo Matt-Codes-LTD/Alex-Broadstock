@@ -147,9 +147,9 @@ export default function initHomeHero(container) {
     }
   }
 
-  const cleanupFilter = initCategoryFilter(section, videoManager, () => {
-    const firstItem = items.find(i => i.style.display !== "none");
-    if (firstItem) setActive(firstItem);
+  // Pass setActive as the third parameter
+  const cleanupFilter = initCategoryFilter(section, videoManager, (firstItem) => {
+    setActive(firstItem);
   });
 
   listParent.addEventListener("mouseenter", handleInteraction, true);
