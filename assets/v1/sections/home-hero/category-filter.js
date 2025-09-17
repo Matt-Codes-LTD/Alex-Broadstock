@@ -201,17 +201,15 @@ export function applyFilterFLIP(section, label, videoManager) {
       });
       listParent.style.pointerEvents = "";
 
-      // Ensure active state
-      if (videoManager.activeLink) {
-        videoManager.setActive(
-          videoManager.activeLink.dataset.video,
-          videoManager.activeLink
-        );
-      } else if (firstVisibleLink) {
-        videoManager.setActive(
-          firstVisibleLink.dataset.video,
-          firstVisibleLink
-        );
+      // FIXED: Always activate the first visible item after category change
+      if (firstVisibleLink) {
+        const firstItem = firstVisibleLink.closest('.home-hero_list');
+        const projectEl = firstItem?.querySelector('.home-hero_item');
+        const videoSrc = projectEl?.dataset?.video;
+        
+        if (videoSrc) {
+          videoManager.setActive(videoSrc, firstVisibleLink);
+        }
       }
     });
   });
