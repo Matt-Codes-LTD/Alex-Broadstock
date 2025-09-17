@@ -83,14 +83,14 @@ export default function initSiteLoader(container) {
   const centerY = window.innerHeight / 2;
   const scaleX = videoWidth / heroRect.width;
   const scaleY = videoHeight / heroRect.height;
+  const scale = Math.min(scaleX, scaleY);
+  const dx = centerX - (heroRect.left + heroRect.width / 2);
+  const dy = centerY - (heroRect.top + heroRect.height / 2);
   
   gsap.set(heroVideoContainer, {
     opacity: 0,
-    scale: Math.min(scaleX, scaleY),
-    x: centerX - (heroRect.left + heroRect.width / 2),
-    y: centerY - (heroRect.top + heroRect.height / 2),
+    transform: `translate3d(${dx}px, ${dy}px, 0px) scale(${scale}, ${scale})`,
     transformOrigin: "50% 50%",
-    force3D: true,
     zIndex: 100
   });
 
@@ -213,9 +213,7 @@ export default function initSiteLoader(container) {
   
   // Phase 7: Scale hero video to full size
   .to(heroVideoContainer, {
-    scale: 1,
-    x: 0,
-    y: 0,
+    transform: "translate3d(0px, 0px, 0px) scale(1, 1)",
     duration: 1.8,
     ease: "power3.inOut"
   })
