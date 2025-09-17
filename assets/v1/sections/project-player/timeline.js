@@ -25,15 +25,20 @@ export function initTimeline(video, tl, tlBuf, tlHandle, state) {
     seekPct(((e.clientX - r.left) / r.width) * 100);
     state.kickHide();
   };
+  
   const onMove = (e) => {
     if (state.dragging) {
       const r = tl.getBoundingClientRect();
       seekPct(((e.clientX - r.left) / r.width) * 100);
     }
   };
-  const endDrag = () => {
+  
+  const endDrag = (e) => {
     state.dragging = false;
+    // Release pointer capture
+    tl.releasePointerCapture?.(e.pointerId);
   };
+  
   const onKey = (e) => {
     const step = e.shiftKey ? 10 : 5;
     const now = Number(tl.getAttribute("aria-valuenow") || 0);
