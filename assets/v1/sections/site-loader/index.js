@@ -224,7 +224,8 @@ export default function initSiteLoader(container) {
     heroResumeTimeout = setTimeout(onHeroReadyForReveal, 1500);
   })
   .addPause("await-hero-ready")
-  // Phase 7: Staggered reveal after hero confirms rendering
+  // Phase 7: Move loader behind content, then staggered reveal
+  .set(loaderEl, { zIndex: 1 }) // Move loader behind content
   .set([
     ".nav_wrap",
     ".home_hero_categories", 
