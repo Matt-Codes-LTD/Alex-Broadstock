@@ -86,7 +86,8 @@ export default function initSiteLoader(container) {
     left: 0,
     width: "100%", 
     height: "100%",
-    background: "#020202"
+    background: "#020202",
+    zIndex: 2
   });
   videoWrapper.appendChild(videoCurtain);
   
@@ -169,7 +170,7 @@ export default function initSiteLoader(container) {
   // Phase 2: Fade text
   .to(progressText, { opacity: 0, duration: 0.3 })
   
-  // Phase 3: Video reveal
+  // Phase 3: Video reveal with curtain
   .to(videoWrapper, { opacity: 1, duration: 0.3, ease: "power2.out" })
   .to(videoCurtain, { xPercent: 100, duration: 1.6, ease: "custom2InOut" })
   .to(video, { scale: 1.2, duration: 1.6, ease: "custom2InOut" }, "<")
@@ -178,14 +179,14 @@ export default function initSiteLoader(container) {
   .to([corners, fpsCounter], { opacity: 0, duration: 0.6, stagger: 0.02 })
   .to(edgesBox, { opacity: 0, scale: 1.5, duration: 0.7, ease: "power3.inOut" }, "<0.024")
   
-  // Phase 5: Scale from center
+  // Phase 5: Scale video back to 1 from center
   .to(video, {
     scale: 1,
     duration: 0.8,
     ease: "power2.inOut"
   })
   
-  // Scale to fullscreen size while maintaining center
+  // Scale wrapper to fullscreen size while maintaining center
   .to(videoWrapper, {
     width: window.innerWidth,
     height: window.innerHeight,
@@ -193,57 +194,60 @@ export default function initSiteLoader(container) {
     ease: "power3.inOut"
   }, "<")
   
-  // Then move to final position
+  // Then move wrapper to final position
   .to(videoWrapper, {
     xPercent: 0,
     yPercent: 0,
     left: 0,
     top: 0,
     duration: 0.3,
-    ease: "power2.inOut"
-  })
-  
-  // Phase 6: Transfer video to hero
-  .call(() => {
-    if (heroVideoContainer && video) {
-      // Remove video from wrapper first
-      video.remove();
-      
-      // Add video directly to hero container
-      video.classList.add('is-active');
-      gsap.set(video, {
-        opacity: 1,
-        scale: 1,
-        position: 'absolute',
-        inset: 0,
-        width: '100%',
-        height: '100%',
-        transform: 'none'
-      });
-      heroVideoContainer.appendChild(video);
-      
-      // Show hero container
-      gsap.set(heroVideoContainer, { 
-        opacity: 1,
-        visibility: "visible",
-        zIndex: 0
-      });
-      
-      // Remove the wrapper
-      videoWrapper.remove();
-      
-      // Dispatch event with video reference
-      window.dispatchEvent(new CustomEvent('siteLoaderMorphComplete', {
-        detail: {
-          video: video,
-          currentSrc: firstVideoUrl
-        }
-      }));
+    ease: "power2.inOut",
+    onComplete: () => {
+      // NOW transfer the video to hero after all animations are done
+      if (heroVideoContainer && video) {
+        console.log("[SiteLoader] Transferring video to hero");
+        
+        // Remove video from wrapper
+        video.remove();
+        
+        // Reset video styles for hero container
+        video.classList.add('is-active');
+        gsap.set(video, {
+          opacity: 1,
+          scale: 1,
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          transform: 'none'
+        });
+        
+        // Add to hero container
+        heroVideoContainer.appendChild(video);
+        
+        // Show hero container
+        gsap.set(heroVideoContainer, { 
+          opacity: 1,
+          visibility: "visible",
+          zIndex: 0
+        });
+        
+        // Hide the now-empty wrapper
+        gsap.set(videoWrapper, { opacity: 0 });
+        
+        // Dispatch event with video reference
+        window.dispatchEvent(new CustomEvent('siteLoaderMorphComplete', {
+          detail: {
+            video: video,
+            currentSrc: firstVideoUrl
+          }
+        }));
+      }
     }
   })
   
-  // Brief pause to ensure hero video is ready
-  .to({}, { duration: 0.5 })
+  // Brief pause to ensure handoff is smooth
+  .to({}, { duration: 0.3 })
   
   // Fade in UI after hero is ready
   .to(heroContent, {
@@ -254,8 +258,17 @@ export default function initSiteLoader(container) {
     ease: "power2.out"
   })
   
-  // Fade out loader
-  .to(loaderEl, { opacity: 0, duration: 0.5 }, "-=0.5")
+  // Fade out loader wrapper completely
+  .to(loaderEl, { 
+    opacity: 0, 
+    duration: 0.5,
+    onComplete: () => {
+      // Clean up wrapper after fade
+      if (videoWrapper && videoWrapper.parentNode) {
+        videoWrapper.remove();
+      }
+    }
+  }, "-=0.5")
   
   // Dispatch complete event
   .call(() => {
