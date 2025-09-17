@@ -224,17 +224,134 @@ export default function initSiteLoader(container) {
     heroResumeTimeout = setTimeout(onHeroReadyForReveal, 1500);
   })
   .addPause("await-hero-ready")
-  // Phase 7: Crossfade after hero confirms rendering
-  .to(container.querySelectorAll(".nav_wrap, .home-hero_menu, .home-hero_awards"), {
-    visibility: "visible", opacity: 1, duration: 0.4, stagger: 0.1, ease: "power2.out"
+  // Phase 7: Staggered reveal after hero confirms rendering
+  .set([
+    ".nav_wrap",
+    ".home_hero_categories", 
+    ".home-hero_menu",
+    ".home-awards_list",
+    ".brand_logo",
+    ".nav_link",
+    ".home-category_text",
+    ".home_hero_text",
+    ".home-category_ref_text:not([hidden])"
+  ], {
+    visibility: "visible"
   })
-  // Fade loader wrapper and original video together
+  // Nav wrapper foundation
+  .fromTo(".nav_wrap", {
+    opacity: 0,
+    y: -20
+  }, {
+    opacity: 1,
+    y: 0,
+    duration: 0.8,
+    ease: "power3.out"
+  })
+  // Brand logo
+  .fromTo(".brand_logo", {
+    opacity: 0,
+    scale: 0.9
+  }, {
+    opacity: 1,
+    scale: 1,
+    duration: 0.6,
+    ease: "back.out(1.2)"
+  }, "-=0.5")
+  // Nav links
+  .fromTo(".nav_link", {
+    opacity: 0,
+    x: 20
+  }, {
+    opacity: 1,
+    x: 0,
+    duration: 0.5,
+    stagger: 0.08,
+    ease: "power2.out"
+  }, "-=0.4")
+  // Category filters
+  .fromTo(".home-category_text", {
+    opacity: 0,
+    y: 15,
+    rotateX: -45
+  }, {
+    opacity: 1,
+    y: 0,
+    rotateX: 0,
+    duration: 0.6,
+    stagger: {
+      each: 0.05,
+      from: "start"
+    },
+    ease: "power3.out"
+  }, "-=0.3")
+  // Project list items
+  .fromTo(".home-hero_menu .home_hero_text", {
+    opacity: 0,
+    x: -30,
+    filter: "blur(4px)"
+  }, {
+    opacity: 1,
+    x: 0,
+    filter: "blur(0px)",
+    duration: 0.7,
+    stagger: {
+      each: 0.06,
+      from: "top"
+    },
+    ease: "power2.out"
+  }, "-=0.4")
+  // Project tags
+  .fromTo(".home-hero_menu .home-category_ref_text:not([hidden])", {
+    opacity: 0,
+    scale: 0.8,
+    x: 20
+  }, {
+    opacity: 1,
+    scale: 1,
+    x: 0,
+    duration: 0.5,
+    stagger: {
+      each: 0.03,
+      from: "random"
+    },
+    ease: "back.out(1.3)"
+  }, "-=0.5")
+  // Awards strip
+  .fromTo(".home-awards_list", {
+    opacity: 0,
+    y: 20,
+    scale: 0.95
+  }, {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    duration: 0.6,
+    ease: "power3.out",
+    onComplete: () => {
+      // Clean up will-change properties
+      gsap.set([
+        ".nav_wrap",
+        ".brand_logo",
+        ".nav_link",
+        ".home-category_text",
+        ".home_hero_text",
+        ".home-category_ref_text",
+        ".home-awards_list"
+      ], {
+        clearProps: "transform,filter"
+      });
+    }
+  }, "-=0.3")
+  // Fade loader and wrapper
   .to([videoWrapper, loaderEl], { 
     opacity: 0, 
     duration: 0.6, 
     ease: "power2.inOut" 
-  }, "-=0.3")
-  .call(() => { window.dispatchEvent(new CustomEvent("siteLoaderComplete")); });
+  }, "-=0.8")
+  .call(() => { 
+    window.dispatchEvent(new CustomEvent("siteLoaderComplete")); 
+  });
 
   // Play after min time
   tl.pause();
