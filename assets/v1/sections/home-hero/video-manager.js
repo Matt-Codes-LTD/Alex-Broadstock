@@ -138,11 +138,29 @@ export function createVideoManager(stage) {
     };
 
     if (mode === "instant" || prefersReducedMotion) {
-      // Immediate switch with first-frame sync — no fade/scale
+      // Enhanced instant mode for loader handoff
       if (previousVideo) { previousVideo.classList.remove("is-active"); gsap.set(previousVideo, { opacity: 0, scale: 1 }); }
       next.classList.add("is-active");
       gsap.set(next, { opacity: 1, scale: 1, transformOrigin: "50% 50%" });
-      playNew().then(() => onFirstRenderedFrame(next, () => opts.onVisible?.()));
+      
+      // Enhanced frame sync for loader handoff
+      playNew().then(() => {
+        // Wait for actual frame render
+        onFirstRenderedFrame(next, () => {
+          // Double-check video is playing and visible
+          if (!next.paused && next.readyState >= 2) {
+            // Add small delay to ensure frame is painted
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                opts.onVisible?.();
+              });
+            });
+          } else {
+            // Fallback if video not ready
+            opts.onVisible?.();
+          }
+        });
+      });
       transitionInProgress = false;
     } else {
       // Gentle crossfade + micro-settle

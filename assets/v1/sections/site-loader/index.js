@@ -143,38 +143,42 @@ export default function initSiteLoader(container) {
   })
   // Phase 2: Fade text
   .to(progressText, { opacity: 0, duration: 0.3 })
-  // Phase 3: Video reveal
+  // Phase 3: Video reveal (NO SCALE on video element)
   .to(videoWrapper, { opacity: 1, duration: 0.3, ease: "power2.out" })
   .to(videoCurtain, { xPercent: 100, duration: 1.6, ease: "custom2InOut" })
-  .to(video, { scale: 1.2, duration: 1.6, ease: "custom2InOut", transformOrigin: "50% 50%" }, "<")
   // Phase 4: Fade UI elements
   .to([corners, fpsCounter], { opacity: 0, duration: 0.6, stagger: 0.02 })
   .to(edgesBox, { opacity: 0, scale: 1.5, duration: 0.7, ease: "power3.inOut" }, "<0.024")
-  // Phase 5: Settle video, then FLIP morph wrapper → hero stage (CENTER-BASED)
-  .to(video, { scale: 1, duration: 0.8, ease: "power2.inOut" })
+  // Phase 5: FLIP morph wrapper → hero stage (scale wrapper only, not video)
   .call(() => {
-    // make sure hero stage is visible behind
+    // Pre-position hero stage behind loader
     if (heroVideoContainer) gsap.set(heroVideoContainer, { opacity: 1, zIndex: 0 });
-    // transform-only morph; no width/height or left/top changes
+    // Start morphing wrapper to hero position
     morphWrapperToHero(1.8);
-  }, null, "<")
-  // Phase 6: Handoff – tell hero the src/time and WAIT for it to be on-screen
+  })
+  // Phase 6: Handoff with frame sync
   .call(() => {
     const detail = {
       src: firstVideoUrl || null,
       currentTime: video?.currentTime || 0,
-      duration: video?.duration || 0
+      duration: video?.duration || 0,
+      loaderVideo: video,
+      loaderWrapper: videoWrapper
     };
     window.dispatchEvent(new CustomEvent("siteLoaderMorphBegin", { detail }));
-    // safety fallback if hero never responds
     heroResumeTimeout = setTimeout(onHeroReadyForReveal, 1500);
   })
   .addPause("await-hero-ready")
-  // Phase 7: Bring in hero UI and fade loader
+  // Phase 7: Crossfade after hero confirms rendering
   .to(container.querySelectorAll(".nav_wrap, .home-hero_menu, .home-hero_awards"), {
     visibility: "visible", opacity: 1, duration: 0.4, stagger: 0.1, ease: "power2.out"
   })
-  .to(loaderEl, { opacity: 0, duration: 0.5 }, "-=0.5")
+  // Fade loader wrapper and original video together
+  .to([videoWrapper, loaderEl], { 
+    opacity: 0, 
+    duration: 0.6, 
+    ease: "power2.inOut" 
+  }, "-=0.3")
   .call(() => { window.dispatchEvent(new CustomEvent("siteLoaderComplete")); });
 
   // Play after min time

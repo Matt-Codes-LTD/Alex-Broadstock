@@ -38,6 +38,15 @@ export default function initHomeHero(container) {
     window.addEventListener("siteLoaderMorphBegin", (e) => {
       handoff = e?.detail || null;
       console.log("[HomeHero] Handoff received:", handoff);
+      
+      // Pre-warm the hero video to match loader timing
+      if (handoff?.src) {
+        const heroVideo = videoManager.createVideo(handoff.src);
+        if (heroVideo && handoff.currentTime != null) {
+          heroVideo.currentTime = handoff.currentTime;
+        }
+      }
+      
       initializeHero();
     }, { once: true });
   } else {
