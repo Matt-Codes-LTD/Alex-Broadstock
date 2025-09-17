@@ -19,7 +19,6 @@ export function createVideoManager(stage) {
     v.playsInline = true;
     v.preload = "auto";
     v.crossOrigin = "anonymous";
-
     gsap.set(v, { opacity: 0, transformOrigin: "50% 50%" });
     stage.appendChild(v);
     videoBySrc.set(src, v);
@@ -37,10 +36,10 @@ export function createVideoManager(stage) {
     v.readyState >= 2 ? start() : v.addEventListener("canplaythrough", start, { once: true });
   }
 
-  function fadeTargetsFor(link) {
+  const fadeTargetsFor = (link) => {
     const defaultFadeSel = ".home-category_ref_text, .home-hero_title, .home-hero_name, .home-hero_heading";
     return (link?.querySelectorAll(link.getAttribute("data-fade-target") || defaultFadeSel) || []);
-  }
+  };
 
   function updateLinkState(prev, next) {
     if (prev && prev !== next) {
@@ -57,15 +56,13 @@ export function createVideoManager(stage) {
     try { "fastSeek" in v ? v.fastSeek(0) : (v.currentTime = 0); v.play?.(); } catch {}
   }
 
-  function whenReady(v) {
-    return new Promise(res => {
-      if (v.readyState >= 2) return res();
-      const on = () => { v.removeEventListener("loadeddata", on); v.removeEventListener("canplay", on); res(); };
-      v.addEventListener("loadeddata", on, { once: true });
-      v.addEventListener("canplay", on, { once: true });
-      setTimeout(on, 1000); // safety
-    });
-  }
+  const whenReady = (v) => new Promise(res => {
+    if (v.readyState >= 2) return res();
+    const on = () => { v.removeEventListener("loadeddata", on); v.removeEventListener("canplay", on); res(); };
+    v.addEventListener("loadeddata", on, { once: true });
+    v.addEventListener("canplay", on, { once: true });
+    setTimeout(on, 1000);
+  });
 
   async function seekTo(v, t) {
     await new Promise(res => {
@@ -79,6 +76,17 @@ export function createVideoManager(stage) {
       v.currentTime = target;
     } catch {}
     return v;
+  }
+
+  function onFirstRenderedFrame(v, cb) {
+    if ("requestVideoFrameCallback" in v) {
+      // @ts-ignore
+      v.requestVideoFrameCallback(() => cb());
+    } else {
+      const h = () => { v.removeEventListener("timeupdate", h); cb(); };
+      v.addEventListener("timeupdate", h, { once: true });
+      setTimeout(cb, 120); // safety
+    }
   }
 
   function setActive(src, linkEl, opts = {}) {
@@ -103,8 +111,9 @@ export function createVideoManager(stage) {
     const previousVideo = activeVideo;
     activeVideo = next;
 
-    // configurable micro-tween
-    const fromScale   = opts.tweenFromScale ?? 1.03;   // was 1.02
+    // options
+    const mode        = opts.mode || "tween";     // "instant" | "tween"
+    const fromScale   = opts.tweenFromScale ?? 1.03;
     const tweenDur    = opts.tweenDuration  ?? 0.7;
     const tweenEase   = opts.tweenEase      ?? "power3.out";
 
@@ -128,7 +137,15 @@ export function createVideoManager(stage) {
       }
     };
 
-    if (!prefersReducedMotion) {
+    if (mode === "instant" || prefersReducedMotion) {
+      // Immediate switch with first-frame sync — no fade/scale
+      if (previousVideo) { previousVideo.classList.remove("is-active"); gsap.set(previousVideo, { opacity: 0, scale: 1 }); }
+      next.classList.add("is-active");
+      gsap.set(next, { opacity: 1, scale: 1, transformOrigin: "50% 50%" });
+      playNew().then(() => onFirstRenderedFrame(next, () => opts.onVisible?.()));
+      transitionInProgress = false;
+    } else {
+      // Gentle crossfade + micro-settle
       const prepare = async () => {
         await playNew();
         next.classList.add("is-active");
@@ -139,32 +156,18 @@ export function createVideoManager(stage) {
 
           tl.to(previousVideo, { opacity: 0, scale: 1, duration: tweenDur * 0.86, ease: "power2.out" }, 0)
             .to(next, {
-              opacity: 1,
-              scale: 1,
-              duration: tweenDur,
-              ease: tweenEase,
+              opacity: 1, scale: 1, duration: tweenDur, ease: tweenEase,
               onComplete: () => { opts.onVisible?.(); }
-            }, 0.06); // tiny overlap
+            }, 0.06);
         } else {
           gsap.set(next, { opacity: 0, scale: fromScale, transformOrigin: "50% 50%" });
           tl.to(next, {
-            opacity: 1,
-            scale: 1,
-            duration: tweenDur * 0.86,
-            ease: tweenEase,
+            opacity: 1, scale: 1, duration: tweenDur * 0.86, ease: tweenEase,
             onComplete: () => { opts.onVisible?.(); }
           });
         }
       };
-
-      if (next.readyState >= 2) prepare();
-      else setTimeout(prepare, 0);
-    } else {
-      if (previousVideo) { previousVideo.classList.remove("is-active"); gsap.set(previousVideo, { opacity: 0 }); }
-      next.classList.add("is-active");
-      gsap.set(next, { opacity: 1, scale: 1 });
-      playNew().then(() => opts.onVisible?.());
-      transitionInProgress = false;
+      if (next.readyState >= 2) prepare(); else setTimeout(prepare, 0);
     }
 
     if (linkEl && linkEl !== activeLink) {
@@ -179,19 +182,14 @@ export function createVideoManager(stage) {
     const nextSrc = videos[currentIndex + 1] || videos[0];
     if (nextSrc) {
       const nextVideo = videoBySrc.get(nextSrc);
-      if (nextVideo && !nextVideo.__warmed) {
-        warmVideo(nextVideo);
-      }
+      if (nextVideo && !nextVideo.__warmed) warmVideo(nextVideo);
     }
   }
 
   return {
     createVideo,
     warmVideo,
-    setActive: (src, linkEl, opts) => {
-      setActive(src, linkEl, opts);
-      preloadNext(src);
-    },
+    setActive: (src, linkEl, opts) => { setActive(src, linkEl, opts); preloadNext(src); },
     get activeLink() { return activeLink; },
     get activeVideo() { return activeVideo; }
   };

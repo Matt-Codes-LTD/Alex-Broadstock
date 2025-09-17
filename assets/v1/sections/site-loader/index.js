@@ -40,7 +40,9 @@ export default function initSiteLoader(container) {
     width: videoWidth,
     height: videoHeight,
     left: "50%", top: "50%", xPercent: -50, yPercent: -50,
-    zIndex: 1, opacity: 0, overflow: "hidden"
+    x: 0, y: 0, scaleX: 1, scaleY: 1,
+    zIndex: 1, opacity: 0, overflow: "hidden",
+    transformOrigin: "50% 50%"
   });
 
   const firstProjectItem = container.querySelector('.home-hero_list:not([style*="display: none"]) .home-hero_item');
@@ -71,7 +73,7 @@ export default function initSiteLoader(container) {
   const heroContent = container.querySelectorAll(".nav_wrap, .home-hero_menu, .home-hero_awards");
   const heroVideoContainer = container.querySelector(".home-hero_video");
   gsap.set(heroContent, { opacity: 0, visibility: "hidden" });
-  gsap.set(heroVideoContainer, { opacity: 0, transform: "none !important", scale: "1 !important" });
+  gsap.set(heroVideoContainer, { opacity: 0, zIndex: 0 });
 
   // Ease
   gsap.registerEase("custom2InOut", p => (p < 0.5 ? 2*p*p : 1 - ((-2*p + 2)**2)/2));
@@ -86,10 +88,31 @@ export default function initSiteLoader(container) {
 
   // Resume handler + fallback
   let heroResumeTimeout = null;
-  const onHeroReadyForReveal = () => {
-    tl.play(); // resume from pause
-  };
+  const onHeroReadyForReveal = () => { tl.play(); };
   window.addEventListener("homeHeroReadyForReveal", onHeroReadyForReveal, { once: true });
+
+  // Helper: FLIP morph to hero stage rect using transforms only
+  function morphWrapperToHero(duration = 1.8) {
+    if (!heroVideoContainer) return;
+    // ensure hero is laid out
+    const from = videoWrapper.getBoundingClientRect();
+    const to   = heroVideoContainer.getBoundingClientRect();
+
+    const fromCx = from.left + from.width  / 2;
+    const fromCy = from.top  + from.height / 2;
+    const toCx   = to.left   + to.width    / 2;
+    const toCy   = to.top    + to.height   / 2;
+
+    const dx = toCx - fromCx;
+    const dy = toCy - fromCy;
+    const sx = to.width  / from.width;
+    const sy = to.height / from.height;
+
+    gsap.to(videoWrapper, {
+      x: dx, y: dy, scaleX: sx, scaleY: sy,
+      duration, ease: "power3.inOut"
+    });
+  }
 
   // Main timeline
   const tl = gsap.timeline({
@@ -123,31 +146,34 @@ export default function initSiteLoader(container) {
   // Phase 3: Video reveal
   .to(videoWrapper, { opacity: 1, duration: 0.3, ease: "power2.out" })
   .to(videoCurtain, { xPercent: 100, duration: 1.6, ease: "custom2InOut" })
-  .to(video, { scale: 1.2, duration: 1.6, ease: "custom2InOut" }, "<")
+  .to(video, { scale: 1.2, duration: 1.6, ease: "custom2InOut", transformOrigin: "50% 50%" }, "<")
   // Phase 4: Fade UI elements
   .to([corners, fpsCounter], { opacity: 0, duration: 0.6, stagger: 0.02 })
   .to(edgesBox, { opacity: 0, scale: 1.5, duration: 0.7, ease: "power3.inOut" }, "<0.024")
-  // Phase 5: Scale to fullscreen center → then snap to (0,0)
+  // Phase 5: Settle video, then FLIP morph wrapper → hero stage (CENTER-BASED)
   .to(video, { scale: 1, duration: 0.8, ease: "power2.inOut" })
-  .to(videoWrapper, { width: window.innerWidth, height: window.innerHeight, duration: 1.8, ease: "power3.inOut" }, "<")
-  .to(videoWrapper, { xPercent: 0, yPercent: 0, left: 0, top: 0, duration: 0.3, ease: "power2.inOut" })
-  // Phase 6: Handoff (dispatch details + WAIT for hero)
   .call(() => {
-    if (heroVideoContainer) {
-      gsap.set(heroVideoContainer, { opacity: 1, zIndex: 0 }); // show hero behind
-      const detail = {
-        src: firstVideoUrl || null,
-        currentTime: video?.currentTime || 0,
-        duration: video?.duration || 0
-      };
-      window.dispatchEvent(new CustomEvent("siteLoaderMorphBegin", { detail }));
-      // safety fallback in case hero never replies
-      heroResumeTimeout = setTimeout(onHeroReadyForReveal, 1500);
-    }
+    // make sure hero stage is visible behind
+    if (heroVideoContainer) gsap.set(heroVideoContainer, { opacity: 1, zIndex: 0 });
+    // transform-only morph; no width/height or left/top changes
+    morphWrapperToHero(1.8);
+  }, null, "<")
+  // Phase 6: Handoff – tell hero the src/time and WAIT for it to be on-screen
+  .call(() => {
+    const detail = {
+      src: firstVideoUrl || null,
+      currentTime: video?.currentTime || 0,
+      duration: video?.duration || 0
+    };
+    window.dispatchEvent(new CustomEvent("siteLoaderMorphBegin", { detail }));
+    // safety fallback if hero never responds
+    heroResumeTimeout = setTimeout(onHeroReadyForReveal, 1500);
   })
-  .addPause("await-hero-ready") // ← wait here until hero says “ready”
-  // Phase 7: Bring in hero UI and fade out loader
-  .to(heroContent, { visibility: "visible", opacity: 1, duration: 0.4, stagger: 0.1, ease: "power2.out" })
+  .addPause("await-hero-ready")
+  // Phase 7: Bring in hero UI and fade loader
+  .to(container.querySelectorAll(".nav_wrap, .home-hero_menu, .home-hero_awards"), {
+    visibility: "visible", opacity: 1, duration: 0.4, stagger: 0.1, ease: "power2.out"
+  })
   .to(loaderEl, { opacity: 0, duration: 0.5 }, "-=0.5")
   .call(() => { window.dispatchEvent(new CustomEvent("siteLoaderComplete")); });
 

@@ -10,42 +10,35 @@ export default function initHomeHero(container) {
   const videoStage  = section.querySelector(".home-hero_video");
   const listParent  = section.querySelector(".home-hero_list_parent");
   const awardsStrip = section.querySelector(".home-awards_list");
-  if (!videoStage || !listParent) {
-    console.warn("[HomeHero] Missing required elements");
-    return () => {};
-  }
+  if (!videoStage || !listParent) { console.warn("[HomeHero] Missing required elements"); return () => {}; }
 
   const items = Array.from(section.querySelectorAll(".home-hero_list"));
   const videoManager = createVideoManager(videoStage);
 
   let activeItem = null;
-  let handoff = null;        // { src, currentTime, duration } from loader
-  let revealedOnce = false;  // prevent multiple “ready” emits
-
-  function emitReadyOnce() {
+  let handoff = null;
+  let revealedOnce = false;
+  const emitReadyOnce = () => {
     if (revealedOnce) return;
     revealedOnce = true;
     window.dispatchEvent(new CustomEvent("homeHeroReadyForReveal"));
-  }
+  };
 
   function initializeHero() {
     hideMetaTags();
     preloadVideos();
-
     const firstVisible = items.find(item => item.style.display !== "none");
     if (firstVisible) setActive(firstVisible, { useHandoff: true });
-
     section.dataset.introComplete = "true";
     console.log("[HomeHero] Intro setup complete (no timelines)");
   }
 
-  // Listen for loader’s handoff (with details)
   const hasSiteLoader = document.querySelector(".site-loader_wrap");
   if (hasSiteLoader && !window.__barbaNavigated) {
     window.addEventListener("siteLoaderMorphBegin", (e) => {
       handoff = e?.detail || null;
       console.log("[HomeHero] Handoff received:", handoff);
-      initializeHero(); // start once we know what the loader was showing
+      initializeHero();
     }, { once: true });
   } else {
     initializeHero();
@@ -56,10 +49,7 @@ export default function initHomeHero(container) {
     const awardsContainer = item?.querySelector(".home-project_awards");
     const newAwardImages = awardsContainer?.querySelectorAll("img") || [];
     awardsStrip.innerHTML = "";
-    if (!newAwardImages.length) {
-      awardsStrip.classList.remove("is-visible");
-      return;
-    }
+    if (!newAwardImages.length) return awardsStrip.classList.remove("is-visible");
     newAwardImages.forEach(img => {
       const clone = img.cloneNode(true);
       clone.removeAttribute("sizes"); clone.removeAttribute("srcset");
@@ -95,12 +85,12 @@ export default function initHomeHero(container) {
     // Video
     const projectEl = item.querySelector(".home-hero_item");
     const videoSrc  = projectEl?.dataset.video;
-    if (videoSrc && videoManager) {
-      const linkEl = activeLink;
+    if (videoSrc) {
       const useHandoff = !!opts.useHandoff && handoff?.src && handoff.src === videoSrc;
-      videoManager.setActive(videoSrc, linkEl, {
+      videoManager.setActive(videoSrc, activeLink, {
         startAt: useHandoff ? handoff.currentTime : undefined,
-        onVisible: emitReadyOnce, // tell loader to resume as soon as we’re on screen
+        mode: useHandoff ? "instant" : "tween",   // ← NO visual handover on first show
+        onVisible: emitReadyOnce
       });
     }
 
@@ -113,12 +103,9 @@ export default function initHomeHero(container) {
     items.forEach(item => {
       const projectEl = item.querySelector(".home-hero_item");
       const videoSrc  = projectEl?.dataset.video;
-      if (videoSrc && videoManager) {
+      if (videoSrc) {
         const video = videoManager.createVideo(videoSrc);
-        if (video && count < MAX_EAGER) {
-          videoManager.warmVideo(video);
-          count++;
-        }
+        if (video && count < MAX_EAGER) { videoManager.warmVideo(video); count++; }
       }
     });
   }
@@ -130,7 +117,7 @@ export default function initHomeHero(container) {
     });
   }
 
-  // Hover/interaction
+  // Interaction
   let hoverTimeout;
   function handleInteraction(e) {
     const item = e.target.closest(".home-hero_list");
