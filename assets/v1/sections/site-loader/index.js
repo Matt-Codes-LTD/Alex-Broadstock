@@ -36,16 +36,16 @@ export default function initSiteLoader(container) {
   const videoWrapper = document.createElement("div");
   videoWrapper.className = "site-loader_video-wrapper";
   
-  // Position centered without transforms
-  const startLeft = (window.innerWidth - videoWidth) / 2;
-  const startTop = (window.innerHeight - videoHeight) / 2;
-  
+  // Position video fixed to viewport center
   gsap.set(videoWrapper, {
-    position: "absolute",
+    position: "fixed",
     width: videoWidth,
     height: videoHeight,
-    left: startLeft,
-    top: startTop,
+    left: "50%",
+    top: "50%",
+    xPercent: -50,
+    yPercent: -50,
+    zIndex: 1,
     opacity: 0,
     overflow: "hidden"
   });
@@ -87,8 +87,15 @@ export default function initSiteLoader(container) {
   });
   videoWrapper.appendChild(videoCurtain);
   
-  // Insert into loader
-  loaderEl.querySelector(".site-loader_container").appendChild(videoWrapper);
+  // Insert video wrapper at same z-level as edges
+  const loaderContainer = loaderEl.querySelector(".site-loader_container");
+  
+  // Insert before edges box so it's behind
+  if (edgesBox) {
+    edgesBox.parentNode.insertBefore(videoWrapper, edgesBox);
+  } else {
+    loaderContainer.appendChild(videoWrapper);
+  }
   
   // Hide hero content initially
   const heroContent = container.querySelectorAll(".nav_wrap, .home-hero_menu, .home-hero_awards");
@@ -165,31 +172,29 @@ export default function initSiteLoader(container) {
   .to([corners, fpsCounter], { opacity: 0, duration: 0.6, stagger: 0.02 })
   .to(edgesBox, { opacity: 0, scale: 1.5, duration: 0.7, ease: "power3.inOut" }, "<0.024")
   
-  // Phase 5: Scale from center, then position
+  // Phase 5: Scale from center
   .to(video, {
     scale: 1,
     duration: 0.8,
     ease: "power2.inOut"
   })
   
-  // Calculate scale factors
-  .set(videoWrapper, {
-    transformOrigin: "center center"
-  })
+  // Scale to fullscreen size while maintaining center
   .to(videoWrapper, {
-    scaleX: window.innerWidth / videoWidth,
-    scaleY: window.innerHeight / videoHeight,
+    width: window.innerWidth,
+    height: window.innerHeight,
     duration: 1.8,
     ease: "power3.inOut"
   }, "<")
   
-  // After scaling, convert to actual size
-  .set(videoWrapper, {
-    scale: 1,
-    width: window.innerWidth,
-    height: window.innerHeight,
+  // Then move to final position
+  .to(videoWrapper, {
+    xPercent: 0,
+    yPercent: 0,
     left: 0,
-    top: 0
+    top: 0,
+    duration: 0.3,
+    ease: "power2.inOut"
   })
   
   // Phase 6: Show hero content
