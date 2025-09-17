@@ -334,7 +334,7 @@ export default function initSiteLoader(container) {
         });
       }
     });
-  }, ">-0.1")
+  }, "-=0.2") // Overlap with nav categories finishing
   // Awards strip - delay after last row
   .fromTo(".home-awards_list", {
     opacity: 0,
