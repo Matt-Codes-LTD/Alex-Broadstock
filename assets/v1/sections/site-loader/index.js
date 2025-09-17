@@ -288,33 +288,46 @@ export default function initSiteLoader(container) {
     stagger: 0.05,
     ease: "power3.out"
   }, "-=0.5")
-  // Project names - start after categories finish
-  .fromTo(".home-hero_list:not([style*='display: none']) .home_hero_text", {
-    opacity: 0,
-    x: -30,
-    filter: "blur(4px)"
-  }, {
-    opacity: 1,
-    x: 0,
-    filter: "blur(0px)",
-    duration: 0.5,
-    stagger: 0.06,
-    ease: "power2.out"
-  }, ">-0.1") // Start right after previous animation
-  // Project tags - stagger after each project name
-  .fromTo(".home-hero_list:not([style*='display: none']) .home-category_ref_text:not([hidden])", {
-    opacity: 0,
-    scale: 0.8,
-    x: 20
-  }, {
-    opacity: 1,
-    scale: 1,
-    x: 0,
-    duration: 0.4,
-    stagger: 0.03,
-    ease: "back.out(1.3)"
-  }, ">-0.1") // Start right after previous
-  // Awards strip - after tags
+  // Project rows - animate name and tags together per row
+  .add(() => {
+    const visibleRows = container.querySelectorAll(".home-hero_list:not([style*='display: none'])");
+    visibleRows.forEach((row, index) => {
+      const name = row.querySelector(".home_hero_text");
+      const tags = row.querySelectorAll(".home-category_ref_text:not([hidden])");
+      
+      // Animate name from left
+      if (name) {
+        gsap.fromTo(name, {
+          opacity: 0,
+          x: -30,
+          filter: "blur(4px)"
+        }, {
+          opacity: 1,
+          x: 0,
+          filter: "blur(0px)",
+          duration: 0.5,
+          ease: "power2.out",
+          delay: index * 0.08
+        });
+      }
+      
+      // Animate tags from right simultaneously
+      if (tags.length) {
+        gsap.fromTo(tags, {
+          opacity: 0,
+          x: 20
+        }, {
+          opacity: 1,
+          x: 0,
+          duration: 0.5,
+          ease: "power2.out",
+          delay: index * 0.08,
+          stagger: 0.02
+        });
+      }
+    });
+  }, ">-0.1")
+  // Awards strip - delay after last row
   .fromTo(".home-awards_list", {
     opacity: 0,
     y: 20,
@@ -325,6 +338,7 @@ export default function initSiteLoader(container) {
     scale: 1,
     duration: 0.6,
     ease: "power3.out",
+    delay: 0.3,
     onComplete: () => {
       // Clean up will-change properties
       gsap.set([
@@ -339,7 +353,7 @@ export default function initSiteLoader(container) {
         clearProps: "transform,filter"
       });
     }
-  }, ">-0.1")
+  })
   // Fade loader and wrapper
   .to([videoWrapper, loaderEl], { 
     opacity: 0, 
