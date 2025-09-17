@@ -16,7 +16,7 @@ document.addEventListener("DOMContentLoaded", () => {
     left: 0;
     width: 100%;
     height: 100%;
-    background: #000;
+    background: var(--swatch--brand-paper);
     z-index: 10000;
     pointer-events: none;
     clip-path: polygon(50% 0, 50% 0, 50% 100%, 50% 100%);
