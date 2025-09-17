@@ -128,8 +128,6 @@ export default function initSiteLoader(container) {
       document.documentElement.classList.remove("is-preloading");
       lock.remove();
       console.log("[SiteLoader] done");
-      window.dispatchEvent(new CustomEvent('siteLoaderComplete'));
-      window.dispatchEvent(new CustomEvent('siteLoaderMorphComplete'));
     }
   });
 
@@ -197,8 +195,14 @@ export default function initSiteLoader(container) {
     ease: "power2.inOut"
   })
   
-  // Phase 6: Show hero content
-  .call(() => {
+  // Phase 6: Initialize hero before showing
+  .call(async () => {
+    // Dispatch events to initialize hero module
+    window.dispatchEvent(new CustomEvent('siteLoaderMorphComplete'));
+    
+    // Wait for hero to initialize
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     if (heroVideoContainer && firstVideoUrl) {
       let heroVideo = heroVideoContainer.querySelector('.home-hero_video_el');
       if (!heroVideo) {
@@ -220,21 +224,31 @@ export default function initSiteLoader(container) {
       }
       heroVideo.currentTime = video.currentTime;
       heroVideo.play().catch(() => {});
-      gsap.set(heroVideoContainer, { opacity: 1 });
+      
+      // Show hero container
+      gsap.set(heroVideoContainer, { 
+        opacity: 1,
+        scale: 1
+      });
     }
   })
   
-  // Fade in UI
+  // Fade in UI after hero is ready
   .to(heroContent, {
     visibility: "visible",
     opacity: 1,
     duration: 0.4,
     stagger: 0.1,
     ease: "power2.out"
-  }, "-=0.5")
+  })
   
   // Fade out loader
-  .to(loaderEl, { opacity: 0, duration: 0.5 }, "-=0.5");
+  .to(loaderEl, { opacity: 0, duration: 0.5 }, "-=0.5")
+  
+  // Dispatch complete event after everything is shown
+  .call(() => {
+    window.dispatchEvent(new CustomEvent('siteLoaderComplete'));
+  });
 
   // Play after min time
   tl.pause();
