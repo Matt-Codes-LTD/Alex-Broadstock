@@ -45,7 +45,7 @@ document.addEventListener("DOMContentLoaded", () => {
         margin-top: -1px;
         transform: scaleY(0);
         transform-origin: 0% 100%;
-        background: var(--swatch--brand-paper, #FDFCF3);
+        background: var(--swatch--brand-ink, #FDFCF3);
         will-change: transform;
         backface-visibility: hidden;
         contain: layout style paint;
@@ -169,9 +169,12 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Pre-calculate stagger delays for consistent performance
-  const staggerCache = new Map();
-  function getStaggerDelay(index, cols, rows) {
-    if (staggerCache.has(index)) return staggerCache.get(index);
+  const staggerCacheEnter = new Map();
+  const staggerCacheExit = new Map();
+  
+  function getStaggerDelay(index, cols, rows, reverse = false) {
+    const cache = reverse ? staggerCacheExit : staggerCacheEnter;
+    if (cache.has(index)) return cache.get(index);
     
     const row = Math.floor(index / cols);
     const col = index % cols;
@@ -183,9 +186,15 @@ document.addEventListener("DOMContentLoaded", () => {
       Math.pow(row - centerRow, 2)
     );
     
-    // Deterministic stagger without random
-    const delay = (distFromCenter * 0.025) + (index * 0.0005);
-    staggerCache.set(index, delay);
+    // Max distance for normalization
+    const maxDist = Math.sqrt(Math.pow(centerCol, 2) + Math.pow(centerRow, 2));
+    
+    // Reverse: outer cells first. Normal: center cells first
+    const delay = reverse 
+      ? ((maxDist - distFromCenter) * 0.025) + (index * 0.0005)
+      : (distFromCenter * 0.025) + (index * 0.0005);
+    
+    cache.set(index, delay);
     return delay;
   }
 
@@ -261,7 +270,7 @@ document.addEventListener("DOMContentLoaded", () => {
               duration: 0.7,
               ease: 'o4',
               stagger: function(index) {
-                return getStaggerDelay(index, GRID_COLS, GRID_ROWS);
+                return getStaggerDelay(index, GRID_COLS, GRID_ROWS, false);
               },
               onComplete: () => {
                 // PHASE 2: Swap content instantly
@@ -278,7 +287,7 @@ document.addEventListener("DOMContentLoaded", () => {
                   duration: 0.7,
                   ease: 'o4',
                   stagger: function(index) {
-                    return getStaggerDelay(index, GRID_COLS, GRID_ROWS);
+                    return getStaggerDelay(index, GRID_COLS, GRID_ROWS, true);
                   },
                   onComplete: () => {
                     console.log('exited');
