@@ -247,25 +247,27 @@ export default function initSiteLoader(container) {
     ease: "power3.inOut"
   }, "<0.024")
   
-  // Phase 7: Morph to hero position (complete before transfer)
+  // Phase 7: Morph to hero position with video inside
   .add(() => {
     if (heroVideoContainer) {
-      // Pre-show hero container at exact position
+      // Pre-show hero container behind loader
       gsap.set(heroVideoContainer, { opacity: 1, zIndex: 0 });
     }
+    // Morph wrapper WITH video still inside
     return morphWrapperToHero(1.8);
   })
   
-  // Phase 8: Transfer video element when perfectly aligned
+  // Phase 8: Transfer video element after morph complete
   .call(() => {
     if (heroVideoContainer && video) {
-      // Transfer actual video to hero
+      // Now transfer the video element
       video.remove();
       video.classList.add('home-hero_video_el', 'is-active');
       video.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:1;z-index:1;';
       heroVideoContainer.appendChild(video);
       
-      // Wrapper is now empty but still visible for fade
+      // Make wrapper transparent since video moved out
+      videoWrapper.style.background = 'transparent';
     }
     
     // Signal hero with transferred video
