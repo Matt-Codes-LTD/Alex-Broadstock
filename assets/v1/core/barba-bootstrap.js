@@ -147,13 +147,7 @@ document.addEventListener("DOMContentLoaded", () => {
       opacity: 1,
       scale: 1,
       duration: 0.6,
-      ease: "back.out(1.7)",
-      onComplete: () => {
-        // Remove inline styles so CSS idle rules can work
-        gsap.set([".project-player_center-toggle", ".project-player_controls"], {
-          clearProps: "opacity"
-        });
-      }
+      ease: "back.out(1.7)"
     }, "-=0.4");
     
     return tl;

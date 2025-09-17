@@ -3,19 +3,14 @@ export function createState(video, wrap, centerBtn) {
   let hidingTO = 0;
   let dragging = false;
   let didFirstSoundRestart = false;
-  let gracePeriod = false; // Prevent hiding during initial period
   const handlers = [];
-
-  // Initialize as not idle (controls visible)
-  wrap.dataset.idle = "0";
 
   function setIdle(on) {
     wrap.dataset.idle = on ? "1" : "0";
   }
 
   function kickHide() {
-    // Only hide if user has clicked sound button AND grace period is over
-    if (!didFirstSoundRestart || gracePeriod) return;
+    if (!didFirstSoundRestart) return;
     
     clearTimeout(hidingTO);
     setIdle(false);
@@ -61,15 +56,6 @@ export function createState(video, wrap, centerBtn) {
     },
     set didFirstSoundRestart(v) {
       didFirstSoundRestart = v;
-      if (v) {
-        // Start grace period - controls stay visible
-        gracePeriod = true;
-        setIdle(false);
-        setTimeout(() => {
-          gracePeriod = false;
-          kickHide(); // Now start idle detection
-        }, 1500);
-      }
     },
   };
 }

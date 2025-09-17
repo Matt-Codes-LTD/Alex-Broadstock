@@ -9,6 +9,9 @@ export default function initProjectPlayer(container) {
   const wrap = container.querySelector(".project-player_wrap");
   if (!wrap || wrap.dataset.scriptInitialized) return () => {};
   wrap.dataset.scriptInitialized = "true";
+  
+  // ENSURE IDLE IS FALSE ON INIT
+  wrap.dataset.idle = "0";
 
   const stage = wrap.querySelector(".project-player_stage") || wrap;
   const url =
