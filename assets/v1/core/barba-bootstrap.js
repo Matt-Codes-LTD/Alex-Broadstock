@@ -221,7 +221,7 @@ document.addEventListener("DOMContentLoaded", () => {
             gsap.to(gridDivs, {
               scaleY: 1,
               transformOrigin: '0% 100%',
-              duration: 0.5,
+              duration: 0.8,  // Increased from 0.5
               ease: 'o4',
               stagger: function(index) {
                 // More sophisticated stagger with finer grid
@@ -235,7 +235,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 );
                 
                 // Base delay on distance from center + some randomness
-                return (distFromCenter * 0.02) + 0.1 * (Math.random() - 0.5);
+                return (distFromCenter * 0.03) + 0.15 * (Math.random() - 0.5);  // Increased stagger
               },
               onComplete: () => {
                 // PHASE 2: onEntered - Swap content and grid scales down from top
@@ -245,7 +245,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 gsap.to(gridDivs, {
                   scaleY: 0,
                   transformOrigin: '0% 0%',
-                  duration: 0.5,
+                  duration: 0.8,  // Increased from 0.5
                   ease: 'o4',
                   stagger: function(index) {
                     // Similar stagger for exit
@@ -257,7 +257,7 @@ document.addEventListener("DOMContentLoaded", () => {
                       Math.pow(row - CENTER_ROW, 2)
                     );
                     
-                    return (distFromCenter * 0.02) + 0.1 * (Math.random() - 0.5);
+                    return (distFromCenter * 0.03) + 0.15 * (Math.random() - 0.5);  // Increased stagger
                   },
                   onComplete: () => {
                     // PHASE 3: onExited - Clean up
