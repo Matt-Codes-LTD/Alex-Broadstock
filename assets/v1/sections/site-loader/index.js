@@ -56,10 +56,13 @@ export default function initSiteLoader(container) {
   
   // Create video element
   const video = document.createElement('video');
+  video.className = 'home-hero_video_el'; // Use hero's class from the start
   video.style.cssText = `
     width: 100%;
     height: 100%;
     object-fit: cover;
+    position: absolute;
+    inset: 0;
   `;
   video.muted = true;
   video.loop = true;
@@ -97,14 +100,15 @@ export default function initSiteLoader(container) {
     loaderContainer.appendChild(videoWrapper);
   }
   
-  // Hide hero completely during loader
+  // Get hero container references
   const heroContent = container.querySelectorAll(".nav_wrap, .home-hero_menu, .home-hero_awards");
   const heroVideoContainer = container.querySelector(".home-hero_video");
+  
+  // Hide hero completely during loader
   gsap.set(heroContent, { opacity: 0, visibility: "hidden" });
   gsap.set(heroVideoContainer, { 
     opacity: 0,
-    transform: "none !important",
-    scale: "1 !important"
+    visibility: "hidden"
   });
 
   // Register ease
@@ -199,17 +203,42 @@ export default function initSiteLoader(container) {
     ease: "power2.inOut"
   })
   
-  // Phase 6: Crossfade to hero
+  // Phase 6: Transfer video to hero
   .call(() => {
-    if (heroVideoContainer) {
-      // Show hero container behind loader
+    if (heroVideoContainer && video) {
+      // Remove video from wrapper first
+      video.remove();
+      
+      // Add video directly to hero container
+      video.classList.add('is-active');
+      gsap.set(video, {
+        opacity: 1,
+        scale: 1,
+        position: 'absolute',
+        inset: 0,
+        width: '100%',
+        height: '100%',
+        transform: 'none'
+      });
+      heroVideoContainer.appendChild(video);
+      
+      // Show hero container
       gsap.set(heroVideoContainer, { 
         opacity: 1,
+        visibility: "visible",
         zIndex: 0
       });
       
-      // Dispatch event to initialize hero (it will create its own videos)
-      window.dispatchEvent(new CustomEvent('siteLoaderMorphComplete'));
+      // Remove the wrapper
+      videoWrapper.remove();
+      
+      // Dispatch event with video reference
+      window.dispatchEvent(new CustomEvent('siteLoaderMorphComplete', {
+        detail: {
+          video: video,
+          currentSrc: firstVideoUrl
+        }
+      }));
     }
   })
   
@@ -228,7 +257,7 @@ export default function initSiteLoader(container) {
   // Fade out loader
   .to(loaderEl, { opacity: 0, duration: 0.5 }, "-=0.5")
   
-  // Dispatch complete event after everything is shown
+  // Dispatch complete event
   .call(() => {
     window.dispatchEvent(new CustomEvent('siteLoaderComplete'));
   });

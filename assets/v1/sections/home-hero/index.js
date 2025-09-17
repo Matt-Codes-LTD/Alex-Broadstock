@@ -23,14 +23,18 @@ export default function initHomeHero(container) {
 
   // Track active item
   let activeItem = null;
+  let loaderVideoAdopted = false;
 
   // Initialize (no timelines)
   function initializeHero() {
     hideMetaTags();
-    preloadVideos();
-
-    const firstVisible = items.find(item => item.style.display !== "none");
-    if (firstVisible) setActive(firstVisible);
+    
+    // Only preload if we didn't adopt a loader video
+    if (!loaderVideoAdopted) {
+      preloadVideos();
+      const firstVisible = items.find(item => item.style.display !== "none");
+      if (firstVisible) setActive(firstVisible);
+    }
 
     section.dataset.introComplete = "true";
     console.log("[HomeHero] Intro setup complete (no timelines)");
@@ -41,8 +45,50 @@ export default function initHomeHero(container) {
   if (hasSiteLoader && !window.__barbaNavigated) {
     window.addEventListener(
       "siteLoaderMorphComplete",
-      () => {
-        console.log("[HomeHero] Morph complete, starting init");
+      (event) => {
+        console.log("[HomeHero] Morph complete, checking for loader video");
+        
+        // Adopt the loader's video if provided
+        if (event.detail && event.detail.video) {
+          const loaderVideo = event.detail.video;
+          const loaderSrc = event.detail.currentSrc;
+          
+          console.log("[HomeHero] Adopting loader video:", loaderSrc);
+          
+          // The video should already be in our container from the loader
+          if (!videoStage.contains(loaderVideo)) {
+            console.warn("[HomeHero] Video not found in container, this shouldn't happen");
+            videoStage.appendChild(loaderVideo);
+          }
+          
+          // Register it with video manager
+          videoManager.adoptVideo(loaderSrc, loaderVideo);
+          loaderVideoAdopted = true;
+          
+          // Set first project as active without video restart
+          const firstVisible = items.find(item => item.style.display !== "none");
+          if (firstVisible) {
+            const linkEl = firstVisible.querySelector(".home-hero_link");
+            const projectEl = firstVisible.querySelector(".home-hero_item");
+            
+            if (linkEl && projectEl) {
+              // Update the link's data-video to match
+              linkEl.dataset.video = loaderSrc;
+              
+              // Set as active without restarting
+              videoManager.setActiveWithoutRestart(loaderSrc, linkEl);
+              
+              // Update UI state
+              activeItem = firstVisible;
+              updateActiveStates(firstVisible);
+              updateAwards(firstVisible);
+            }
+          }
+          
+          // Preload other videos in background
+          setTimeout(() => preloadVideos(true), 1000);
+        }
+        
         initializeHero();
       },
       { once: true }
@@ -77,16 +123,8 @@ export default function initHomeHero(container) {
     awardsStrip.classList.add("is-visible");
   }
 
-  // Set active project (keeps logic, no timeline animations)
-  function setActive(item) {
-    if (!item || item.style.display === "none") return;
-    if (activeItem === item) return;
-
-    activeItem = item;
-
-    const projectEl = item.querySelector(".home-hero_item");
-    const videoSrc = projectEl?.dataset.video;
-
+  // Update UI states for active project
+  function updateActiveStates(item) {
     // Apply faded class to all items first
     items.forEach(i => {
       const link = i.querySelector(".home-hero_link");
@@ -94,7 +132,6 @@ export default function initHomeHero(container) {
       const pills = i.querySelectorAll(".home-category_ref_text:not([hidden])");
 
       if (link) link.setAttribute("aria-current", "false");
-
       text?.classList.add("u-color-faded");
       pills.forEach(p => p.classList.add("u-color-faded"));
     });
@@ -107,6 +144,19 @@ export default function initHomeHero(container) {
     if (activeLink) activeLink.setAttribute("aria-current", "true");
     activeText?.classList.remove("u-color-faded");
     activePills.forEach(p => p.classList.remove("u-color-faded"));
+  }
+
+  // Set active project
+  function setActive(item) {
+    if (!item || item.style.display === "none") return;
+    if (activeItem === item) return;
+
+    activeItem = item;
+
+    const projectEl = item.querySelector(".home-hero_item");
+    const videoSrc = projectEl?.dataset.video;
+
+    updateActiveStates(item);
 
     // Trigger video change
     if (videoSrc && videoManager) {
@@ -121,12 +171,14 @@ export default function initHomeHero(container) {
     updateAwards(item);
   }
 
-  // Preload videos (same logic, no dependency on timelines)
-  function preloadVideos() {
+  // Preload videos (skip first if adopted from loader)
+  function preloadVideos(skipFirst = false) {
     const MAX_EAGER = 3;
-    let count = 0;
+    let count = skipFirst ? 1 : 0; // Skip first if we adopted it
 
-    items.forEach(item => {
+    items.forEach((item, index) => {
+      if (skipFirst && index === 0) return; // Skip first video if adopted
+      
       const projectEl = item.querySelector(".home-hero_item");
       const videoSrc = projectEl?.dataset.video;
 
