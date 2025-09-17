@@ -11,10 +11,20 @@ export default function initSiteLoader(container) {
   if (!loaderEl || loaderEl.dataset.scriptInitialized) return () => {};
   loaderEl.dataset.scriptInitialized = "true";
 
-  // Lock scroll
+  // Lock scroll and disable transitions
   document.documentElement.classList.add("is-preloading");
   const lock = document.createElement("style");
-  lock.textContent = `html.is-preloading, html.is-preloading body { overflow:hidden!important }`;
+  lock.textContent = `
+    html.is-preloading, html.is-preloading body { 
+      overflow: hidden !important;
+    }
+    .is-preloading .home-hero_video,
+    .is-preloading .home-hero_video_el,
+    .is-preloading .home-hero_wrap * {
+      transition: none !important;
+      transform: none !important;
+    }
+  `;
   document.head.appendChild(lock);
 
   // Get elements
@@ -97,11 +107,15 @@ export default function initSiteLoader(container) {
     loaderContainer.appendChild(videoWrapper);
   }
   
-  // Hide hero content initially
+  // Hide hero completely during loader
   const heroContent = container.querySelectorAll(".nav_wrap, .home-hero_menu, .home-hero_awards");
   const heroVideoContainer = container.querySelector(".home-hero_video");
   gsap.set(heroContent, { opacity: 0, visibility: "hidden" });
-  gsap.set(heroVideoContainer, { opacity: 0 });
+  gsap.set(heroVideoContainer, { 
+    opacity: 0,
+    transform: "none !important",
+    scale: "1 !important"
+  });
 
   // Register ease
   gsap.registerEase("custom2InOut", function(progress) {
