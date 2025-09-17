@@ -63,7 +63,8 @@ document.addEventListener("DOMContentLoaded", () => {
       ".nav_wrap",
       ".nav_link",
       ".project_name",
-      ".project-player_center-toggle"
+      ".project-player_center-toggle",
+      ".project-player_controls"
     ], {
       visibility: "visible"
     });
@@ -106,6 +107,38 @@ document.addEventListener("DOMContentLoaded", () => {
       ease: "power2.out"
     }, "-=0.3")
     
+    // Bottom controls container
+    .fromTo(".project-player_controls", {
+      opacity: 0,
+      y: 20
+    }, {
+      opacity: 1,
+      y: 0,
+      duration: 0.6,
+      ease: "power3.out"
+    }, "-=0.4")
+    
+    // Play button and timeline (subtle fade)
+    .fromTo([".project-player_btn--play", ".project-player_timeline"], {
+      opacity: 0
+    }, {
+      opacity: 1,
+      duration: 0.4,
+      ease: "power2.out"
+    }, "-=0.3")
+    
+    // Sound and Fullscreen text - stagger up from bottom
+    .fromTo([".project-player_btn--mute", ".project-player_btn--fs"], {
+      opacity: 0,
+      y: 15
+    }, {
+      opacity: 1,
+      y: 0,
+      duration: 0.5,
+      stagger: 0.08,
+      ease: "power2.out"
+    }, "-=0.3")
+    
     // Center sound/play button - scale up with bounce
     .fromTo(".project-player_center-toggle", {
       opacity: 0,
@@ -115,7 +148,7 @@ document.addEventListener("DOMContentLoaded", () => {
       scale: 1,
       duration: 0.6,
       ease: "back.out(1.7)"
-    }, "-=0.2");
+    }, "-=0.4");
     
     return tl;
   }
