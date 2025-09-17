@@ -13,9 +13,7 @@ export function createState(video, wrap, centerBtn) {
   }
 
   function kickHide() {
-    // Only activate idle timeout if user has clicked sound button
-    if (!didFirstSoundRestart) return;
-    
+    // Remove condition - idle works immediately
     clearTimeout(hidingTO);
     setIdle(false);
     hidingTO = setTimeout(() => setIdle(true), 1800);
@@ -60,8 +58,6 @@ export function createState(video, wrap, centerBtn) {
     },
     set didFirstSoundRestart(v) {
       didFirstSoundRestart = v;
-      // When sound is first clicked, start the idle timer
-      if (v) kickHide();
     },
   };
 }

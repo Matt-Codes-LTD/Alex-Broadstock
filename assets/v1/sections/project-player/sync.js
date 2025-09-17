@@ -18,20 +18,15 @@ export function initSync(video, wrap, state) {
     setPausedUI(wrap, true);
   });
 
-  // Idle hide/show - ONLY after sound button clicked
+  // Idle hide/show - works immediately
   ["mousemove", "pointermove", "touchstart", "keydown"].forEach((evt) => {
-    const fn = () => {
-      // Only kick hide timer if user has clicked the sound button
-      if (state.didFirstSoundRestart) {
-        state.kickHide();
-      }
-    };
+    const fn = () => state.kickHide();
     wrap.addEventListener(evt, fn, { passive: true });
     state.handlers.push(() => wrap.removeEventListener(evt, fn));
   });
   
-  // Don't start idle timer initially - controls stay visible
-  // state.kickHide(); // REMOVED
+  // Start idle timer on load
+  state.kickHide();
 
   return () => {};
 }
