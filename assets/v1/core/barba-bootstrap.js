@@ -62,7 +62,8 @@ document.addEventListener("DOMContentLoaded", () => {
     gsap.set([
       ".nav_wrap",
       ".nav_link",
-      ".project_name"
+      ".project_name",
+      ".project-player_center-toggle"
     ], {
       visibility: "visible"
     });
@@ -103,7 +104,18 @@ document.addEventListener("DOMContentLoaded", () => {
       filter: "blur(0px)",
       duration: 0.5,
       ease: "power2.out"
-    }, "-=0.3");
+    }, "-=0.3")
+    
+    // Center sound/play button - scale up with bounce
+    .fromTo(".project-player_center-toggle", {
+      opacity: 0,
+      scale: 0.85
+    }, {
+      opacity: 1,
+      scale: 1,
+      duration: 0.6,
+      ease: "back.out(1.7)"
+    }, "-=0.2");
     
     return tl;
   }

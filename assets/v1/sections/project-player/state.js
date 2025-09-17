@@ -5,11 +5,17 @@ export function createState(video, wrap, centerBtn) {
   let didFirstSoundRestart = false;
   const handlers = [];
 
+  // Initialize as not idle (controls visible)
+  wrap.dataset.idle = "0";
+
   function setIdle(on) {
     wrap.dataset.idle = on ? "1" : "0";
   }
 
   function kickHide() {
+    // Only activate idle timeout if user has clicked sound button
+    if (!didFirstSoundRestart) return;
+    
     clearTimeout(hidingTO);
     setIdle(false);
     hidingTO = setTimeout(() => setIdle(true), 1800);
@@ -54,6 +60,8 @@ export function createState(video, wrap, centerBtn) {
     },
     set didFirstSoundRestart(v) {
       didFirstSoundRestart = v;
+      // When sound is first clicked, start the idle timer
+      if (v) kickHide();
     },
   };
 }
