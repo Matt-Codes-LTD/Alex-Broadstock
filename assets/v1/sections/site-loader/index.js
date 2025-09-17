@@ -5,14 +5,27 @@ export default function initSiteLoader(container) {
   // Double-check: skip if not initial page load
   if (!window.__initialPageLoad) {
     console.log("[SiteLoader] Skipping - not initial page load");
+    // Hide any existing loader element
+    const existingLoader = container.querySelector(".site-loader_wrap");
+    if (existingLoader) existingLoader.style.display = "none";
     return () => {};
   }
 
   console.log("[SiteLoader] init");
 
   const loaderEl = container.querySelector(".site-loader_wrap");
-  if (!loaderEl || loaderEl.dataset.scriptInitialized) return () => {};
+  if (!loaderEl) return () => {};
+  
+  // Skip if already initialized
+  if (loaderEl.dataset.scriptInitialized) {
+    loaderEl.style.display = "none";
+    return () => {};
+  }
+  
   loaderEl.dataset.scriptInitialized = "true";
+  
+  // Explicitly show the loader when initializing
+  loaderEl.style.display = "flex";
 
   // Lock scroll
   document.documentElement.classList.add("is-preloading");
@@ -382,5 +395,6 @@ export default function initSiteLoader(container) {
     window.removeEventListener("homeHeroReadyForReveal", onHeroReadyForReveal);
     if (heroResumeTimeout) clearTimeout(heroResumeTimeout);
     delete loaderEl.dataset.scriptInitialized;
+    loaderEl.style.display = "none"; // Ensure hidden on cleanup
   };
 }
