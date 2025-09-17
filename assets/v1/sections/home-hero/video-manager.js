@@ -85,7 +85,7 @@ export function createVideoManager(stage) {
     } else {
       const h = () => { v.removeEventListener("timeupdate", h); cb(); };
       v.addEventListener("timeupdate", h, { once: true });
-      setTimeout(cb, 120);
+      setTimeout(cb, 120); // safety
     }
   }
 
@@ -111,6 +111,7 @@ export function createVideoManager(stage) {
     const previousVideo = activeVideo;
     activeVideo = next;
 
+    // options
     const mode        = opts.mode || "tween";     // "instant" | "tween"
     const fromScale   = opts.tweenFromScale ?? 1.03;
     const tweenDur    = opts.tweenDuration  ?? 0.7;
@@ -137,12 +138,14 @@ export function createVideoManager(stage) {
     };
 
     if (mode === "instant" || prefersReducedMotion) {
+      // Immediate switch with first-frame sync — no fade/scale
       if (previousVideo) { previousVideo.classList.remove("is-active"); gsap.set(previousVideo, { opacity: 0, scale: 1 }); }
       next.classList.add("is-active");
       gsap.set(next, { opacity: 1, scale: 1, transformOrigin: "50% 50%" });
       playNew().then(() => onFirstRenderedFrame(next, () => opts.onVisible?.()));
       transitionInProgress = false;
     } else {
+      // Gentle crossfade + micro-settle
       const prepare = async () => {
         await playNew();
         next.classList.add("is-active");

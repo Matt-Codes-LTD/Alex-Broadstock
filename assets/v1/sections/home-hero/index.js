@@ -89,7 +89,7 @@ export default function initHomeHero(container) {
       const useHandoff = !!opts.useHandoff && handoff?.src && handoff.src === videoSrc;
       videoManager.setActive(videoSrc, activeLink, {
         startAt: useHandoff ? handoff.currentTime : undefined,
-        mode: useHandoff ? "instant" : "tween",
+        mode: useHandoff ? "instant" : "tween",   // ← NO visual handover on first show
         onVisible: emitReadyOnce
       });
     }
