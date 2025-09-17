@@ -274,7 +274,7 @@ export default function initSiteLoader(container) {
     stagger: 0.08,
     ease: "power2.out"
   }, "-=0.4")
-  // Category filters
+  // Category filters (simultaneous with nav links)
   .fromTo(".home-category_text", {
     opacity: 0,
     y: 15,
@@ -289,9 +289,9 @@ export default function initSiteLoader(container) {
       from: "start"
     },
     ease: "power3.out"
-  }, "-=0.3")
-  // Project list items - Updated selector
-  .fromTo(".home_hero_text", {
+  }, "-=0.5")
+  // Project names stagger in sequence
+  .fromTo(".home-hero_list:not([style*='display: none']) .home_hero_text", {
     opacity: 0,
     x: -30,
     filter: "blur(4px)"
@@ -299,15 +299,12 @@ export default function initSiteLoader(container) {
     opacity: 1,
     x: 0,
     filter: "blur(0px)",
-    duration: 0.7,
-    stagger: {
-      each: 0.06,
-      from: "top"
-    },
+    duration: 0.5,
+    stagger: 0.08,
     ease: "power2.out"
-  }, "-=0.4")
-  // Project tags - Updated selector
-  .fromTo(".home-category_ref_text:not([hidden])", {
+  }, "-=0.2")
+  // Project tags stagger after names
+  .fromTo(".home-hero_list:not([style*='display: none']) .home-category_ref_text:not([hidden])", {
     opacity: 0,
     scale: 0.8,
     x: 20
@@ -315,13 +312,10 @@ export default function initSiteLoader(container) {
     opacity: 1,
     scale: 1,
     x: 0,
-    duration: 0.5,
-    stagger: {
-      each: 0.03,
-      from: "random"
-    },
+    duration: 0.4,
+    stagger: 0.04,
     ease: "back.out(1.3)"
-  }, "-=0.5")
+  }, "-=0.3")
   // Awards strip
   .fromTo(".home-awards_list", {
     opacity: 0,
@@ -347,7 +341,7 @@ export default function initSiteLoader(container) {
         clearProps: "transform,filter"
       });
     }
-  }, "-=0.3")
+  }, "-=0.2")
   // Fade loader and wrapper
   .to([videoWrapper, loaderEl], { 
     opacity: 0, 
