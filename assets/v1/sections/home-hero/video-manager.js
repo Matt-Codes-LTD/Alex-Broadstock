@@ -6,6 +6,23 @@ export function createVideoManager(stage) {
   let activeVideo = null, activeLink = null;
   let transitionInProgress = false;
 
+  function adoptVideo(src, videoElement) {
+    if (!src || !videoElement) return null;
+    
+    // Ensure video has correct properties
+    videoElement.__keepAlive = true;
+    videoElement.__warmed = true;
+    
+    // Register in map
+    videoBySrc.set(src, videoElement);
+    
+    // Set as active immediately
+    activeVideo = videoElement;
+    
+    console.log("[VideoManager] Adopted video:", src);
+    return videoElement;
+  }
+
   function createVideo(src) {
     if (!src) return null;
     let v = videoBySrc.get(src);
@@ -207,6 +224,7 @@ export function createVideoManager(stage) {
   return {
     createVideo,
     warmVideo,
+    adoptVideo,
     setActive: (src, linkEl, opts) => { setActive(src, linkEl, opts); preloadNext(src); },
     get activeLink() { return activeLink; },
     get activeVideo() { return activeVideo; }

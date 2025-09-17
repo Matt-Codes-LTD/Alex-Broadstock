@@ -35,41 +35,19 @@ export default function initHomeHero(container) {
 
   const hasSiteLoader = document.querySelector(".site-loader_wrap");
   if (hasSiteLoader && !window.__barbaNavigated) {
-    window.addEventListener("siteLoaderMorphBegin", async (e) => {
+    window.addEventListener("siteLoaderMorphBegin", (e) => {
       handoff = e?.detail || null;
       console.log("[HomeHero] Handoff received:", handoff);
       
-      // Pre-sync hero video to exact frame
-      if (handoff?.src && handoff?.currentTime != null) {
+      if (handoff?.isTransferred && handoff?.videoElement) {
+        // Adopt the transferred video element
+        videoManager.adoptVideo(handoff.src, handoff.videoElement);
+        console.log("[HomeHero] Adopted transferred video");
+      } else if (handoff?.src) {
+        // Fallback: create new video
         const heroVideo = videoManager.createVideo(handoff.src);
-        if (heroVideo) {
-          // Match exact time
+        if (heroVideo && handoff.currentTime != null) {
           heroVideo.currentTime = handoff.currentTime;
-          await heroVideo.play().catch(() => {});
-          
-          // Wait for frame sync if loader video provided
-          if (handoff.loaderVideo) {
-            await new Promise(resolve => {
-              const syncFrames = () => {
-                // Sync to loader's current time
-                heroVideo.currentTime = handoff.loaderVideo.currentTime;
-                
-                if ('requestVideoFrameCallback' in heroVideo) {
-                  heroVideo.requestVideoFrameCallback(() => resolve());
-                } else {
-                  requestAnimationFrame(() => {
-                    requestAnimationFrame(() => resolve());
-                  });
-                }
-              };
-              
-              if (heroVideo.readyState >= 3) {
-                syncFrames();
-              } else {
-                heroVideo.addEventListener('canplaythrough', syncFrames, { once: true });
-              }
-            });
-          }
         }
       }
       
@@ -122,11 +100,18 @@ export default function initHomeHero(container) {
     const videoSrc  = projectEl?.dataset.video;
     if (videoSrc) {
       const useHandoff = !!opts.useHandoff && handoff?.src && handoff.src === videoSrc;
-      videoManager.setActive(videoSrc, activeLink, {
-        startAt: useHandoff ? handoff.currentTime : undefined,
-        mode: useHandoff ? "instant" : "tween",   // ← NO visual handover on first show
-        onVisible: emitReadyOnce
-      });
+      
+      // Skip setActive if we already have the transferred video
+      if (useHandoff && handoff?.isTransferred) {
+        // Video already in place, just emit ready
+        emitReadyOnce();
+      } else {
+        videoManager.setActive(videoSrc, activeLink, {
+          startAt: useHandoff ? handoff.currentTime : undefined,
+          mode: useHandoff ? "instant" : "tween",
+          onVisible: emitReadyOnce
+        });
+      }
     }
 
     updateAwards(item);
