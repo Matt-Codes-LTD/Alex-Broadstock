@@ -16,8 +16,8 @@ document.addEventListener("DOMContentLoaded", () => {
     left: 0;
     width: 100%;
     height: 100%;
-    background: var(--swatch--brand-paper);
-    z-index: 10000;
+    background: #000;
+    z-index: 9999;
     pointer-events: none;
     clip-path: polygon(50% 0, 50% 0, 50% 100%, 50% 100%);
     -webkit-clip-path: polygon(50% 0, 50% 0, 50% 100%, 50% 100%);
@@ -121,7 +121,7 @@ document.addEventListener("DOMContentLoaded", () => {
           animateProjectNav(main);
         },
 
-        leave({ current }) {
+        async leave({ current }) {
           document.body.classList.add('barba-navigating');
           window.__barbaNavigated = true;
           
@@ -130,52 +130,48 @@ document.addEventListener("DOMContentLoaded", () => {
             delete current.container.__cleanup;
           }
 
-          // Split screen animation - expand from center
-          return gsap.to(transitionOverlay, {
+          // Expand overlay to cover screen
+          await gsap.to(transitionOverlay, {
             clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%)',
-            duration: 1,
+            duration: 0.6,
             ease: "cubic-bezier(0.5,0.25,0,1)"
           });
         },
 
-        async enter({ current, next }) {
+        enter({ current, next }) {
           const oldMain = current.container;
           const newMain = next.container;
           
+          // Initialize new page scripts
           newMain.__cleanup = initPageScripts(newMain);
-
-          // Position containers
-          Object.assign(oldMain.style, { 
-            position: 'absolute', 
-            inset: '0',
-            opacity: '0'
+          
+          // Position new page behind overlay
+          gsap.set(newMain, { 
+            opacity: 1,
+            visibility: 'visible'
           });
           
-          Object.assign(newMain.style, { 
-            position: 'absolute', 
-            inset: '0',
-            opacity: '1'
-          });
-
-          // Collapse split screen animation
-          await gsap.to(transitionOverlay, {
-            clipPath: 'polygon(50% 0, 50% 0, 50% 100%, 50% 100%)',
-            duration: 1,
-            ease: "cubic-bezier(0.5,0.25,0,1)"
-          });
-
-          // Clean up
-          newMain.style.position = '';
-          newMain.style.inset = '';
-          newMain.style.opacity = '';
-          
-          if (oldMain && oldMain.parentNode) {
-            oldMain.remove();
+          // Hide old page
+          if (oldMain) {
+            gsap.set(oldMain, { display: 'none' });
           }
-          
-          window.scrollTo(0, 0);
-          document.body.classList.remove('barba-navigating');
-          animateProjectNav(newMain);
+
+          // Contract overlay to reveal new page
+          return gsap.to(transitionOverlay, {
+            clipPath: 'polygon(50% 0, 50% 0, 50% 100%, 50% 100%)',
+            duration: 0.6,
+            ease: "cubic-bezier(0.5,0.25,0,1)",
+            onComplete: () => {
+              // Clean up old container
+              if (oldMain && oldMain.parentNode) {
+                oldMain.remove();
+              }
+              
+              window.scrollTo(0, 0);
+              document.body.classList.remove('barba-navigating');
+              animateProjectNav(newMain);
+            }
+          });
         }
       }
     ]
