@@ -128,6 +128,9 @@ export default function initSiteLoader(container) {
     const dy = toCy - fromCy;
     const sx = to.width  / from.width;
     const sy = to.height / from.height;
+    
+    // Use the larger scale to maintain aspect ratio (cover behavior)
+    const scale = Math.max(sx, sy);
 
     // Use transform3d for GPU acceleration
     gsap.set(videoWrapper, {
@@ -138,8 +141,8 @@ export default function initSiteLoader(container) {
     gsap.to(videoWrapper, {
       x: dx, 
       y: dy, 
-      scaleX: sx, 
-      scaleY: sy,
+      scaleX: scale, 
+      scaleY: scale,
       duration, 
       ease: "power3.inOut",
       force3D: true,
