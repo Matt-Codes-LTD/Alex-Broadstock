@@ -53,6 +53,61 @@ document.addEventListener("DOMContentLoaded", () => {
     return 1 - Math.pow(1 - progress, 4);
   });
 
+  // Nav animation function for project pages
+  function animateProjectNav(container) {
+    // Only animate on project pages
+    if (container.dataset.barbaNamespace !== "project") return;
+    
+    // Set initial visible states (CSS handles opacity: 0)
+    gsap.set([
+      ".nav_wrap",
+      ".nav_link",
+      ".project_name"
+    ], {
+      visibility: "visible"
+    });
+    
+    const tl = gsap.timeline();
+    
+    // Nav wrapper foundation
+    tl.fromTo(".nav_wrap", {
+      opacity: 0,
+      y: -20
+    }, {
+      opacity: 1,
+      y: 0,
+      duration: 0.8,
+      ease: "power3.out"
+    })
+    
+    // Back link + other nav links
+    .fromTo(".nav_link", {
+      opacity: 0,
+      x: 20
+    }, {
+      opacity: 1,
+      x: 0,
+      duration: 0.5,
+      stagger: 0.08,
+      ease: "power2.out"
+    }, "-=0.4")
+    
+    // Project name - slide from left like project titles
+    .fromTo(".project_name", {
+      opacity: 0,
+      x: -30,
+      filter: "blur(4px)"
+    }, {
+      opacity: 1,
+      x: 0,
+      filter: "blur(0px)",
+      duration: 0.5,
+      ease: "power2.out"
+    }, "-=0.3");
+    
+    return tl;
+  }
+
   barba.init({
     transitions: [
       {
@@ -66,6 +121,9 @@ document.addEventListener("DOMContentLoaded", () => {
             opacity: 1, 
             scale: 1
           });
+          
+          // Animate nav on initial page load if it's a project page
+          animateProjectNav(main);
         },
 
         leave({ current }) {
@@ -157,6 +215,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     
                     // ADD: Remove navigation class when complete
                     document.body.classList.remove('barba-navigating');
+                    
+                    // ADD: Animate nav for project pages
+                    animateProjectNav(newMain);
                     
                     resolve();
                   }
