@@ -3,6 +3,7 @@ export function createState(video, wrap, centerBtn) {
   let hidingTO = 0;
   let dragging = false;
   let didFirstSoundRestart = false;
+  let gracePeriod = false; // Prevent hiding during initial period
   const handlers = [];
 
   // Initialize as not idle (controls visible)
@@ -13,10 +14,12 @@ export function createState(video, wrap, centerBtn) {
   }
 
   function kickHide() {
-    // Remove condition - idle works immediately
+    // Only hide if user has clicked sound button AND grace period is over
+    if (!didFirstSoundRestart || gracePeriod) return;
+    
     clearTimeout(hidingTO);
     setIdle(false);
-    hidingTO = setTimeout(() => setIdle(true), 1800);
+    hidingTO = setTimeout(() => setIdle(true), 1500);
   }
 
   function startLoop(loopFn) {
@@ -58,6 +61,15 @@ export function createState(video, wrap, centerBtn) {
     },
     set didFirstSoundRestart(v) {
       didFirstSoundRestart = v;
+      if (v) {
+        // Start grace period - controls stay visible
+        gracePeriod = true;
+        setIdle(false);
+        setTimeout(() => {
+          gracePeriod = false;
+          kickHide(); // Now start idle detection
+        }, 1500);
+      }
     },
   };
 }
