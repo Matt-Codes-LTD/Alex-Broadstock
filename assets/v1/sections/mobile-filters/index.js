@@ -10,6 +10,14 @@ export default function initMobileFilters(container) {
   // Create mobile UI elements
   const { button, panel, backdrop } = createMobileUI();
   
+  // Force button to be completely hidden initially
+  button.style.cssText = `
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    z-index: -1 !important;
+  `;
+  
   // Add to DOM
   document.body.appendChild(backdrop);
   document.body.appendChild(panel);
@@ -25,34 +33,34 @@ export default function initMobileFilters(container) {
   
   let isOpen = false;
   
-  // Make button globally accessible for reveal timeline
-  window.__mobileFiltersButton = button;
-  
-  // Reveal function - sets opacity to 1
+  // Reveal function - removes inline styles and animates
   const revealButton = () => {
+    // First remove the hiding styles
+    button.style.cssText = '';
+    
+    // Then animate in
     if (window.gsap) {
-      gsap.to(button, {
-        opacity: 1,
-        y: -2,
-        duration: 0.6,
-        ease: "power3.out"
-      });
+      gsap.fromTo(button, 
+        { opacity: 0, y: 10 },
+        { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }
+      );
     } else {
       button.style.opacity = '1';
     }
   };
   
-  // Check if site loader exists and is active
+  // Only reveal after site loader completes or if no loader
   const siteLoader = document.querySelector('.site-loader_wrap[data-script-initialized="true"]');
   if (!siteLoader || !window.__initialPageLoad) {
-    // No loader or not initial load, show after DOM settles
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        revealButton();
-      });
-    });
+    // No loader, show after short delay
+    setTimeout(revealButton, 500);
+  } else {
+    // Wait for site loader to complete
+    window.addEventListener('siteLoaderComplete', () => {
+      // Delay to ensure it appears after project names
+      setTimeout(revealButton, 1200);
+    }, { once: true });
   }
-  // Otherwise, the site loader timeline will handle reveal via window.__mobileFiltersButton
   
   function open() {
     isOpen = true;
@@ -75,16 +83,13 @@ export default function initMobileFilters(container) {
   
   // Sync active states between desktop and mobile
   function syncActiveStates() {
-    // Find active desktop category
     const activeDesktop = categories?.querySelector('.home-category_text[aria-current="true"]');
     const activeLabel = activeDesktop?.textContent?.trim() || 'All';
     
-    // Update mobile categories
     panel.querySelectorAll('.home-category_text').forEach(btn => {
       const isActive = btn.textContent.trim() === activeLabel;
       btn.setAttribute('aria-current', isActive ? 'true' : 'false');
       
-      // Apply u-color-faded to non-active items
       if (isActive) {
         btn.classList.remove('u-color-faded');
       } else {
@@ -111,7 +116,6 @@ export default function initMobileFilters(container) {
     const catBtn = e.target.closest('.home-category_text');
     if (!catBtn) return;
     
-    // Trigger click on desktop equivalent
     const label = catBtn.textContent;
     const match = Array.from(categories?.querySelectorAll('.home-category_text') || [])
       .find(el => el.textContent.trim() === label.trim() && !panel.contains(el));
@@ -119,12 +123,10 @@ export default function initMobileFilters(container) {
     if (match) {
       match.click();
       
-      // Update mobile active states
       panel.querySelectorAll('.home-category_text').forEach(btn => {
         const isActive = btn.textContent.trim() === label.trim();
         btn.setAttribute('aria-current', isActive ? 'true' : 'false');
         
-        // Apply u-color-faded class
         if (isActive) {
           btn.classList.remove('u-color-faded');
         } else {
@@ -156,30 +158,22 @@ export default function initMobileFilters(container) {
     backdrop.remove();
     observer.disconnect();
     delete wrap.dataset.mobileFiltersInit;
-    delete window.__mobileFiltersButton;
   };
 }
 
 function createMobileUI() {
-  // Button - CSS handles opacity: 0 to prevent FOUC
   const button = document.createElement('button');
   button.className = 'mobile-filters-button u-text-style-main';
   button.setAttribute('aria-label', 'Open filters');
   button.setAttribute('aria-expanded', 'false');
-  button.innerHTML = `
-    <span class="mobile-filters-button-text">Filters</span>
-  `;
+  button.innerHTML = `<span class="mobile-filters-button-text">Filters</span>`;
   
-  // Backdrop
   const backdrop = document.createElement('div');
   backdrop.className = 'mobile-filters-backdrop';
   
-  // Panel - No header
   const panel = document.createElement('div');
   panel.className = 'mobile-filters-panel';
-  panel.innerHTML = `
-    <div class="mobile-filters-content"></div>
-  `;
+  panel.innerHTML = `<div class="mobile-filters-content"></div>`;
   
   return { button, panel, backdrop };
 }
