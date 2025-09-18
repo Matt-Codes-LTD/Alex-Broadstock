@@ -4,11 +4,24 @@ export default function initMobileFilters(container) {
   if (!wrap || wrap.dataset.mobileFiltersInit) return () => {};
   wrap.dataset.mobileFiltersInit = "true";
   
+  // Only initialize on mobile/tablet
+  if (window.innerWidth > 991) return () => {};
+  
   // Create mobile UI elements
   const { button, panel, backdrop } = createMobileUI();
+  
+  // Ensure button starts fully hidden with inline styles
+  button.style.opacity = '0';
+  button.style.visibility = 'hidden';
+  button.style.transform = 'translateX(-50%) translateY(10px)';
+  
+  // Add to DOM after setting initial styles
   document.body.appendChild(backdrop);
   document.body.appendChild(panel);
   document.body.appendChild(button);
+  
+  // Force reflow to ensure styles are applied
+  button.offsetHeight;
   
   // Clone categories to panel
   const categories = container.querySelector('.home_hero_categories');
@@ -23,14 +36,34 @@ export default function initMobileFilters(container) {
   // Make button globally accessible for reveal timeline
   window.__mobileFiltersButton = button;
   
-  // If not initial page load or no site loader, show immediately
+  // Reveal function
+  const revealButton = () => {
+    if (window.gsap) {
+      gsap.set(button, { visibility: 'visible' });
+      gsap.to(button, {
+        opacity: 1,
+        y: 0,
+        duration: 0.6,
+        ease: "power3.out"
+      });
+    } else {
+      button.style.visibility = 'visible';
+      button.style.opacity = '1';
+      button.style.transform = 'translateX(-50%) translateY(0)';
+    }
+  };
+  
+  // Check if site loader exists and is active
   const siteLoader = document.querySelector('.site-loader_wrap[data-script-initialized="true"]');
   if (!siteLoader || !window.__initialPageLoad) {
-    setTimeout(() => {
-      button.classList.add('is-ready');
-    }, 100);
+    // No loader or not initial load, show after DOM settles
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        revealButton();
+      });
+    });
   }
-  // Otherwise, the site loader reveal timeline will handle it
+  // Otherwise, the site loader timeline will handle reveal via window.__mobileFiltersButton
   
   function open() {
     isOpen = true;
@@ -73,7 +106,16 @@ export default function initMobileFilters(container) {
   
   // Events
   button.addEventListener('click', open);
+  button.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    open();
+  }, { passive: false });
+  
   backdrop.addEventListener('click', close);
+  backdrop.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    close();
+  }, { passive: false });
   
   // Sync category clicks with main filter system
   panel.addEventListener('click', (e) => {
