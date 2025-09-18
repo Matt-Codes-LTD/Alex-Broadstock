@@ -1,4 +1,4 @@
-// site-loader/timeline.js - Timeline creation with mobile filters integration
+// site-loader/timeline.js - Timeline creation with Enter button
 import { CONFIG, EASES } from "./constants.js";
 import { updateProgressUI, updateEdgesUI, updateFPSUI } from "./ui-elements.js";
 import { ensureVideoReady } from "./video-setup.js";
@@ -29,11 +29,30 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     p < 0.5 ? 2 * p * p : 1 - ((-2 * p + 2) ** 2) / 2
   );
   
-  // Setup name element
+  // Setup enter button and name element
+  const enterEl = ui.enterButton;
   const nameEl = loaderEl.querySelector('.site-loader_name_reveal');
+  let enterChars = [];
   let nameChars = [];
   
-  // Prevent FOUC - set initial state
+  // Setup Enter button
+  if (enterEl) {
+    gsap.set(enterEl, { 
+      opacity: 1, 
+      visibility: 'visible',
+      position: 'absolute',
+      left: '50%',
+      top: '50%',
+      xPercent: -50,
+      yPercent: -50,
+      zIndex: 100,
+      cursor: 'pointer',
+      pointerEvents: 'all'
+    });
+    enterChars = splitTextToSpans(enterEl);
+  }
+  
+  // Setup name element but keep hidden
   if (nameEl) {
     gsap.set(nameEl, { 
       opacity: 1, 
@@ -43,10 +62,23 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
       top: '50%',
       xPercent: -50,
       yPercent: -50,
-      zIndex: 10
+      zIndex: 10,
+      display: 'none' // Hidden initially
     });
     nameChars = splitTextToSpans(nameEl);
   }
+  
+  // Hide all loader elements initially
+  gsap.set([ui.progressText, ui.corners, ui.fpsCounter], { 
+    opacity: 0,
+    visibility: 'hidden'
+  });
+  gsap.set(ui.edgesBox, { 
+    opacity: 0,
+    visibility: 'hidden',
+    "--sl-width": 67, 
+    "--sl-height": 67 
+  });
   
   // Resume handler
   const onHeroReadyForReveal = () => { 
@@ -57,9 +89,94 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
   window.addEventListener("homeHeroReadyForReveal", onHeroReadyForReveal, { once: true });
   state.heroReadyListener = onHeroReadyForReveal;
   
-  // Main timeline
-  const tl = gsap.timeline({ onComplete });
+  // Main timeline - starts paused
+  const tl = gsap.timeline({ 
+    paused: true,
+    onComplete 
+  });
+  
+  // Animate Enter text in immediately
+  if (enterEl && enterChars.length) {
+    gsap.to(enterChars, {
+      opacity: 1,
+      y: 0,
+      duration: 0.6,
+      stagger: 0.03,
+      ease: "power2.out"
+    });
+  }
+  
+  // Handle Enter click/touch
+  const startLoader = () => {
+    if (!enterEl) {
+      tl.play();
+      return;
+    }
+    
+    // Disable further clicks
+    enterEl.style.pointerEvents = 'none';
+    
+    // Mark user interaction for mobile autoplay
+    window.__userInteracted = true;
+    
+    // Animate Enter text out
+    gsap.to(enterChars, {
+      opacity: 0,
+      y: -5,
+      scale: 0.95,
+      duration: 0.4,
+      stagger: 0.02,
+      ease: "power2.inOut",
+      onComplete: () => {
+        enterEl.style.display = 'none';
+        
+        // Show and set initial state for loader elements
+        gsap.set([ui.progressText, ui.corners, ui.fpsCounter], { 
+          opacity: 1,
+          visibility: 'visible'
+        });
+        gsap.set(ui.edgesBox, { 
+          opacity: 1,
+          visibility: 'visible',
+          "--sl-width": 67, 
+          "--sl-height": 67 
+        });
+        
+        // Start video if we have interaction
+        if (video && window.__userInteracted) {
+          video.muted = true;
+          video.play().catch(() => {});
+        }
+        
+        // Play main timeline
+        tl.play();
+      }
+    });
+  };
+  
+  // Add interaction handlers
+  if (enterEl) {
+    enterEl.addEventListener('click', startLoader, { once: true });
+    enterEl.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      startLoader();
+    }, { once: true, passive: false });
+  } else {
+    // No enter button, start immediately (fallback)
+    setTimeout(() => {
+      gsap.set([ui.progressText, ui.corners, ui.fpsCounter], { 
+        opacity: 1,
+        visibility: 'visible'
+      });
+      gsap.set(ui.edgesBox, { 
+        opacity: 1,
+        visibility: 'visible'
+      });
+      tl.play();
+    }, 100);
+  }
 
+  // Build main timeline
   // Phase 1: Progress animation
   tl.to(state.progress, {
     value: 1, 
@@ -73,7 +190,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
       updateFPSUI(ui.fpsCounter, state.progress.fps);
       
       // Start video at 80%
-      if (state.progress.value >= 0.8 && video && !video.__started) {
+      if (state.progress.value >= 0.8 && video && !video.__started && window.__userInteracted) {
         video.__started = true;
         video.currentTime = 0.001;
         video.play().catch(() => {});
@@ -84,7 +201,8 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
   // Phase 2: Fade progress text
   .to(ui.progressText, { opacity: 0, duration: 0.3 })
   
-  // Phase 2a: Name reveal animation
+  // Phase 2a: Show and animate name
+  .set(nameEl, { display: 'block' })
   .to(nameChars, {
     opacity: 1,
     y: 0,
@@ -193,7 +311,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     opacity: 0
   })
   
-  // Nav animation
+  // Continue with nav and content animations...
   .fromTo(".nav_wrap", {
     opacity: 0, y: -20
   }, {
@@ -202,7 +320,6 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     ease: "power3.out"
   })
   
-  // Brand logo
   .fromTo(".brand_logo", {
     opacity: 0, scale: 0.9
   }, {
@@ -211,7 +328,6 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     ease: "back.out(1.2)"
   }, "-=0.5")
   
-  // Nav links
   .fromTo(".nav_link", {
     opacity: 0, x: 20
   }, {
@@ -221,7 +337,6 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     ease: "power2.out"
   }, "-=0.4")
   
-  // Category filters
   .fromTo(".home-category_text", {
     opacity: 0, y: 15, rotateX: -45
   }, {
@@ -231,7 +346,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     ease: "power3.out"
   }, "-=0.5")
   
-  // Project rows
+  // Project rows reveal
   .add(() => {
     const visibleRows = container.querySelectorAll(".home-hero_list:not([style*='display: none'])");
     visibleRows.forEach((row, index) => {
@@ -263,7 +378,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     });
   }, "-=0.2")
   
-  // Mobile filters button - appears after project rows
+  // Mobile filters button
   .add(() => {
     const mobileFiltersButton = window.__mobileFiltersButton;
     if (mobileFiltersButton && window.innerWidth <= 991) {
@@ -277,7 +392,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
         visibility: "visible",
         duration: 0.5,
         ease: "power2.out",
-        delay: 0.2 // Small delay after project rows
+        delay: 0.2
       });
     }
   }, "-=0.1")
@@ -291,7 +406,6 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     ease: "power3.out",
     delay: 0.3,
     onComplete: () => {
-      // Clean up will-change
       gsap.set([
         ".nav_wrap",
         ".brand_logo",

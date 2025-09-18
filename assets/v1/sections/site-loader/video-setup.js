@@ -1,4 +1,4 @@
-// site-loader/video-setup.js - Video creation with mobile fixes
+// site-loader/video-setup.js - Video creation with interaction check
 import { SELECTORS } from "./constants.js";
 
 export function setupVideo(container, videoWrapper) {
@@ -8,13 +8,13 @@ export function setupVideo(container, videoWrapper) {
   const video = document.createElement('video');
   video.style.cssText = 'width:100%;height:100%;object-fit:cover;';
   video.muted = true;
-  video.setAttribute('muted', ''); // Critical for mobile autoplay
+  video.setAttribute('muted', '');
   video.loop = true;
   video.playsInline = true;
-  video.setAttribute('playsinline', ''); // Critical for iOS inline play
+  video.setAttribute('playsinline', '');
   video.preload = 'auto';
   video.crossOrigin = 'anonymous';
-  video.setAttribute('crossorigin', 'anonymous'); // DOM attribute
+  video.setAttribute('crossorigin', 'anonymous');
   
   if (videoUrl) {
     video.src = videoUrl;
@@ -22,28 +22,15 @@ export function setupVideo(container, videoWrapper) {
     video.load();
     video.currentTime = 0.001;
     
-    // Attempt early play for mobile
-    video.play().catch((err) => {
-      console.log("[SiteLoader] Early play failed:", err.message);
-    });
+    // Only try to play if user has already interacted
+    if (window.__userInteracted) {
+      video.play().catch((err) => {
+        console.log("[SiteLoader] Play failed:", err.message);
+      });
+    }
   }
   
   videoWrapper.appendChild(video);
-  
-  // Mobile play trigger for site loader
-  const triggerPlay = () => {
-    if (video && video.paused) {
-      video.play().catch((err) => {
-        console.log("[SiteLoader] Mobile trigger play failed:", err.message);
-      });
-    }
-  };
-  
-  // Add mobile triggers
-  ['touchstart', 'click'].forEach(event => {
-    document.addEventListener(event, triggerPlay, { once: true, passive: true });
-  });
-  
   return video;
 }
 
@@ -56,6 +43,20 @@ export async function ensureVideoReady(video) {
   }
   if (!video.hasAttribute('playsinline')) {
     video.setAttribute('playsinline', '');
+  }
+  
+  // Wait for user interaction if needed
+  if (!window.__userInteracted) {
+    await new Promise(resolve => {
+      const checkInteraction = () => {
+        if (window.__userInteracted) {
+          resolve();
+        } else {
+          setTimeout(checkInteraction, 100);
+        }
+      };
+      checkInteraction();
+    });
   }
   
   await new Promise(resolve => {
@@ -75,8 +76,8 @@ export async function ensureVideoReady(video) {
           });
         }
       } else {
-        // Try to play if not playing
-        if (video.paused) {
+        // Try to play if not playing and user has interacted
+        if (video.paused && window.__userInteracted) {
           video.play().catch(() => {});
         }
         requestAnimationFrame(checkFrame);
