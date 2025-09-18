@@ -86,6 +86,13 @@ export function lockScroll() {
   return lock;
 }
 
+export function unlockScroll(lockElement) {
+  document.documentElement.classList.remove('is-preloading');
+  if (lockElement?.parentNode) {
+    lockElement.remove();
+  }
+}
+
 export function updateProgressUI(progressText, value) {
   if (progressText) {
     progressText.textContent = value.toString().padStart(2, '0');
