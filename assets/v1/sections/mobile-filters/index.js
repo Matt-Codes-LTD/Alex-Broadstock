@@ -10,18 +10,10 @@ export default function initMobileFilters(container) {
   // Create mobile UI elements
   const { button, panel, backdrop } = createMobileUI();
   
-  // Ensure button starts fully hidden with inline styles
-  button.style.opacity = '0';
-  button.style.visibility = 'hidden';
-  button.style.transform = 'translateX(-50%) translateY(10px)';
-  
-  // Add to DOM after setting initial styles
+  // Add to DOM
   document.body.appendChild(backdrop);
   document.body.appendChild(panel);
   document.body.appendChild(button);
-  
-  // Force reflow to ensure styles are applied
-  button.offsetHeight;
   
   // Clone categories to panel
   const categories = container.querySelector('.home_hero_categories');
@@ -36,20 +28,17 @@ export default function initMobileFilters(container) {
   // Make button globally accessible for reveal timeline
   window.__mobileFiltersButton = button;
   
-  // Reveal function
+  // Reveal function - sets opacity to 1
   const revealButton = () => {
     if (window.gsap) {
-      gsap.set(button, { visibility: 'visible' });
       gsap.to(button, {
         opacity: 1,
-        y: 0,
+        y: -2,
         duration: 0.6,
         ease: "power3.out"
       });
     } else {
-      button.style.visibility = 'visible';
       button.style.opacity = '1';
-      button.style.transform = 'translateX(-50%) translateY(0)';
     }
   };
   
@@ -172,7 +161,7 @@ export default function initMobileFilters(container) {
 }
 
 function createMobileUI() {
-  // Button - starts hidden
+  // Button - CSS handles opacity: 0 to prevent FOUC
   const button = document.createElement('button');
   button.className = 'mobile-filters-button u-text-style-main';
   button.setAttribute('aria-label', 'Open filters');
