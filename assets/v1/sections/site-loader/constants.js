@@ -1,6 +1,10 @@
-// site-loader/constants.js - Configuration
+// site-loader/constants.js - Configuration with Enter button
 export const CONFIG = {
-  MIN_LOAD_TIME: 2000
+  MIN_LOAD_TIME: 0, // Remove delay since we're waiting for Enter click
+  ANIMATION: {
+    morphDuration: 1.8,
+    heroRevealStagger: 0.05
+  }
 };
 
 export const SELECTORS = {
@@ -12,7 +16,8 @@ export const SELECTORS = {
   corners: '.site-loader_corner',
   heroVideo: '.home-hero_video',
   heroContent: '.nav_wrap, .home-hero_menu, .home-awards_list',
-  firstProject: '.home-hero_list:not([style*="display: none"]) .home-hero_item'
+  firstProject: '.home-hero_list:not([style*="display: none"]) .home-hero_item',
+  enterButton: '.site-loader_enter'
 };
 
 export const EASES = {

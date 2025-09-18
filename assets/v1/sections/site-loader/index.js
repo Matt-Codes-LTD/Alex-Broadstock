@@ -1,4 +1,4 @@
-// site-loader/index.js - Orchestrator only
+// site-loader/index.js - Orchestrator with Enter gate
 import { createState } from "./state.js";
 import { createUIElements, lockScroll, unlockScroll } from "./ui-elements.js";
 import { setupVideo } from "./video-setup.js";
@@ -37,12 +37,25 @@ export default function initSiteLoader(container) {
   // Hide hero content during loader
   hideHeroContent(container);
   
-  // Initial states
+  // Initial states - loader visible but elements hidden
   gsap.set(loaderEl, { display: "flex", opacity: 1, zIndex: 10000 });
-  gsap.set(ui.progressText, { opacity: 1 });
-  gsap.set(ui.edgesBox, { "--sl-width": 67, "--sl-height": 67 });
   
-  // Create timeline
+  // IMPORTANT: Hide all loader elements initially except Enter
+  gsap.set([ui.progressText, ui.corners, ui.fpsCounter], { 
+    opacity: 0,
+    visibility: "hidden" 
+  });
+  gsap.set(ui.edgesBox, { 
+    opacity: 0,
+    visibility: "hidden",
+    "--sl-width": 67, 
+    "--sl-height": 67 
+  });
+  gsap.set(ui.videoWrapper, { 
+    opacity: 0 
+  });
+  
+  // Create timeline but DON'T start it until Enter is clicked
   const timeline = createMainTimeline({
     state,
     ui,
@@ -58,10 +71,8 @@ export default function initSiteLoader(container) {
     }
   });
 
-  // Start after minimum time
-  timeline.pause();
-  setTimeout(() => timeline.play(), CONFIG.MIN_LOAD_TIME);
-
+  // Timeline is created but waiting for Enter click to start
+  
   // Cleanup
   return () => {
     timeline.kill();

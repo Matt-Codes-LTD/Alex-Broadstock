@@ -9,7 +9,7 @@ export function createUIElements(loaderEl, container) {
     corners: loaderEl.querySelectorAll(SELECTORS.corners),
     loaderContainer: loaderEl.querySelector(SELECTORS.container),
     heroVideoContainer: container.querySelector(SELECTORS.heroVideo),
-    enterButton: loaderEl.querySelector('.site-loader_enter')
+    enterButton: loaderEl.querySelector(SELECTORS.enterButton)
   };
 
   // Create video wrapper and curtain
