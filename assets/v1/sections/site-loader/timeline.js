@@ -14,7 +14,7 @@ function splitTextToSpans(element) {
     span.textContent = char;
     span.style.display = 'inline-block';
     span.style.opacity = '0';
-    span.style.transform = 'translateY(20px)';
+    span.style.transform = 'translateY(8px)'; // Much more subtle
     if (char === ' ') span.style.width = '0.3em'; // Preserve space width
     return span;
   });
@@ -89,8 +89,8 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     opacity: 1,
     y: 0,
     duration: 0.6,
-    stagger: 0.025, // Slightly faster stagger
-    ease: "power3.out"
+    stagger: 0.02, // Tighter stagger for subtlety
+    ease: "power2.out" // Gentler ease
   }, "-=0.1")
   
   // Phase 2.5: Prepare video while name is visible
@@ -108,10 +108,10 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
   // Phase 2b: Name scales up and fades as video takes over
   .to(nameChars, {
     opacity: 0,
-    scale: 1.1,
-    y: -5,
+    scale: 1.05, // Subtle scale
+    y: -3, // Minimal upward drift
     duration: 0.5,
-    stagger: 0.015,
+    stagger: 0.01, // Tighter exit stagger
     ease: "power2.inOut"
   }, "<") // Simultaneous with video reveal
   
