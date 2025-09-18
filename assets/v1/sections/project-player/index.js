@@ -49,7 +49,7 @@ export default function initProjectPlayer(container) {
     centerBtn.type = "button";
     centerBtn.setAttribute("aria-pressed", "false");
     centerBtn.setAttribute("aria-label", "Unmute");
-    centerBtn.style.color = "#fff";
+    centerBtn.style.color = "var(--swatch--brand-paper)";
     centerBtn.innerHTML = `
       <svg viewBox="0 0 24 24" class="pp-icon" aria-hidden="true" fill="none">
         <g class="pp-icon--group pp-icon--sound">
