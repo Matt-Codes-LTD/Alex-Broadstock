@@ -3,7 +3,7 @@ import { createState } from "./state.js";
 import { createUIElements, lockScroll, unlockScroll } from "./ui-elements.js";
 import { setupVideo } from "./video-setup.js";
 import { createMainTimeline } from "./timeline.js";
-import { hideHeroContent, setupHandoff } from "./hero-handoff.js";
+import { hideHeroContent } from "./hero-handoff.js";
 import { CONFIG } from "./constants.js";
 
 export default function initSiteLoader(container) {
@@ -29,13 +29,18 @@ export default function initSiteLoader(container) {
   loaderEl.style.display = "flex";
 
   // Setup
-  const lockCleanup = lockScroll();
+  const lock = lockScroll();
   const state = createState();
   const ui = createUIElements(loaderEl, container);
   const video = setupVideo(container, ui.videoWrapper);
   
   // Hide hero content during loader
   hideHeroContent(container);
+  
+  // Initial states
+  gsap.set(loaderEl, { display: "flex", opacity: 1, zIndex: 10000 });
+  gsap.set(ui.progressText, { opacity: 1 });
+  gsap.set(ui.edgesBox, { "--sl-width": 67, "--sl-height": 67 });
   
   // Create timeline
   const timeline = createMainTimeline({
@@ -44,15 +49,14 @@ export default function initSiteLoader(container) {
     video,
     container,
     loaderEl,
+    lock,
     onComplete: () => {
       loaderEl.style.display = "none";
-      unlockScroll(lockCleanup);
+      document.documentElement.classList.remove("is-preloading");
+      lock.remove();
       console.log("[SiteLoader] done");
     }
   });
-
-  // Setup handoff communication
-  const handoffCleanup = setupHandoff(timeline, video, ui);
 
   // Start after minimum time
   timeline.pause();
@@ -61,8 +65,12 @@ export default function initSiteLoader(container) {
   // Cleanup
   return () => {
     timeline.kill();
-    unlockScroll(lockCleanup);
-    handoffCleanup();
+    if (lock?.parentNode) lock.remove();
+    document.documentElement.classList.remove("is-preloading");
+    if (state.heroReadyListener) {
+      window.removeEventListener("homeHeroReadyForReveal", state.heroReadyListener);
+    }
+    if (state.heroResumeTimeout) clearTimeout(state.heroResumeTimeout);
     delete loaderEl.dataset.scriptInitialized;
     loaderEl.style.display = "none";
   };

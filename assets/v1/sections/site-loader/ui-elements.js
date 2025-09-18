@@ -1,5 +1,5 @@
-// site-loader/ui-elements.js - UI creation and manipulation
-import { CONFIG, SELECTORS } from "./constants.js";
+// site-loader/ui-elements.js - UI creation
+import { SELECTORS } from "./constants.js";
 
 export function createUIElements(loaderEl, container) {
   const elements = {
@@ -15,7 +15,12 @@ export function createUIElements(loaderEl, container) {
   const { videoWrapper, videoCurtain } = createVideoElements();
   
   // Insert into DOM
-  insertVideoWrapper(loaderEl, videoWrapper, elements.edgesBox);
+  const edgesBoxEl = loaderEl.querySelector(SELECTORS.edgesBox);
+  if (edgesBoxEl) {
+    edgesBoxEl.parentNode.insertBefore(videoWrapper, edgesBoxEl);
+  } else {
+    elements.loaderContainer.appendChild(videoWrapper);
+  }
   
   return {
     ...elements,
@@ -25,15 +30,21 @@ export function createUIElements(loaderEl, container) {
 }
 
 function createVideoElements() {
-  const { width, height } = getVideoDimensions();
+  // Calculate dimensions
+  const vwScreen = window.innerWidth <= 479 ? 479 :
+                   window.innerWidth <= 767 ? 767 :
+                   window.innerWidth <= 991 ? 991 : 1920;
+  
+  const videoWidth = 349 * (window.innerWidth / vwScreen);
+  const videoHeight = 198 * (window.innerWidth / vwScreen);
   
   const videoWrapper = document.createElement('div');
   videoWrapper.className = 'site-loader_video-wrapper';
   
   gsap.set(videoWrapper, {
     position: 'fixed',
-    width,
-    height,
+    width: videoWidth,
+    height: videoHeight,
     left: '50%',
     top: '50%',
     xPercent: -50,
@@ -67,36 +78,6 @@ function createVideoElements() {
   return { videoWrapper, videoCurtain };
 }
 
-function getVideoDimensions() {
-  const screenWidth = window.innerWidth;
-  let scale;
-  
-  if (screenWidth <= CONFIG.DIMENSIONS.mobile.maxWidth) {
-    scale = CONFIG.DIMENSIONS.mobile;
-  } else if (screenWidth <= CONFIG.DIMENSIONS.tablet.maxWidth) {
-    scale = CONFIG.DIMENSIONS.tablet;
-  } else if (screenWidth <= CONFIG.DIMENSIONS.desktop.maxWidth) {
-    scale = CONFIG.DIMENSIONS.desktop;
-  } else {
-    scale = CONFIG.DIMENSIONS.default;
-  }
-  
-  return {
-    width: 349 * (screenWidth / (scale.maxWidth || 1920)),
-    height: 198 * (screenWidth / (scale.maxWidth || 1920))
-  };
-}
-
-function insertVideoWrapper(loaderEl, videoWrapper, edgesBox) {
-  const container = loaderEl.querySelector(SELECTORS.container);
-  
-  if (edgesBox) {
-    edgesBox.parentNode.insertBefore(videoWrapper, edgesBox);
-  } else {
-    container.appendChild(videoWrapper);
-  }
-}
-
 export function lockScroll() {
   document.documentElement.classList.add('is-preloading');
   const lock = document.createElement('style');
@@ -105,31 +86,17 @@ export function lockScroll() {
   return lock;
 }
 
-export function unlockScroll(lockElement) {
-  document.documentElement.classList.remove('is-preloading');
-  if (lockElement?.parentNode) {
-    lockElement.remove();
-  }
-}
-
 export function updateProgressUI(progressText, value) {
   if (progressText) {
-    const pct = Math.round(value * 100);
-    progressText.textContent = pct.toString().padStart(2, '0');
+    progressText.textContent = value.toString().padStart(2, '0');
   }
 }
 
 export function updateEdgesUI(edgesBox, progress) {
   if (!edgesBox) return;
-  
-  const { startWidth, endWidth, startHeight, endHeight } = CONFIG.PROGRESS;
-  const width = Math.round(startWidth + (endWidth - startWidth) * progress);
-  const height = Math.round(startHeight + (endHeight - startHeight) * progress);
-  
-  gsap.set(edgesBox, {
-    '--sl-width': width,
-    '--sl-height': height
-  });
+  const width = Math.round(67 + (371 - 67) * progress);
+  const height = Math.round(67 + (220 - 67) * progress);
+  gsap.set(edgesBox, { '--sl-width': width, '--sl-height': height });
 }
 
 export function updateFPSUI(fpsCounter, fps) {
