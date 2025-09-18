@@ -1,14 +1,52 @@
-// site-loader/timeline.js - Timeline creation matching original exactly
+// site-loader/timeline.js - Timeline creation with name reveal
 import { CONFIG, EASES } from "./constants.js";
 import { updateProgressUI, updateEdgesUI, updateFPSUI } from "./ui-elements.js";
 import { ensureVideoReady } from "./video-setup.js";
 import { morphToHeroStage } from "./morph.js";
+
+// Helper function to split text into spans
+function splitTextToSpans(element) {
+  const text = element.textContent;
+  element.innerHTML = '';
+  
+  const chars = text.split('').map((char, i) => {
+    const span = document.createElement('span');
+    span.textContent = char;
+    span.style.display = 'inline-block';
+    span.style.opacity = '0';
+    span.style.transform = 'translateY(20px)';
+    if (char === ' ') span.style.width = '0.3em'; // Preserve space width
+    return span;
+  });
+  
+  chars.forEach(span => element.appendChild(span));
+  return chars;
+}
 
 export function createMainTimeline({ state, ui, video, container, loaderEl, lock, onComplete }) {
   // Register custom eases
   gsap.registerEase("custom2InOut", p => 
     p < 0.5 ? 2 * p * p : 1 - ((-2 * p + 2) ** 2) / 2
   );
+  
+  // Setup name element
+  const nameEl = loaderEl.querySelector('.site-loader_name_reveal');
+  let nameChars = [];
+  
+  // Prevent FOUC - set initial state
+  if (nameEl) {
+    gsap.set(nameEl, { 
+      opacity: 1, 
+      visibility: 'visible',
+      position: 'absolute',
+      left: '50%',
+      top: '50%',
+      xPercent: -50,
+      yPercent: -50,
+      zIndex: 10
+    });
+    nameChars = splitTextToSpans(nameEl);
+  }
   
   // Resume handler
   const onHeroReadyForReveal = () => { 
@@ -46,13 +84,43 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
   // Phase 2: Fade progress text
   .to(ui.progressText, { opacity: 0, duration: 0.3 })
   
-  // Phase 2.5: Ensure video ready
+  // Phase 2a: Name reveal animation
+  .to(nameChars, {
+    opacity: 1,
+    y: 0,
+    duration: 0.6,
+    stagger: 0.025, // Slightly faster stagger
+    ease: "power3.out"
+  }, "-=0.1")
+  
+  // Phase 2.5: Prepare video while name is visible
   .call(async () => {
     await ensureVideoReady(video);
-  })
+  }, null, "+=0.3") // Start loading during name animation
   
-  // Phase 3: Reveal video
-  .to(ui.videoWrapper, { opacity: 1, duration: 0.3, ease: "power2.out" })
+  // Phase 3: Begin video fade-in behind name
+  .to(ui.videoWrapper, { 
+    opacity: 0.5, // Partial reveal
+    duration: 0.4, 
+    ease: "power2.in" 
+  }, "+=0.2") // Small pause after name appears
+  
+  // Phase 2b: Name scales up and fades as video takes over
+  .to(nameChars, {
+    opacity: 0,
+    scale: 1.1,
+    y: -5,
+    duration: 0.5,
+    stagger: 0.015,
+    ease: "power2.inOut"
+  }, "<") // Simultaneous with video reveal
+  
+  // Complete video reveal
+  .to(ui.videoWrapper, { 
+    opacity: 1, 
+    duration: 0.3, 
+    ease: "power2.out" 
+  }, "-=0.2")
   .to(ui.videoCurtain, { 
     xPercent: 100, 
     duration: 1.6, 
