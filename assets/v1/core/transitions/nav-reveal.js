@@ -24,84 +24,53 @@ export function createProjectNavAnimation(container) {
   
   const tl = gsap.timeline();
   
-  // Nav wrapper foundation
-  tl.fromTo(".nav_wrap", {
+  // All elements reveal nearly simultaneously for instant appearance
+  
+  // Nav wrapper and center button - appear immediately
+  tl.fromTo([".nav_wrap", ".project-player_center-toggle"], {
     opacity: 0,
-    y: -20
+    y: -10
   }, {
     opacity: 1,
     y: 0,
-    duration: 0.8,
-    ease: "power3.out"
+    duration: 0.3,
+    ease: "power2.out"
   })
   
-  // Back link + other nav links
-  .fromTo(".nav_link", {
-    opacity: 0,
-    x: 20
-  }, {
-    opacity: 1,
-    x: 0,
-    duration: 0.5,
-    stagger: 0.08,
-    ease: "power2.out"
-  }, "-=0.4")
-  
-  // Project name - slide from left like project titles
-  .fromTo(".project_name", {
-    opacity: 0,
-    x: -30,
-    filter: "blur(4px)"
-  }, {
-    opacity: 1,
-    x: 0,
-    filter: "blur(0px)",
-    duration: 0.5,
-    ease: "power2.out"
-  }, "-=0.3")
-  
-  // Bottom controls container
+  // Controls container - appears with nav
   .fromTo(".project-player_controls", {
     opacity: 0,
-    y: 20
+    y: 10
   }, {
     opacity: 1,
     y: 0,
-    duration: 0.6,
-    ease: "power3.out"
-  }, "-=0.4")
+    duration: 0.3,
+    ease: "power2.out"
+  }, "<") // Start at same time as nav
   
-  // Play button and timeline (subtle fade)
-  .fromTo([".project-player_btn--play", ".project-player_timeline"], {
+  // Links and project name - quick fade in
+  .fromTo([".nav_link", ".project_name"], {
     opacity: 0
   }, {
     opacity: 1,
-    duration: 0.4,
+    duration: 0.25,
+    stagger: 0.02, // Minimal stagger
     ease: "power2.out"
-  }, "-=0.3")
+  }, "<0.05") // Tiny offset
   
-  // Sound and Fullscreen text - stagger up from bottom
-  .fromTo([".project-player_btn--mute", ".project-player_btn--fs"], {
-    opacity: 0,
-    y: 15
+  // Player controls - all together
+  .fromTo([
+    ".project-player_btn--play", 
+    ".project-player_timeline",
+    ".project-player_btn--mute", 
+    ".project-player_btn--fs"
+  ], {
+    opacity: 0
   }, {
     opacity: 1,
-    y: 0,
-    duration: 0.5,
-    stagger: 0.08,
+    duration: 0.25,
     ease: "power2.out"
-  }, "-=0.3")
-  
-  // Center sound/play button - scale up with bounce
-  .fromTo(".project-player_center-toggle", {
-    opacity: 0,
-    scale: 0.85
-  }, {
-    opacity: 1,
-    scale: 1,
-    duration: 0.6,
-    ease: "back.out(1.7)"
-  }, "-=0.4");
+  }, "<");
   
   return tl;
 }
