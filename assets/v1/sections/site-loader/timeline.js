@@ -1,4 +1,4 @@
-// site-loader/timeline.js - Timeline creation with name reveal
+// site-loader/timeline.js - Timeline creation with mobile filters integration
 import { CONFIG, EASES } from "./constants.js";
 import { updateProgressUI, updateEdgesUI, updateFPSUI } from "./ui-elements.js";
 import { ensureVideoReady } from "./video-setup.js";
@@ -14,8 +14,8 @@ function splitTextToSpans(element) {
     span.textContent = char;
     span.style.display = 'inline-block';
     span.style.opacity = '0';
-    span.style.transform = 'translateY(8px)'; // Much more subtle
-    if (char === ' ') span.style.width = '0.3em'; // Preserve space width
+    span.style.transform = 'translateY(8px)';
+    if (char === ' ') span.style.width = '0.3em';
     return span;
   });
   
@@ -89,31 +89,31 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     opacity: 1,
     y: 0,
     duration: 0.6,
-    stagger: 0.02, // Tighter stagger for subtlety
-    ease: "power2.out" // Gentler ease
+    stagger: 0.02,
+    ease: "power2.out"
   }, "-=0.1")
   
   // Phase 2.5: Prepare video while name is visible
   .call(async () => {
     await ensureVideoReady(video);
-  }, null, "+=0.3") // Start loading during name animation
+  }, null, "+=0.3")
   
   // Phase 3: Begin video fade-in behind name
   .to(ui.videoWrapper, { 
-    opacity: 0.5, // Partial reveal
+    opacity: 0.5,
     duration: 0.4, 
     ease: "power2.in" 
-  }, "+=0.2") // Small pause after name appears
+  }, "+=0.2")
   
   // Phase 2b: Name scales up and fades as video takes over
   .to(nameChars, {
     opacity: 0,
-    scale: 1.05, // Subtle scale
-    y: -3, // Minimal upward drift
+    scale: 1.05,
+    y: -3,
     duration: 0.5,
-    stagger: 0.01, // Tighter exit stagger
+    stagger: 0.01,
     ease: "power2.inOut"
-  }, "<") // Simultaneous with video reveal
+  }, "<")
   
   // Complete video reveal
   .to(ui.videoWrapper, { 
@@ -126,7 +126,6 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     duration: 1.6, 
     ease: "custom2InOut",
     onComplete: () => {
-      // Start morphing when curtain finishes
       morphToHeroStage(ui.videoWrapper, ui.heroVideoContainer, 1.8);
     }
   })
@@ -146,16 +145,13 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
   
   // Phase 5: Handoff during morph
   .call(() => {
-    // Pre-position hero stage
     if (ui.heroVideoContainer) {
       gsap.set(ui.heroVideoContainer, { opacity: 1, zIndex: 0 });
     }
     
-    // Get first video URL
     const firstProjectItem = container.querySelector('.home-hero_list:not([style*="display: none"]) .home-hero_item');
     const firstVideoUrl = firstProjectItem?.dataset?.video;
     
-    // Dispatch handoff
     const detail = {
       src: firstVideoUrl || null,
       currentTime: video?.currentTime || 0,
@@ -165,8 +161,6 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     };
     
     window.dispatchEvent(new CustomEvent("siteLoaderMorphBegin", { detail }));
-    
-    // Fallback timeout
     state.heroResumeTimeout = setTimeout(onHeroReadyForReveal, 1500);
   }, null, "-=1.2")
   
@@ -174,7 +168,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
   .addPause("await-hero-ready")
   
   // Phase 6: Hero reveal (plays after resume)
-  .set(loaderEl, { zIndex: 1 }) // Move loader behind
+  .set(loaderEl, { zIndex: 1 })
   .set([
     ".nav_wrap",
     ".home_hero_categories", 
@@ -268,6 +262,25 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
       }
     });
   }, "-=0.2")
+  
+  // Mobile filters button - appears after project rows
+  .add(() => {
+    const mobileFiltersButton = window.__mobileFiltersButton;
+    if (mobileFiltersButton && window.innerWidth <= 991) {
+      gsap.fromTo(mobileFiltersButton, {
+        opacity: 0,
+        y: 10,
+        visibility: "hidden"
+      }, {
+        opacity: 1,
+        y: 0,
+        visibility: "visible",
+        duration: 0.5,
+        ease: "power2.out",
+        delay: 0.2 // Small delay after project rows
+      });
+    }
+  }, "-=0.1")
   
   // Awards strip
   .fromTo(".home-awards_list", {

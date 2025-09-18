@@ -20,6 +20,18 @@ export default function initMobileFilters(container) {
   
   let isOpen = false;
   
+  // Make button globally accessible for reveal timeline
+  window.__mobileFiltersButton = button;
+  
+  // If not initial page load or no site loader, show immediately
+  const siteLoader = document.querySelector('.site-loader_wrap[data-script-initialized="true"]');
+  if (!siteLoader || !window.__initialPageLoad) {
+    setTimeout(() => {
+      button.classList.add('is-ready');
+    }, 100);
+  }
+  // Otherwise, the site loader reveal timeline will handle it
+  
   function open() {
     isOpen = true;
     document.body.style.overflow = 'hidden';
@@ -113,11 +125,12 @@ export default function initMobileFilters(container) {
     backdrop.remove();
     observer.disconnect();
     delete wrap.dataset.mobileFiltersInit;
+    delete window.__mobileFiltersButton;
   };
 }
 
 function createMobileUI() {
-  // Button
+  // Button - starts hidden
   const button = document.createElement('button');
   button.className = 'mobile-filters-button u-text-style-main';
   button.setAttribute('aria-label', 'Open filters');
