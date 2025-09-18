@@ -1,6 +1,4 @@
-// ============================================
-// FILE 2: assets/v1/sections/home-hero/index.js
-// ============================================
+// assets/v1/sections/home-hero/index.js
 import { createVideoManager } from "./video-manager.js";
 import { initCategoryFilter } from "./category-filter.js";
 
@@ -20,19 +18,80 @@ export default function initHomeHero(container) {
   let activeItem = null;
   let handoff = null;
   let revealedOnce = false;
+  let mobilePlayTriggered = false;
+  
   const emitReadyOnce = () => {
     if (revealedOnce) return;
     revealedOnce = true;
     window.dispatchEvent(new CustomEvent("homeHeroReadyForReveal"));
   };
 
+  // Mobile play trigger function
+  const triggerMobilePlay = () => {
+    if (mobilePlayTriggered) return;
+    mobilePlayTriggered = true;
+    console.log("[HomeHero] Mobile play triggered");
+    
+    // Trigger playback in video manager
+    videoManager.triggerMobilePlayback();
+    
+    // Also try to play all existing videos
+    videoStage.querySelectorAll(".home-hero_video_el").forEach(v => {
+      if (v.paused) {
+        v.play().catch((err) => {
+          console.log("[HomeHero] Mobile play failed:", err.message);
+        });
+      }
+    });
+  };
+
   function initializeHero() {
     hideMetaTags();
     preloadVideos();
+    
+    // Setup mobile play triggers
+    setupMobilePlayTriggers();
+    
     const firstVisible = items.find(item => item.style.display !== "none");
     if (firstVisible) setActive(firstVisible, { useHandoff: true });
     section.dataset.introComplete = "true";
     console.log("[HomeHero] Intro setup complete (no timelines)");
+  }
+
+  function setupMobilePlayTriggers() {
+    // Multiple trigger points for mobile play
+    const triggers = ['touchstart', 'click', 'touchend'];
+    
+    triggers.forEach(event => {
+      document.addEventListener(event, triggerMobilePlay, { once: true, passive: true });
+    });
+    
+    // Also trigger on specific hero interactions
+    listParent.addEventListener('touchstart', triggerMobilePlay, { once: true, passive: true });
+    
+    // Visibility change trigger
+    const handleVisibilityChange = () => {
+      if (!document.hidden && !mobilePlayTriggered) {
+        setTimeout(triggerMobilePlay, 100);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Intersection observer trigger (when hero comes into view)
+    if ('IntersectionObserver' in window) {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting && !mobilePlayTriggered) {
+              triggerMobilePlay();
+              observer.disconnect();
+            }
+          });
+        },
+        { threshold: 0.1 }
+      );
+      observer.observe(section);
+    }
   }
 
   const hasSiteLoader = document.querySelector(".site-loader_wrap");
@@ -104,11 +163,18 @@ export default function initHomeHero(container) {
       if (useHandoff && handoff?.isPreloaded) {
         // Video already in place, just emit ready
         emitReadyOnce();
+        
+        // Trigger mobile play after a small delay
+        setTimeout(triggerMobilePlay, 500);
       } else {
         videoManager.setActive(videoSrc, activeLink, {
           startAt: useHandoff ? handoff.currentTime : undefined,
           mode: useHandoff ? "instant" : "tween",
-          onVisible: emitReadyOnce
+          onVisible: () => {
+            emitReadyOnce();
+            // Trigger mobile play after transition
+            setTimeout(triggerMobilePlay, 500);
+          }
         });
       }
     }
@@ -144,6 +210,9 @@ export default function initHomeHero(container) {
     if (item.style.display !== "none") {
       clearTimeout(hoverTimeout);
       hoverTimeout = setTimeout(() => setActive(item), 50);
+      
+      // Trigger mobile play on any interaction
+      triggerMobilePlay();
     }
   }
 
@@ -160,6 +229,9 @@ export default function initHomeHero(container) {
   const handleVisibility = () => {
     if (document.hidden) {
       videoStage.querySelectorAll(".home-hero_video_el").forEach(v => v.pause?.());
+    } else {
+      // Trigger mobile play when page becomes visible
+      setTimeout(triggerMobilePlay, 100);
     }
   };
   document.addEventListener("visibilitychange", handleVisibility);
@@ -171,6 +243,12 @@ export default function initHomeHero(container) {
     listParent.removeEventListener("touchstart", handleInteraction);
     listParent.removeEventListener("click", handleInteraction);
     document.removeEventListener("visibilitychange", handleVisibility);
+    
+    // Remove mobile play triggers
+    ['touchstart', 'click', 'touchend'].forEach(event => {
+      document.removeEventListener(event, triggerMobilePlay);
+    });
+    
     cleanupFilter?.();
     delete section.dataset.scriptInitialized;
     delete section.dataset.introComplete;

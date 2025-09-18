@@ -1,6 +1,4 @@
-// ============================================
-// FILE 3: assets/v1/sections/home-hero/video-manager.js
-// ============================================
+// assets/v1/sections/home-hero/video-manager.js
 import { prefersReducedMotion, prefersReducedData } from "./utils.js";
 
 export function createVideoManager(stage) {
@@ -34,10 +32,13 @@ export function createVideoManager(stage) {
     v.className = "home-hero_video_el";
     v.src = src;
     v.muted = true;
+    v.setAttribute("muted", ""); // Critical for mobile autoplay
     v.loop = true;
     v.playsInline = true;
+    v.setAttribute("playsinline", ""); // Critical for iOS inline play
     v.preload = "auto";
     v.crossOrigin = "anonymous";
+    v.setAttribute("crossorigin", "anonymous"); // DOM attribute
     gsap.set(v, { opacity: 0, transformOrigin: "50% 50%" });
     stage.appendChild(v);
     videoBySrc.set(src, v);
@@ -50,7 +51,9 @@ export function createVideoManager(stage) {
     const start = () => {
       v.play().then(() => {
         setTimeout(() => { if (!v.__keepAlive) v.pause?.(); }, 250);
-      }).catch(() => {});
+      }).catch((err) => {
+        console.log("[VideoManager] Warm play failed:", err.message);
+      });
     };
     v.readyState >= 2 ? start() : v.addEventListener("canplaythrough", start, { once: true });
   }
@@ -72,7 +75,12 @@ export function createVideoManager(stage) {
   }
 
   function restart(v) {
-    try { "fastSeek" in v ? v.fastSeek(0) : (v.currentTime = 0); v.play?.(); } catch {}
+    try { 
+      "fastSeek" in v ? v.fastSeek(0) : (v.currentTime = 0); 
+      v.play?.().catch((err) => {
+        console.log("[VideoManager] Restart play failed:", err.message);
+      }); 
+    } catch {}
   }
 
   const whenReady = (v) => new Promise(res => {
@@ -150,7 +158,9 @@ export function createVideoManager(stage) {
       await whenReady(next);
       if (opts.startAt != null) {
         await seekTo(next, Math.max(0, opts.startAt));
-        await next.play().catch(() => {});
+        await next.play().catch((err) => {
+          console.log("[VideoManager] Play failed:", err.message);
+        });
       } else {
         restart(next);
       }
@@ -223,10 +233,22 @@ export function createVideoManager(stage) {
     }
   }
 
+  // Mobile play trigger
+  function triggerMobilePlayback() {
+    videoBySrc.forEach(v => {
+      if (v.paused && v.__keepAlive) {
+        v.play().catch((err) => {
+          console.log("[VideoManager] Mobile play trigger failed:", err.message);
+        });
+      }
+    });
+  }
+
   return {
     createVideo,
     warmVideo,
     adoptVideo,
+    triggerMobilePlayback,
     setActive: (src, linkEl, opts) => { setActive(src, linkEl, opts); preloadNext(src); },
     get activeLink() { return activeLink; },
     get activeVideo() { return activeVideo; }
