@@ -98,7 +98,7 @@ function createTransitionGrid(cols, rows) {
       margin-top: -1px;
       transform: scaleY(0);
       transform-origin: 0% 100%;
-      background: var(--swatch--brand-ink, #FDFCF3);
+      background: var(--swatch--brand-paper, #FDFCF3);
       will-change: transform;
       backface-visibility: hidden;
       contain: layout style paint;
