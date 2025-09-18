@@ -1,9 +1,11 @@
+// assets/v1/core/page-scripts.js
 // Core + sections
 import initCursor from "../../globals/cursor/index.js";
 import initSplitChars from "../sections/split-chars/index.js";
 import initHomeHero from "../sections/home-hero/index.js";
 import initProjectPlayer from "../sections/project-player/index.js";
 import initSiteLoader from "../sections/site-loader/index.js";
+import initMobileFilters from "../sections/mobile-filters/index.js";
 
 /* =========================
    PAGE SCRIPTS (per Barba container)
@@ -15,6 +17,11 @@ export function initPageScripts(container) {
   cleanups.push(initSplitChars(container));
   cleanups.push(initHomeHero(container));
   cleanups.push(initProjectPlayer(container));
+  
+  // Mobile filters - only on home page
+  if (container.dataset.barbaNamespace === "home") {
+    cleanups.push(initMobileFilters(container));
+  }
 
   // Site loader - only on home page initial load or refresh
   if (container.dataset.barbaNamespace === "home" && window.__initialPageLoad) {
