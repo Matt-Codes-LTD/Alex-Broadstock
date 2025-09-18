@@ -6,17 +6,33 @@ export function createVideoManager(stage) {
   let activeVideo = null, activeLink = null;
   let transitionInProgress = false;
 
+  // Initialize existing HTML videos
+  function initExistingVideos() {
+    const existingVideos = stage.querySelectorAll('.home-hero_video_el');
+    existingVideos.forEach(v => {
+      // Ensure mobile attributes
+      v.setAttribute("muted", "");
+      v.setAttribute("playsinline", "");
+      v.muted = true;
+      v.playsInline = true;
+      
+      // Register in map
+      if (v.src) {
+        videoBySrc.set(v.src, v);
+        console.log("[VideoManager] Registered existing video:", v.src);
+      }
+    });
+  }
+
+  // Call init immediately
+  initExistingVideos();
+
   function adoptVideo(src, videoElement) {
     if (!src || !videoElement) return null;
     
-    // Ensure video has correct properties
     videoElement.__keepAlive = true;
     videoElement.__warmed = true;
-    
-    // Register in map
     videoBySrc.set(src, videoElement);
-    
-    // Set as active immediately
     activeVideo = videoElement;
     
     console.log("[VideoManager] Adopted video:", src);
@@ -25,20 +41,36 @@ export function createVideoManager(stage) {
 
   function createVideo(src) {
     if (!src) return null;
+    
+    // First check if video already exists
     let v = videoBySrc.get(src);
     if (v) return v;
-
+    
+    // Check DOM for video with this src
+    v = stage.querySelector(`video[src="${src}"]`);
+    if (v) {
+      // Found in DOM, register it
+      v.setAttribute("muted", "");
+      v.setAttribute("playsinline", "");
+      v.muted = true;
+      v.playsInline = true;
+      videoBySrc.set(src, v);
+      return v;
+    }
+    
+    // Fallback: create new video if not found
+    console.warn("[VideoManager] Creating new video (not found in HTML):", src);
     v = document.createElement("video");
     v.className = "home-hero_video_el";
     v.src = src;
     v.muted = true;
-    v.setAttribute("muted", ""); // Critical for mobile autoplay
+    v.setAttribute("muted", "");
     v.loop = true;
     v.playsInline = true;
-    v.setAttribute("playsinline", ""); // Critical for iOS inline play
+    v.setAttribute("playsinline", "");
     v.preload = "auto";
     v.crossOrigin = "anonymous";
-    v.setAttribute("crossorigin", "anonymous"); // DOM attribute
+    v.setAttribute("crossorigin", "anonymous");
     gsap.set(v, { opacity: 0, transformOrigin: "50% 50%" });
     stage.appendChild(v);
     videoBySrc.set(src, v);
@@ -107,12 +139,11 @@ export function createVideoManager(stage) {
 
   function onFirstRenderedFrame(v, cb) {
     if ("requestVideoFrameCallback" in v) {
-      // @ts-ignore
       v.requestVideoFrameCallback(() => cb());
     } else {
       const h = () => { v.removeEventListener("timeupdate", h); cb(); };
       v.addEventListener("timeupdate", h, { once: true });
-      setTimeout(cb, 120); // safety
+      setTimeout(cb, 120);
     }
   }
 
@@ -125,7 +156,6 @@ export function createVideoManager(stage) {
     next.__keepAlive = true;
     if (activeVideo && activeVideo !== next) activeVideo.__keepAlive = false;
 
-    // Same video, just update link
     if (next === activeVideo) {
       if (linkEl && linkEl !== activeLink) {
         updateLinkState(activeLink, linkEl);
@@ -138,8 +168,7 @@ export function createVideoManager(stage) {
     const previousVideo = activeVideo;
     activeVideo = next;
 
-    // options
-    const mode        = opts.mode || "tween";     // "instant" | "tween"
+    const mode        = opts.mode || "tween";
     const fromScale   = opts.tweenFromScale ?? 1.03;
     const tweenDur    = opts.tweenDuration  ?? 0.7;
     const tweenEase   = opts.tweenEase      ?? "power3.out";
@@ -167,32 +196,25 @@ export function createVideoManager(stage) {
     };
 
     if (mode === "instant" || prefersReducedMotion) {
-      // Enhanced instant mode for loader handoff
       if (previousVideo) { previousVideo.classList.remove("is-active"); gsap.set(previousVideo, { opacity: 0, scale: 1 }); }
       next.classList.add("is-active");
       gsap.set(next, { opacity: 1, scale: 1, transformOrigin: "50% 50%" });
       
-      // Enhanced frame sync for loader handoff
       playNew().then(() => {
-        // Wait for actual frame render
         onFirstRenderedFrame(next, () => {
-          // Double-check video is playing and visible
           if (!next.paused && next.readyState >= 2) {
-            // Add small delay to ensure frame is painted
             requestAnimationFrame(() => {
               requestAnimationFrame(() => {
                 opts.onVisible?.();
               });
             });
           } else {
-            // Fallback if video not ready
             opts.onVisible?.();
           }
         });
       });
       transitionInProgress = false;
     } else {
-      // Gentle crossfade + micro-settle
       const prepare = async () => {
         await playNew();
         next.classList.add("is-active");
@@ -233,7 +255,6 @@ export function createVideoManager(stage) {
     }
   }
 
-  // Mobile play trigger
   function triggerMobilePlayback() {
     videoBySrc.forEach(v => {
       if (v.paused && v.__keepAlive) {
@@ -245,6 +266,7 @@ export function createVideoManager(stage) {
   }
 
   return {
+    initExistingVideos,
     createVideo,
     warmVideo,
     adoptVideo,
