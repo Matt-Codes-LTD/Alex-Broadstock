@@ -88,7 +88,7 @@ export function revealHeroContent(container) {
   return tl;
 }
 
-function revealProjectRows(container) {
+export function revealProjectRows(container) {
   const rows = container.querySelectorAll(".home-hero_list:not([style*='display: none'])");
   
   rows.forEach((row, index) => {
@@ -120,7 +120,7 @@ function revealProjectRows(container) {
   });
 }
 
-function clearProps() {
+export function clearProps() {
   gsap.set([
     ".nav_wrap",
     ".brand_logo",

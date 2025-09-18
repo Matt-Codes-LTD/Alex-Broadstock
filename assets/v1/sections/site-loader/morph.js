@@ -1,85 +1,42 @@
-// site-loader/video-setup.js - Video creation and management
-import { SELECTORS } from "./constants.js";
+// site-loader/morph.js - FLIP morphing animation
+import { CONFIG } from "./constants.js";
 
-export function setupVideo(container, videoWrapper) {
-  const firstProject = container.querySelector(SELECTORS.firstProject);
-  const videoUrl = firstProject?.dataset?.video;
+export function morphToHeroStage(videoWrapper, heroContainer, duration = CONFIG.ANIMATION.morphDuration) {
+  if (!heroContainer || !videoWrapper) return null;
   
-  if (!videoUrl) {
-    console.warn("[SiteLoader] No video URL found");
-    return null;
-  }
+  const from = videoWrapper.getBoundingClientRect();
+  const to = heroContainer.getBoundingClientRect();
   
-  const video = createVideo(videoUrl);
-  videoWrapper.appendChild(video);
+  const fromCx = from.left + from.width / 2;
+  const fromCy = from.top + from.height / 2;
+  const toCx = to.left + to.width / 2;
+  const toCy = to.top + to.height / 2;
   
-  // Pre-warm immediately
-  warmVideo(video);
+  const dx = toCx - fromCx;
+  const dy = toCy - fromCy;
   
-  return video;
-}
-
-function createVideo(src) {
-  const video = document.createElement('video');
+  // Use larger scale for cover behavior
+  const scale = Math.max(
+    to.width / from.width,
+    to.height / from.height
+  );
   
-  Object.assign(video, {
-    src,
-    muted: true,
-    loop: true,
-    playsInline: true,
-    preload: 'auto',
-    crossOrigin: 'anonymous'
+  // GPU acceleration
+  gsap.set(videoWrapper, {
+    willChange: 'transform',
+    force3D: true
   });
   
-  video.style.cssText = 'width:100%;height:100%;object-fit:cover;';
-  
-  console.log("[SiteLoader] Created video:", src);
-  
-  return video;
-}
-
-function warmVideo(video) {
-  if (!video) return;
-  
-  video.load();
-  video.currentTime = 0.001;
-}
-
-export async function ensureVideoReady(video) {
-  if (!video || video.__frameReady) return;
-  
-  await new Promise(resolve => {
-    const checkFrame = () => {
-      if (video.readyState >= 3 && video.currentTime > 0) {
-        // Use requestVideoFrameCallback if available
-        if ('requestVideoFrameCallback' in video) {
-          video.requestVideoFrameCallback(() => {
-            video.__frameReady = true;
-            resolve();
-          });
-        } else {
-          // Fallback: wait for two animation frames
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              video.__frameReady = true;
-              resolve();
-            });
-          });
-        }
-      } else {
-        requestAnimationFrame(checkFrame);
-      }
-    };
-    checkFrame();
+  return gsap.to(videoWrapper, {
+    x: dx,
+    y: dy,
+    scaleX: scale,
+    scaleY: scale,
+    duration,
+    ease: 'power3.inOut',
+    force3D: true,
+    onComplete: () => {
+      gsap.set(videoWrapper, { willChange: 'auto' });
+    }
   });
-}
-
-export function startVideoPlayback(video, progress) {
-  if (!video || video.__started) return;
-  
-  if (progress >= 0.8) {
-    video.__started = true;
-    video.currentTime = 0.001;
-    video.play().catch(() => {});
-  }
 }
