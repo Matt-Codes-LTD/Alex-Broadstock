@@ -70,7 +70,7 @@ function createVideoElements() {
     left: 0,
     width: '100%',
     height: '100%',
-    background: '#020202'
+    background: 'var(--swatch--brand-ink)'
   });
   
   videoWrapper.appendChild(videoCurtain);
