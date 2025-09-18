@@ -10,14 +10,10 @@ export function hideHeroContent(container) {
 }
 
 export function setupHandoff(timeline, video, ui) {
-  const onHeroReady = () => {
-    console.log("[SiteLoader] Hero ready, resuming timeline");
-    timeline.play();
-  };
-  
-  window.addEventListener("homeHeroReadyForReveal", onHeroReady, { once: true });
+  // The timeline pause/resume is now handled inside the timeline itself
+  // This just returns a cleanup function
   
   return () => {
-    window.removeEventListener("homeHeroReadyForReveal", onHeroReady);
+    // Cleanup is handled in state
   };
 }
