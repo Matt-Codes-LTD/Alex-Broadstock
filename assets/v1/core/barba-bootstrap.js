@@ -1,7 +1,10 @@
 // barba-bootstrap.js - Simplified orchestrator
+// barba-bootstrap.js - No changes needed, but verify the import path
 import { initPageScripts, initGlobal } from "./page-scripts.js";
 import { createGridTransition } from "./transitions/grid-transition.js";
 import { createProjectNavAnimation } from "./transitions/nav-reveal.js";
+
+// ... rest remains the same
 
 document.addEventListener("DOMContentLoaded", () => {
   console.log("[Barba] init starting…");

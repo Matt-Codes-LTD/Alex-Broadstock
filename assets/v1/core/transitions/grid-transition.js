@@ -1,3 +1,7 @@
+// site-timelines/grid-transition-timeline.js
+import { calculateStaggerDelay } from "../core/transitions/stagger-calc.js";
+
+// ... rest of the file remains the same
 // transitions/grid-transition.js - Grid transition system
 import { initPageScripts } from "../page-scripts.js";
 import { createGridTransitionSequence } from "../../site-timelines/grid-transition-timeline.js";
