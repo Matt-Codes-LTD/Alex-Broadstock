@@ -1,4 +1,5 @@
 // site-timelines/grid-transition-timeline.js
+// Fix the import path - go up one level, then into core
 import { calculateStaggerDelay } from "../core/transitions/stagger-calc.js";
 
 export function createGridEnterTimeline({ divs, cols, rows }) {
