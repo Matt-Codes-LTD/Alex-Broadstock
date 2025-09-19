@@ -1,4 +1,4 @@
-// site-loader/timeline.js - Timeline with proper Enter gate
+// site-loader/timeline.js - Timeline creation with mobile filters integration
 import { CONFIG, EASES } from "./constants.js";
 import { updateProgressUI, updateEdgesUI, updateFPSUI } from "./ui-elements.js";
 import { ensureVideoReady } from "./video-setup.js";
@@ -14,7 +14,7 @@ function splitTextToSpans(element) {
     span.textContent = char;
     span.style.display = 'inline-block';
     span.style.opacity = '0';
-    span.style.transform = 'translateY(10px)';
+    span.style.transform = 'translateY(8px)';
     if (char === ' ') span.style.width = '0.3em';
     return span;
   });
@@ -29,47 +29,15 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     p < 0.5 ? 2 * p * p : 1 - ((-2 * p + 2) ** 2) / 2
   );
   
-  // Get elements
-  const enterEl = ui.enterButton;
+  // Setup name element
   const nameEl = loaderEl.querySelector('.site-loader_name_reveal');
-  let enterChars = [];
   let nameChars = [];
   
-  // Setup Enter button - VISIBLE from start
-  if (enterEl) {
-    // Make Enter visible and positioned
-    gsap.set(enterEl, { 
-      opacity: 1, 
-      visibility: 'visible',
-      position: 'absolute',
-      left: '50%',
-      top: '50%',
-      xPercent: -50,
-      yPercent: -50,
-      zIndex: 100,
-      cursor: 'pointer',
-      pointerEvents: 'all'
-    });
-    
-    // Split text and prepare for animation
-    enterChars = splitTextToSpans(enterEl);
-    
-    // Animate Enter text IN immediately
-    gsap.to(enterChars, {
-      opacity: 1,
-      y: 0,
-      duration: 0.8,
-      stagger: 0.04,
-      ease: "power3.out",
-      delay: 0.2 // Small delay for polish
-    });
-  }
-  
-  // Setup name element (hidden initially)
+  // Prevent FOUC - set initial state
   if (nameEl) {
     gsap.set(nameEl, { 
-      opacity: 0, 
-      visibility: 'hidden',
+      opacity: 1, 
+      visibility: 'visible',
       position: 'absolute',
       left: '50%',
       top: '50%',
@@ -80,7 +48,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     nameChars = splitTextToSpans(nameEl);
   }
   
-  // Resume handler for later
+  // Resume handler
   const onHeroReadyForReveal = () => { 
     console.log("[SiteLoader] Hero ready - resuming timeline");
     tl.play(); 
@@ -89,107 +57,10 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
   window.addEventListener("homeHeroReadyForReveal", onHeroReadyForReveal, { once: true });
   state.heroReadyListener = onHeroReadyForReveal;
   
-  // Main timeline - PAUSED until Enter click
-  const tl = gsap.timeline({ 
-    paused: true,
-    onComplete 
-  });
-  
-  // Handle Enter click
-  const handleEnterClick = () => {
-    console.log("[SiteLoader] Enter clicked - starting loader");
-    
-    // Disable further clicks
-    if (enterEl) {
-      enterEl.style.pointerEvents = 'none';
-    }
-    
-    // Mark user interaction for mobile
-    window.__userInteracted = true;
-    
-    // Fade out Enter text
-    if (enterEl && enterChars.length) {
-      gsap.to(enterChars, {
-        opacity: 0,
-        y: -8,
-        scale: 0.95,
-        duration: 0.5,
-        stagger: 0.02,
-        ease: "power2.inOut",
-        onComplete: () => {
-          enterEl.style.display = 'none';
-          
-          // NOW reveal loader elements with animation
-          // Show corners with scale animation
-          gsap.set(ui.corners, { 
-            opacity: 1,
-            visibility: 'visible',
-            scale: 0
-          });
-          gsap.to(ui.corners, {
-            scale: 1,
-            duration: 0.6,
-            stagger: 0.05,
-            ease: "back.out(1.4)"
-          });
-          
-          // Show edges box
-          gsap.set(ui.edgesBox, { 
-            opacity: 1,
-            visibility: 'visible',
-            scale: 0.8
-          });
-          gsap.to(ui.edgesBox, {
-            scale: 1,
-            duration: 0.5,
-            ease: "power2.out"
-          });
-          
-          // Show progress text
-          gsap.set(ui.progressText, { 
-            opacity: 0,
-            visibility: 'visible'
-          });
-          gsap.to(ui.progressText, {
-            opacity: 1,
-            duration: 0.4,
-            delay: 0.2
-          });
-          
-          // Show FPS counter
-          if (ui.fpsCounter) {
-            gsap.set(ui.fpsCounter, { 
-              opacity: 0,
-              visibility: 'visible'
-            });
-            gsap.to(ui.fpsCounter, {
-              opacity: 1,
-              duration: 0.4,
-              delay: 0.3
-            });
-          }
-          
-          // Start main timeline after elements are visible
-          setTimeout(() => {
-            tl.play();
-          }, 600);
-        }
-      });
-    }
-  };
-  
-  // Add click/touch handlers to Enter
-  if (enterEl) {
-    enterEl.addEventListener('click', handleEnterClick, { once: true });
-    enterEl.addEventListener('touchend', (e) => {
-      e.preventDefault();
-      handleEnterClick();
-    }, { once: true, passive: false });
-  }
-  
-  // Build main timeline (plays after Enter is clicked)
-  
-  // Phase 1: Progress animation with edge growth
+  // Main timeline
+  const tl = gsap.timeline({ onComplete });
+
+  // Phase 1: Progress animation
   tl.to(state.progress, {
     value: 1, 
     fps: 120, 
@@ -201,7 +72,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
       updateEdgesUI(ui.edgesBox, state.progress.value);
       updateFPSUI(ui.fpsCounter, state.progress.fps);
       
-      // Start video at 80% progress
+      // Start video at 80%
       if (state.progress.value >= 0.8 && video && !video.__started) {
         video.__started = true;
         video.currentTime = 0.001;
@@ -211,16 +82,9 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
   })
   
   // Phase 2: Fade progress text
-  .to(ui.progressText, { 
-    opacity: 0, 
-    duration: 0.3 
-  })
+  .to(ui.progressText, { opacity: 0, duration: 0.3 })
   
-  // Phase 2a: Show and animate name
-  .set(nameEl, { 
-    opacity: 1,
-    visibility: 'visible' 
-  })
+  // Phase 2a: Name reveal animation
   .to(nameChars, {
     opacity: 1,
     y: 0,
@@ -229,19 +93,19 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     ease: "power2.out"
   }, "-=0.1")
   
-  // Phase 2.5: Prepare video
+  // Phase 2.5: Prepare video while name is visible
   .call(async () => {
     await ensureVideoReady(video);
   }, null, "+=0.3")
   
-  // Phase 3: Video fade-in behind name
+  // Phase 3: Begin video fade-in behind name
   .to(ui.videoWrapper, { 
     opacity: 0.5,
     duration: 0.4, 
     ease: "power2.in" 
   }, "+=0.2")
   
-  // Name fades as video takes over
+  // Phase 2b: Name scales up and fades as video takes over
   .to(nameChars, {
     opacity: 0,
     scale: 1.05,
@@ -257,8 +121,6 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     duration: 0.3, 
     ease: "power2.out" 
   }, "-=0.2")
-  
-  // Curtain reveal
   .to(ui.videoCurtain, { 
     xPercent: 100, 
     duration: 1.6, 
@@ -268,7 +130,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     }
   })
   
-  // Phase 4: Fade UI elements during morph
+  // Phase 4: Fade UI elements while morphing
   .to([ui.corners, ui.fpsCounter], { 
     opacity: 0, 
     duration: 0.6, 
@@ -281,7 +143,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     ease: "power3.inOut" 
   }, "<0.024")
   
-  // Phase 5: Handoff
+  // Phase 5: Handoff during morph
   .call(() => {
     if (ui.heroVideoContainer) {
       gsap.set(ui.heroVideoContainer, { opacity: 1, zIndex: 0 });
@@ -290,19 +152,19 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     const firstProjectItem = container.querySelector('.home-hero_list:not([style*="display: none"]) .home-hero_item');
     const firstVideoUrl = firstProjectItem?.dataset?.video;
     
-    window.dispatchEvent(new CustomEvent("siteLoaderMorphBegin", { 
-      detail: {
-        src: firstVideoUrl || null,
-        currentTime: video?.currentTime || 0,
-        duration: video?.duration || 0,
-        loaderVideo: video,
-        loaderWrapper: ui.videoWrapper
-      }
-    }));
+    const detail = {
+      src: firstVideoUrl || null,
+      currentTime: video?.currentTime || 0,
+      duration: video?.duration || 0,
+      loaderVideo: video,
+      loaderWrapper: ui.videoWrapper
+    };
+    
+    window.dispatchEvent(new CustomEvent("siteLoaderMorphBegin", { detail }));
     state.heroResumeTimeout = setTimeout(onHeroReadyForReveal, 1500);
   }, null, "-=1.2")
   
-  // Pause for hero
+  // CRITICAL: Add pause here
   .addPause("await-hero-ready")
   
   // Phase 6: Hero reveal (plays after resume)
@@ -401,7 +263,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     });
   }, "-=0.2")
   
-  // Mobile filters button
+  // Mobile filters button - appears after project rows
   .add(() => {
     const mobileFiltersButton = window.__mobileFiltersButton;
     if (mobileFiltersButton && window.innerWidth <= 991) {
@@ -415,7 +277,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
         visibility: "visible",
         duration: 0.5,
         ease: "power2.out",
-        delay: 0.2
+        delay: 0.2 // Small delay after project rows
       });
     }
   }, "-=0.1")
@@ -429,6 +291,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     ease: "power3.out",
     delay: 0.3,
     onComplete: () => {
+      // Clean up will-change
       gsap.set([
         ".nav_wrap",
         ".brand_logo",

@@ -77,13 +77,9 @@ export default function initProjectPlayer(container) {
   if (!video && host && url) {
     video = document.createElement("video");
     video.playsInline = true;
-    video.setAttribute("playsinline", ""); // Critical for iOS
     video.crossOrigin = "anonymous";
-    video.setAttribute("crossorigin", "anonymous");
     video.preload = "auto";
     video.src = url;
-    video.setAttribute("muted", ""); // Critical for mobile autoplay
-    video.muted = true;
   }
   if (!video) return () => {};
 
@@ -105,79 +101,12 @@ export default function initProjectPlayer(container) {
   if (poster) video.poster = poster;
   if (!video.isConnected && host) host.appendChild(video);
 
-  // Ensure muted for autoplay
   video.muted = true;
   video.setAttribute("muted", "");
   video.volume = 0;
 
   // Create state
   const state = createState(video, wrap, centerBtn);
-
-  // Mobile play trigger
-  let mobilePlayTriggered = false;
-  const triggerMobilePlay = async () => {
-    if (mobilePlayTriggered) return;
-    mobilePlayTriggered = true;
-    console.log("[ProjectPlayer] Mobile play triggered");
-    
-    try {
-      // Ensure video is muted
-      video.muted = true;
-      video.setAttribute("muted", "");
-      
-      // Try to play
-      await video.play();
-      setPlayUI(video, wrap.querySelector('[data-role="play"]'), centerBtn, true);
-      setPausedUI(wrap, false);
-    } catch (err) {
-      console.log("[ProjectPlayer] Mobile play failed:", err.message);
-    }
-  };
-
-  // Setup mobile triggers
-  const setupMobilePlayTriggers = () => {
-    const triggers = ['touchstart', 'click', 'touchend'];
-    
-    triggers.forEach(event => {
-      document.addEventListener(event, triggerMobilePlay, { once: true, passive: true });
-      wrap.addEventListener(event, triggerMobilePlay, { once: true, passive: true });
-    });
-    
-    // Visibility trigger
-    const handleVisibilityChange = () => {
-      if (!document.hidden && !mobilePlayTriggered) {
-        setTimeout(triggerMobilePlay, 100);
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    // Intersection observer
-    if ('IntersectionObserver' in window) {
-      const observer = new IntersectionObserver(
-        (entries) => {
-          entries.forEach(entry => {
-            if (entry.isIntersecting && !mobilePlayTriggered) {
-              triggerMobilePlay();
-              observer.disconnect();
-            }
-          });
-        },
-        { threshold: 0.1 }
-      );
-      observer.observe(wrap);
-    }
-    
-    // Return cleanup
-    return () => {
-      ['touchstart', 'click', 'touchend'].forEach(event => {
-        document.removeEventListener(event, triggerMobilePlay);
-        wrap.removeEventListener(event, triggerMobilePlay);
-      });
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  };
-
-  const mobileCleanup = setupMobilePlayTriggers();
 
   // Init modules
   const tl = wrap.querySelector('[data-role="timeline"]');
@@ -193,13 +122,7 @@ export default function initProjectPlayer(container) {
     await ensureFirstFramePainted(video);
     try {
       await video.play();
-      // Trigger mobile play after initial attempt
-      setTimeout(triggerMobilePlay, 500);
-    } catch (err) {
-      console.log("[ProjectPlayer] Initial play failed:", err.message);
-      // Try mobile trigger immediately
-      triggerMobilePlay();
-    }
+    } catch {}
     setPlayUI(video, wrap.querySelector('[data-role="play"]'), centerBtn, !video.paused);
     setPausedUI(wrap, video.paused);
     centerBtn.classList.remove("is-mode-play");
@@ -215,7 +138,6 @@ export default function initProjectPlayer(container) {
       video.muted = true;
     } catch {}
     state.cleanup();
-    mobileCleanup();
     delete wrap.dataset.scriptInitialized;
   };
 }

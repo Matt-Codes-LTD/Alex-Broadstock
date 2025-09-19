@@ -1,4 +1,4 @@
-// site-loader/ui-elements.js - UI creation with Enter button
+// site-loader/ui-elements.js - UI creation
 import { SELECTORS } from "./constants.js";
 
 export function createUIElements(loaderEl, container) {
@@ -8,8 +8,7 @@ export function createUIElements(loaderEl, container) {
     edgesBox: loaderEl.querySelector(SELECTORS.edgesBox),
     corners: loaderEl.querySelectorAll(SELECTORS.corners),
     loaderContainer: loaderEl.querySelector(SELECTORS.container),
-    heroVideoContainer: container.querySelector(SELECTORS.heroVideo),
-    enterButton: loaderEl.querySelector(SELECTORS.enterButton)
+    heroVideoContainer: container.querySelector(SELECTORS.heroVideo)
   };
 
   // Create video wrapper and curtain
