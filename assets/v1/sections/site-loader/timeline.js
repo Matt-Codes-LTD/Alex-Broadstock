@@ -1,4 +1,4 @@
-// site-loader/timeline.js - Timeline creation with mobile filters integration
+// site-loader/timeline.js - Timeline creation
 import { CONFIG, EASES } from "./constants.js";
 import { updateProgressUI, updateEdgesUI, updateFPSUI } from "./ui-elements.js";
 import { ensureVideoReady } from "./video-setup.js";
@@ -262,25 +262,6 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
       }
     });
   }, "-=0.2")
-  
-  // Mobile filters button - appears after project rows
-  .add(() => {
-    const mobileFiltersButton = window.__mobileFiltersButton;
-    if (mobileFiltersButton && window.innerWidth <= 991) {
-      gsap.fromTo(mobileFiltersButton, {
-        opacity: 0,
-        y: 10,
-        visibility: "hidden"
-      }, {
-        opacity: 1,
-        y: 0,
-        visibility: "visible",
-        duration: 0.5,
-        ease: "power2.out",
-        delay: 0.2 // Small delay after project rows
-      });
-    }
-  }, "-=0.1")
   
   // Awards strip
   .fromTo(".home-awards_list", {
