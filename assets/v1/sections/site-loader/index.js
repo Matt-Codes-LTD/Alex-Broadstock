@@ -1,4 +1,4 @@
-// site-loader/index.js - Updated to work with new timeline structure
+// site-loader/index.js - Orchestrator only
 import { createState } from "./state.js";
 import { createUIElements, lockScroll, unlockScroll } from "./ui-elements.js";
 import { setupVideo } from "./video-setup.js";
@@ -42,7 +42,7 @@ export default function initSiteLoader(container) {
   gsap.set(ui.progressText, { opacity: 1 });
   gsap.set(ui.edgesBox, { "--sl-width": 67, "--sl-height": 67 });
   
-  // Create timeline - this now returns a GSAP timeline directly
+  // Create timeline
   const timeline = createMainTimeline({
     state,
     ui,
