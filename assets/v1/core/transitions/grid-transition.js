@@ -1,6 +1,6 @@
 // transitions/grid-transition.js - Grid transition system
 import { initPageScripts } from "../page-scripts.js";
-import { calculateStaggerDelay } from "./stagger-calc.js";
+import { createGridTransitionSequence } from "../../site-timelines/grid-transition-timeline.js";
 
 export function createGridTransition(options = {}) {
   const { 
@@ -49,15 +49,14 @@ export function createGridTransition(options = {}) {
       // Force layout
       grid.offsetHeight;
       
-      // Run animation sequence
-      return animateTransition({
+      // Run animation sequence using timeline
+      return createGridTransitionSequence({
         oldMain,
         newMain,
         grid,
         divs,
         cols,
         rows,
-        onNavReveal,
         onComplete: () => {
           cleanupTransition(oldMain, newMain, grid);
           onNavReveal(newMain);
@@ -125,41 +124,6 @@ function setupContainers(oldMain, newMain) {
     inset: '0', 
     zIndex: '2',
     opacity: '0'
-  });
-}
-
-function animateTransition({ oldMain, newMain, grid, divs, cols, rows, onComplete }) {
-  return new Promise(resolve => {
-    // Phase 1: Grid scales up
-    gsap.to(divs, {
-      scaleY: 1,
-      transformOrigin: '0% 100%',
-      duration: 0.7,
-      ease: 'o4',
-      stagger: index => calculateStaggerDelay(index, cols, rows, false),
-      onComplete: () => {
-        // Phase 2: Swap content
-        oldMain.style.opacity = '0';
-        newMain.style.opacity = '1';
-        
-        // Force paint
-        newMain.offsetHeight;
-        
-        // Phase 3: Grid scales down
-        gsap.to(divs, {
-          scaleY: 0,
-          transformOrigin: '0% 0%',
-          duration: 0.7,
-          ease: 'o4',
-          stagger: index => calculateStaggerDelay(index, cols, rows, true),
-          onComplete: () => {
-            console.log('exited');
-            onComplete();
-            resolve();
-          }
-        });
-      }
-    });
   });
 }
 
