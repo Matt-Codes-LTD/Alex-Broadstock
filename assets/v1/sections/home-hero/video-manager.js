@@ -1,34 +1,69 @@
-// ============================================
-// FILE 3: assets/v1/sections/home-hero/video-manager.js
-// ============================================
+// video-manager.js - Fixed with proper cleanup and memory management
 import { prefersReducedMotion, prefersReducedData } from "./utils.js";
 
 export function createVideoManager(stage) {
   const videoBySrc = new Map();
-  let activeVideo = null, activeLink = null;
+  const MAX_VIDEOS = 10; // Limit video pool size
+  let activeVideo = null;
+  let activeLink = null;
   let transitionInProgress = false;
+  let cleanupTimeouts = new Set();
 
   function adoptVideo(src, videoElement) {
     if (!src || !videoElement) return null;
     
-    // Ensure video has correct properties
+    // Clean up if at max capacity
+    if (videoBySrc.size >= MAX_VIDEOS) {
+      cleanupOldestVideo();
+    }
+    
     videoElement.__keepAlive = true;
     videoElement.__warmed = true;
+    videoElement.__lastUsed = Date.now();
     
-    // Register in map
     videoBySrc.set(src, videoElement);
-    
-    // Set as active immediately
     activeVideo = videoElement;
     
     console.log("[VideoManager] Adopted video:", src);
     return videoElement;
   }
 
+  function cleanupOldestVideo() {
+    let oldest = null;
+    let oldestTime = Infinity;
+    
+    videoBySrc.forEach((video, src) => {
+      if (!video.__keepAlive && video.__lastUsed < oldestTime) {
+        oldest = src;
+        oldestTime = video.__lastUsed;
+      }
+    });
+    
+    if (oldest) {
+      const video = videoBySrc.get(oldest);
+      if (video) {
+        video.pause();
+        video.src = "";
+        video.load();
+        video.remove();
+        videoBySrc.delete(oldest);
+      }
+    }
+  }
+
   function createVideo(src) {
     if (!src) return null;
+    
     let v = videoBySrc.get(src);
-    if (v) return v;
+    if (v) {
+      v.__lastUsed = Date.now();
+      return v;
+    }
+
+    // Clean up if at max capacity
+    if (videoBySrc.size >= MAX_VIDEOS) {
+      cleanupOldestVideo();
+    }
 
     v = document.createElement("video");
     v.className = "home-hero_video_el";
@@ -38,21 +73,44 @@ export function createVideoManager(stage) {
     v.playsInline = true;
     v.preload = "auto";
     v.crossOrigin = "anonymous";
-    gsap.set(v, { opacity: 0, transformOrigin: "50% 50%" });
+    v.__lastUsed = Date.now();
+    
+    if (window.gsap) {
+      gsap.set(v, { opacity: 0, transformOrigin: "50% 50%" });
+    } else {
+      v.style.opacity = "0";
+      v.style.transformOrigin = "50% 50%";
+    }
+    
     stage.appendChild(v);
     videoBySrc.set(src, v);
     return v;
+  }
+  
+  function getVideo(src) {
+    return videoBySrc.get(src);
   }
 
   function warmVideo(v) {
     if (!v || v.__warmed || prefersReducedData) return;
     v.__warmed = true;
+    
     const start = () => {
       v.play().then(() => {
-        setTimeout(() => { if (!v.__keepAlive) v.pause?.(); }, 250);
+        const timeout = setTimeout(() => { 
+          if (!v.__keepAlive) {
+            v.pause();
+          }
+        }, 250);
+        cleanupTimeouts.add(timeout);
       }).catch(() => {});
     };
-    v.readyState >= 2 ? start() : v.addEventListener("canplaythrough", start, { once: true });
+    
+    if (v.readyState >= 2) {
+      start();
+    } else {
+      v.addEventListener("canplaythrough", start, { once: true });
+    }
   }
 
   const fadeTargetsFor = (link) => {
@@ -72,39 +130,71 @@ export function createVideoManager(stage) {
   }
 
   function restart(v) {
-    try { "fastSeek" in v ? v.fastSeek(0) : (v.currentTime = 0); v.play?.(); } catch {}
+    try { 
+      if ("fastSeek" in v) {
+        v.fastSeek(0);
+      } else {
+        v.currentTime = 0;
+      }
+      v.play().catch(() => {});
+    } catch (err) {
+      console.warn("[VideoManager] Restart failed:", err);
+    }
   }
 
-  const whenReady = (v) => new Promise(res => {
+  const whenReady = (v) => new Promise((res, rej) => {
     if (v.readyState >= 2) return res();
-    const on = () => { v.removeEventListener("loadeddata", on); v.removeEventListener("canplay", on); res(); };
+    
+    const timeout = setTimeout(() => {
+      rej(new Error("Video ready timeout"));
+    }, 3000);
+    
+    const on = () => { 
+      clearTimeout(timeout);
+      v.removeEventListener("loadeddata", on);
+      v.removeEventListener("canplay", on);
+      res();
+    };
     v.addEventListener("loadeddata", on, { once: true });
     v.addEventListener("canplay", on, { once: true });
-    setTimeout(on, 1000);
   });
 
   async function seekTo(v, t) {
-    await new Promise(res => {
+    await new Promise((res, rej) => {
       if (v.readyState >= 1) return res();
-      v.addEventListener("loadedmetadata", res, { once: true });
-      setTimeout(res, 500);
+      
+      const timeout = setTimeout(() => {
+        rej(new Error("Seek ready timeout"));
+      }, 1000);
+      
+      v.addEventListener("loadedmetadata", () => {
+        clearTimeout(timeout);
+        res();
+      }, { once: true });
     });
+    
     try {
       const dur = v.duration || 0;
       let target = Math.max(0, Math.min(Number.isFinite(dur) && dur > 0 ? dur - 0.05 : t, t));
       v.currentTime = target;
-    } catch {}
+    } catch (err) {
+      console.warn("[VideoManager] Seek failed:", err);
+    }
     return v;
   }
 
   function onFirstRenderedFrame(v, cb) {
     if ("requestVideoFrameCallback" in v) {
-      // @ts-ignore
       v.requestVideoFrameCallback(() => cb());
     } else {
-      const h = () => { v.removeEventListener("timeupdate", h); cb(); };
+      const h = () => { 
+        v.removeEventListener("timeupdate", h);
+        cb();
+      };
       v.addEventListener("timeupdate", h, { once: true });
-      setTimeout(cb, 120); // safety
+      
+      const timeout = setTimeout(cb, 120);
+      cleanupTimeouts.add(timeout);
     }
   }
 
@@ -115,7 +205,11 @@ export function createVideoManager(stage) {
     if (!next) return;
 
     next.__keepAlive = true;
-    if (activeVideo && activeVideo !== next) activeVideo.__keepAlive = false;
+    next.__lastUsed = Date.now();
+    
+    if (activeVideo && activeVideo !== next) {
+      activeVideo.__keepAlive = false;
+    }
 
     // Same video, just update link
     if (next === activeVideo) {
@@ -130,59 +224,77 @@ export function createVideoManager(stage) {
     const previousVideo = activeVideo;
     activeVideo = next;
 
-    // options
-    const mode        = opts.mode || "tween";     // "instant" | "tween"
-    const fromScale   = opts.tweenFromScale ?? 1.03;
-    const tweenDur    = opts.tweenDuration  ?? 0.7;
-    const tweenEase   = opts.tweenEase      ?? "power3.out";
-
-    const tl = gsap.timeline({
-      onComplete: () => {
-        transitionInProgress = false;
-        if (previousVideo) {
-          previousVideo.classList.remove("is-active");
-          setTimeout(() => { if (!previousVideo.__keepAlive) previousVideo.pause?.(); }, 100);
-        }
-      }
-    });
+    const mode = opts.mode || "tween";
+    const fromScale = opts.tweenFromScale ?? 1.03;
+    const tweenDur = opts.tweenDuration ?? 0.7;
+    const tweenEase = opts.tweenEase ?? "power3.out";
 
     const playNew = async () => {
-      await whenReady(next);
-      if (opts.startAt != null) {
-        await seekTo(next, Math.max(0, opts.startAt));
-        await next.play().catch(() => {});
-      } else {
-        restart(next);
+      try {
+        await whenReady(next);
+        if (opts.startAt != null) {
+          await seekTo(next, Math.max(0, opts.startAt));
+          await next.play();
+        } else {
+          restart(next);
+        }
+      } catch (err) {
+        console.warn("[VideoManager] Play failed:", err);
       }
     };
 
-    if (mode === "instant" || prefersReducedMotion) {
-      // Enhanced instant mode for loader handoff
-      if (previousVideo) { previousVideo.classList.remove("is-active"); gsap.set(previousVideo, { opacity: 0, scale: 1 }); }
-      next.classList.add("is-active");
-      gsap.set(next, { opacity: 1, scale: 1, transformOrigin: "50% 50%" });
+    if (mode === "instant" || prefersReducedMotion || !window.gsap) {
+      // Instant transition
+      if (previousVideo) {
+        previousVideo.classList.remove("is-active");
+        if (window.gsap) {
+          gsap.set(previousVideo, { opacity: 0, scale: 1 });
+        } else {
+          previousVideo.style.opacity = "0";
+        }
+      }
       
-      // Enhanced frame sync for loader handoff
+      next.classList.add("is-active");
+      if (window.gsap) {
+        gsap.set(next, { opacity: 1, scale: 1, transformOrigin: "50% 50%" });
+      } else {
+        next.style.opacity = "1";
+      }
+      
       playNew().then(() => {
-        // Wait for actual frame render
         onFirstRenderedFrame(next, () => {
-          // Double-check video is playing and visible
-          if (!next.paused && next.readyState >= 2) {
-            // Add small delay to ensure frame is painted
+          requestAnimationFrame(() => {
             requestAnimationFrame(() => {
-              requestAnimationFrame(() => {
-                opts.onVisible?.();
-              });
+              opts.onVisible?.();
             });
-          } else {
-            // Fallback if video not ready
-            opts.onVisible?.();
-          }
+          });
         });
       });
+      
       transitionInProgress = false;
-    } else {
-      // Gentle crossfade + micro-settle
+      if (previousVideo) {
+        setTimeout(() => {
+          if (!previousVideo.__keepAlive) {
+            previousVideo.pause();
+          }
+        }, 100);
+      }
+    } else if (window.gsap) {
+      // GSAP transition
+      const tl = gsap.timeline({
+        onComplete: () => {
+          transitionInProgress = false;
+          if (previousVideo) {
+            previousVideo.classList.remove("is-active");
+            setTimeout(() => {
+              if (!previousVideo.__keepAlive) {
+                previousVideo.pause();
+              }
+            }, 100);
+          }
+        }
+      });
+
       const prepare = async () => {
         await playNew();
         next.classList.add("is-active");
@@ -191,20 +303,44 @@ export function createVideoManager(stage) {
           gsap.set(next, { opacity: 0, scale: fromScale, transformOrigin: "50% 50%" });
           gsap.set(previousVideo, { opacity: 1, scale: 1, transformOrigin: "50% 50%" });
 
-          tl.to(previousVideo, { opacity: 0, scale: 1, duration: tweenDur * 0.86, ease: "power2.out" }, 0)
-            .to(next, {
-              opacity: 1, scale: 1, duration: tweenDur, ease: tweenEase,
-              onComplete: () => { opts.onVisible?.(); }
-            }, 0.06);
+          tl.to(previousVideo, { 
+            opacity: 0, 
+            scale: 1, 
+            duration: tweenDur * 0.86, 
+            ease: "power2.out" 
+          }, 0)
+          .to(next, {
+            opacity: 1, 
+            scale: 1, 
+            duration: tweenDur, 
+            ease: tweenEase,
+            onComplete: () => { 
+              opts.onVisible?.();
+            }
+          }, 0.06);
         } else {
           gsap.set(next, { opacity: 0, scale: fromScale, transformOrigin: "50% 50%" });
           tl.to(next, {
-            opacity: 1, scale: 1, duration: tweenDur * 0.86, ease: tweenEase,
-            onComplete: () => { opts.onVisible?.(); }
+            opacity: 1, 
+            scale: 1, 
+            duration: tweenDur * 0.86, 
+            ease: tweenEase,
+            onComplete: () => { 
+              opts.onVisible?.();
+            }
           });
         }
       };
-      if (next.readyState >= 2) prepare(); else setTimeout(prepare, 0);
+      
+      if (next.readyState >= 2) {
+        prepare();
+      } else {
+        setTimeout(prepare, 0);
+      }
+    } else {
+      // Fallback CSS transition
+      transitionInProgress = false;
+      opts.onVisible?.();
     }
 
     if (linkEl && linkEl !== activeLink) {
@@ -219,15 +355,44 @@ export function createVideoManager(stage) {
     const nextSrc = videos[currentIndex + 1] || videos[0];
     if (nextSrc) {
       const nextVideo = videoBySrc.get(nextSrc);
-      if (nextVideo && !nextVideo.__warmed) warmVideo(nextVideo);
+      if (nextVideo && !nextVideo.__warmed) {
+        warmVideo(nextVideo);
+      }
     }
+  }
+
+  function cleanup() {
+    // Clear all timeouts
+    cleanupTimeouts.forEach(timeout => clearTimeout(timeout));
+    cleanupTimeouts.clear();
+    
+    // Clean up all videos
+    videoBySrc.forEach((video, src) => {
+      try {
+        video.pause();
+        video.src = "";
+        video.load();
+        video.remove();
+      } catch (err) {
+        console.warn("[VideoManager] Cleanup error:", err);
+      }
+    });
+    videoBySrc.clear();
+    
+    activeVideo = null;
+    activeLink = null;
   }
 
   return {
     createVideo,
     warmVideo,
     adoptVideo,
-    setActive: (src, linkEl, opts) => { setActive(src, linkEl, opts); preloadNext(src); },
+    getVideo,
+    setActive: (src, linkEl, opts) => {
+      setActive(src, linkEl, opts);
+      preloadNext(src);
+    },
+    cleanup,
     get activeLink() { return activeLink; },
     get activeVideo() { return activeVideo; }
   };

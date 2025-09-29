@@ -1,4 +1,4 @@
-// index.js
+// index.js - Fixed with throttling and cleanup
 import { initGeometry } from "./geometry.js";
 import { createFollowLoop } from "./follow-loop.js";
 
@@ -32,11 +32,23 @@ export default function initCursor() {
   const loop = createFollowLoop(box);
   loop.start();
 
-  // Pointer move
+  // Throttled pointer move (16ms = ~60fps)
+  let moveRaf = null;
+  let lastX = 0, lastY = 0;
+  
   function onMove(e) {
-    if (!geom.rect.width || !geom.rect.height) geom.computeGeometry();
-    loop.setTarget(e.clientX - geom.rect.left, e.clientY - geom.rect.top);
+    lastX = e.clientX;
+    lastY = e.clientY;
+    
+    if (!moveRaf) {
+      moveRaf = requestAnimationFrame(() => {
+        if (!geom.rect.width || !geom.rect.height) geom.computeGeometry();
+        loop.setTarget(lastX - geom.rect.left, lastY - geom.rect.top);
+        moveRaf = null;
+      });
+    }
   }
+  
   addEventListener("pointermove", onMove, { passive: true });
   addEventListener("pointerenter", onMove, { passive: true });
 
@@ -56,11 +68,12 @@ export default function initCursor() {
   document.addEventListener("pointerout", onHardLeave, true);
 
   // Upgrade to GSAP if loaded after init
-  addEventListener("load", () => {
+  const loadHandler = () => {
     if (!loop.hasGSAP()) return;
     loop.stop();
     loop.start();
-  }, { once: true });
+  };
+  addEventListener("load", loadHandler, { once: true });
 
   // Pause on tab hidden
   const onVis = () => { document.hidden ? loop.stop() : loop.start(); };
@@ -69,11 +82,27 @@ export default function initCursor() {
   // Cleanup if overlay removed
   const mo = new MutationObserver(() => {
     if (!document.body.contains(overlay)) {
-      loop.stop();
-      document.removeEventListener("visibilitychange", onVis);
-      geom.disconnect();
-      mo.disconnect();
+      cleanup();
     }
   });
   mo.observe(document.body, { childList: true, subtree: true });
+  
+  // Unified cleanup
+  function cleanup() {
+    if (moveRaf) cancelAnimationFrame(moveRaf);
+    loop.stop();
+    removeEventListener("pointermove", onMove);
+    removeEventListener("pointerenter", onMove);
+    removeEventListener("load", loadHandler);
+    document.removeEventListener("mouseleave", onHardLeave, true);
+    document.removeEventListener("mouseout", onHardLeave, true);
+    document.removeEventListener("pointerout", onHardLeave, true);
+    document.removeEventListener("visibilitychange", onVis);
+    geom.disconnect();
+    mo.disconnect();
+    delete window.__cursorInit;
+  }
+  
+  // Expose cleanup for debugging
+  window.__cursorCleanup = cleanup;
 }

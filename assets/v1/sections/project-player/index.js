@@ -1,3 +1,4 @@
+// index.js - Fixed with proper state management and error handling
 import { createState } from "./state.js";
 import { initControls } from "./controls.js";
 import { initTimeline } from "./timeline.js";
@@ -14,38 +15,32 @@ export default function initProjectPlayer(container) {
   wrap.dataset.idle = "0";
 
   const stage = wrap.querySelector(".project-player_stage") || wrap;
-  const url =
-    stage.getAttribute("data-video") || wrap.getAttribute("data-video") || "";
-  const vtt =
-    stage.getAttribute("data-captions") ||
-    wrap.getAttribute("data-captions") ||
-    "";
-  const poster =
-    stage.getAttribute("data-poster") || wrap.getAttribute("data-poster") || "";
-  const host =
-    stage.querySelector(".project-player_video-host") ||
-    wrap.querySelector(".project-player_video-host");
+  const url = stage.getAttribute("data-video") || wrap.getAttribute("data-video") || "";
+  const vtt = stage.getAttribute("data-captions") || wrap.getAttribute("data-captions") || "";
+  const poster = stage.getAttribute("data-poster") || wrap.getAttribute("data-poster") || "";
+  const host = stage.querySelector(".project-player_video-host") || 
+                wrap.querySelector(".project-player_video-host");
 
-  // Create overlays
+  // Create overlays if they don't exist
   let pauseFx = wrap.querySelector(".project-player_pausefx");
   if (!pauseFx) {
     pauseFx = document.createElement("div");
     pauseFx.className = "project-player_pausefx u-cover-absolute u-inset-0";
-    const afterTarget =
-      (wrap.querySelector(".project-player_stage") || wrap).querySelector(
-        ".project-player_video-host"
-      );
+    const afterTarget = (wrap.querySelector(".project-player_stage") || wrap)
+      .querySelector(".project-player_video-host");
     const target = wrap.querySelector(".project-player_stage") || wrap;
-    afterTarget?.nextSibling
-      ? target.insertBefore(pauseFx, afterTarget.nextSibling)
-      : target.appendChild(pauseFx);
+    
+    if (afterTarget?.nextSibling) {
+      target.insertBefore(pauseFx, afterTarget.nextSibling);
+    } else {
+      target.appendChild(pauseFx);
+    }
   }
 
   let centerBtn = wrap.querySelector(".project-player_center-toggle");
   if (!centerBtn) {
     centerBtn = document.createElement("button");
-    centerBtn.className =
-      "project-player_center-toggle project-player_btn project-player_btn--play";
+    centerBtn.className = "project-player_center-toggle project-player_btn project-player_btn--play";
     centerBtn.type = "button";
     centerBtn.setAttribute("aria-pressed", "false");
     centerBtn.setAttribute("aria-label", "Unmute");
@@ -81,12 +76,14 @@ export default function initProjectPlayer(container) {
     video.preload = "auto";
     video.src = url;
   }
-  if (!video) return () => {};
+  
+  if (!video) {
+    console.error("[ProjectPlayer] No video element found");
+    return () => {};
+  }
 
-  if (
-    vtt &&
-    !video.querySelector('track[kind="subtitles"], track[kind="captions"]')
-  ) {
+  // Add captions if provided
+  if (vtt && !video.querySelector('track[kind="subtitles"], track[kind="captions"]')) {
     const tr = document.createElement("track");
     tr.kind = "subtitles";
     tr.label = "English";
@@ -101,6 +98,7 @@ export default function initProjectPlayer(container) {
   if (poster) video.poster = poster;
   if (!video.isConnected && host) host.appendChild(video);
 
+  // Initial muted state
   video.muted = true;
   video.setAttribute("muted", "");
   video.volume = 0;
@@ -112,32 +110,68 @@ export default function initProjectPlayer(container) {
   const tl = wrap.querySelector('[data-role="timeline"]');
   const tlBuf = wrap.querySelector(".project-player_timeline-buffer");
   const tlHandle = wrap.querySelector(".project-player_timeline-handle");
+  const btnPlay = wrap.querySelector('[data-role="play"]');
+  const btnMute = wrap.querySelector('[data-role="mute"]');
+  const muteLabel = wrap.querySelector('[data-role="mute-label"]');
 
-  initControls(video, wrap, centerBtn, state);
-  initTimeline(video, tl, tlBuf, tlHandle, state);
-  initSync(video, wrap, state);
+  const cleanupControls = initControls(video, wrap, centerBtn, state);
+  const cleanupTimeline = initTimeline(video, tl, tlBuf, tlHandle, state);
+  const cleanupSync = initSync(video, wrap, state);
+  
+  state.handlers.push(cleanupControls, cleanupTimeline, cleanupSync);
 
-  // Start pipeline
-  (async () => {
-    await ensureFirstFramePainted(video);
+  // Start pipeline with error handling
+  let initComplete = false;
+  
+  const startPlayback = async () => {
     try {
-      await video.play();
-    } catch {}
-    setPlayUI(video, wrap.querySelector('[data-role="play"]'), centerBtn, !video.paused);
-    setPausedUI(wrap, video.paused);
-    centerBtn.classList.remove("is-mode-play");
-    centerBtn.setAttribute("aria-label", "Unmute");
-    setMuteUI(wrap.querySelector('[data-role="mute"]'), wrap.querySelector('[data-role="mute-label"]'), true);
-  })();
+      await ensureFirstFramePainted(video);
+      
+      // Try to start playback
+      try {
+        await video.play();
+      } catch (playErr) {
+        console.warn("[ProjectPlayer] Autoplay failed:", playErr);
+        // Autoplay might be blocked, that's ok
+      }
+      
+      setPlayUI(video, btnPlay, centerBtn, !video.paused);
+      setPausedUI(wrap, video.paused);
+      centerBtn.classList.remove("is-mode-play");
+      centerBtn.setAttribute("aria-label", "Unmute");
+      setMuteUI(btnMute, muteLabel, true);
+      
+      initComplete = true;
+    } catch (err) {
+      console.error("[ProjectPlayer] Init failed:", err);
+    }
+  };
+
+  startPlayback();
+
+  // Handle visibility changes
+  const handleVisibility = () => {
+    if (document.hidden) {
+      state.stopLoop();
+      if (!video.paused) {
+        video.pause();
+      }
+    } else if (initComplete) {
+      state.startLoop(() => {}); // Restart loop if needed
+    }
+  };
+  document.addEventListener("visibilitychange", handleVisibility);
+  state.handlers.push(() => document.removeEventListener("visibilitychange", handleVisibility));
 
   // Cleanup
   return () => {
     try {
-      state.stopLoop();
+      state.cleanup();
       video.pause();
       video.muted = true;
-    } catch {}
-    state.cleanup();
+    } catch (err) {
+      console.warn("[ProjectPlayer] Cleanup error:", err);
+    }
     delete wrap.dataset.scriptInitialized;
   };
 }

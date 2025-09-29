@@ -1,11 +1,16 @@
-// site-loader/timeline.js - Timeline creation with mobile filters integration
+// timeline.js - Fixed with simplified race condition handling and optimized FPS
 import { CONFIG, EASES } from "./constants.js";
 import { updateProgressUI, updateEdgesUI, updateFPSUI } from "./ui-elements.js";
 import { ensureVideoReady } from "./video-setup.js";
 import { morphToHeroStage } from "./morph.js";
 
-// Helper function to split text into spans
+// Helper function to split text into spans (memoized)
+const splitTextCache = new WeakMap();
 function splitTextToSpans(element) {
+  if (splitTextCache.has(element)) {
+    return splitTextCache.get(element);
+  }
+  
   const text = element.textContent;
   element.innerHTML = '';
   
@@ -20,6 +25,7 @@ function splitTextToSpans(element) {
   });
   
   chars.forEach(span => element.appendChild(span));
+  splitTextCache.set(element, chars);
   return chars;
 }
 
@@ -48,17 +54,29 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     nameChars = splitTextToSpans(nameEl);
   }
   
-  // Resume handler
-  const onHeroReadyForReveal = () => { 
+  // Simplified resume handler - use Promise instead of complex event system
+  let heroReadyResolve = null;
+  const heroReadyPromise = new Promise(resolve => {
+    heroReadyResolve = resolve;
+  });
+  
+  const onHeroReadyForReveal = () => {
     console.log("[SiteLoader] Hero ready - resuming timeline");
-    tl.play(); 
+    if (heroReadyResolve) {
+      heroReadyResolve();
+      heroReadyResolve = null;
+    }
   };
   
-  window.addEventListener("homeHeroReadyForReveal", onHeroReadyForReveal, { once: true });
   state.heroReadyListener = onHeroReadyForReveal;
+  window.addEventListener("homeHeroReadyForReveal", onHeroReadyForReveal, { once: true });
   
   // Main timeline
   const tl = gsap.timeline({ onComplete });
+  
+  // Optimized FPS tracking (only update every 250ms)
+  let lastFpsUpdate = 0;
+  let fpsValue = 120;
 
   // Phase 1: Progress animation
   tl.to(state.progress, {
@@ -66,11 +84,18 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     fps: 120, 
     duration: 3, 
     ease: "sine.inOut",
-    onUpdate: () => {
+    onUpdate: function() {
       const pct = Math.round(state.progress.value * 100);
       updateProgressUI(ui.progressText, pct);
       updateEdgesUI(ui.edgesBox, state.progress.value);
-      updateFPSUI(ui.fpsCounter, state.progress.fps);
+      
+      // Throttled FPS update
+      const now = Date.now();
+      if (now - lastFpsUpdate > 250) {
+        fpsValue = Math.round(state.progress.fps);
+        updateFPSUI(ui.fpsCounter, fpsValue);
+        lastFpsUpdate = now;
+      }
       
       // Start video at 80%
       if (state.progress.value >= 0.8 && video && !video.__started) {
@@ -95,7 +120,11 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
   
   // Phase 2.5: Prepare video while name is visible
   .call(async () => {
-    await ensureVideoReady(video);
+    try {
+      await ensureVideoReady(video);
+    } catch (err) {
+      console.warn("[SiteLoader] Video ready failed:", err);
+    }
   }, null, "+=0.3")
   
   // Phase 3: Begin video fade-in behind name
@@ -126,7 +155,11 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     duration: 1.6, 
     ease: "custom2InOut",
     onComplete: () => {
-      morphToHeroStage(ui.videoWrapper, ui.heroVideoContainer, 1.8);
+      try {
+        morphToHeroStage(ui.videoWrapper, ui.heroVideoContainer, 1.8);
+      } catch (err) {
+        console.warn("[SiteLoader] Morph failed:", err);
+      }
     }
   })
   
@@ -144,7 +177,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
   }, "<0.024")
   
   // Phase 5: Handoff during morph
-  .call(() => {
+  .call(async () => {
     if (ui.heroVideoContainer) {
       gsap.set(ui.heroVideoContainer, { opacity: 1, zIndex: 0 });
     }
@@ -161,13 +194,22 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     };
     
     window.dispatchEvent(new CustomEvent("siteLoaderMorphBegin", { detail }));
-    state.heroResumeTimeout = setTimeout(onHeroReadyForReveal, 1500);
+    
+    // Wait for hero ready with timeout fallback
+    const timeoutPromise = new Promise(resolve => {
+      state.heroResumeTimeout = setTimeout(resolve, 1500);
+    });
+    
+    await Promise.race([heroReadyPromise, timeoutPromise]);
+    
+    // Clear timeout if hero responded
+    if (state.heroResumeTimeout) {
+      clearTimeout(state.heroResumeTimeout);
+      state.heroResumeTimeout = null;
+    }
   }, null, "-=1.2")
   
-  // CRITICAL: Add pause here
-  .addPause("await-hero-ready")
-  
-  // Phase 6: Hero reveal (plays after resume)
+  // Phase 6: Hero reveal
   .set(loaderEl, { zIndex: 1 })
   .set([
     ".nav_wrap",
@@ -263,7 +305,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     });
   }, "-=0.2")
   
-  // Mobile filters button - appears after project rows
+  // Mobile filters button
   .add(() => {
     const mobileFiltersButton = window.__mobileFiltersButton;
     if (mobileFiltersButton && window.innerWidth <= 991) {
@@ -277,7 +319,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
         visibility: "visible",
         duration: 0.5,
         ease: "power2.out",
-        delay: 0.2 // Small delay after project rows
+        delay: 0.2
       });
     }
   }, "-=0.1")

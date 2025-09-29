@@ -1,6 +1,4 @@
-// ============================================
-// FILE 2: assets/v1/sections/home-hero/index.js
-// ============================================
+// index.js - Fixed with proper cleanup and race condition prevention
 import { createVideoManager } from "./video-manager.js";
 import { initCategoryFilter } from "./category-filter.js";
 
@@ -12,7 +10,11 @@ export default function initHomeHero(container) {
   const videoStage  = section.querySelector(".home-hero_video");
   const listParent  = section.querySelector(".home-hero_list_parent");
   const awardsStrip = section.querySelector(".home-awards_list");
-  if (!videoStage || !listParent) { console.warn("[HomeHero] Missing required elements"); return () => {}; }
+  
+  if (!videoStage || !listParent) { 
+    console.warn("[HomeHero] Missing required elements"); 
+    return () => {};
+  }
 
   const items = Array.from(section.querySelectorAll(".home-hero_list"));
   const videoManager = createVideoManager(videoStage);
@@ -20,6 +22,10 @@ export default function initHomeHero(container) {
   let activeItem = null;
   let handoff = null;
   let revealedOnce = false;
+  let hoverTimeout = null;
+  let currentAwardsHTML = "";
+  let cleanupFunctions = [];
+  
   const emitReadyOnce = () => {
     if (revealedOnce) return;
     revealedOnce = true;
@@ -32,77 +38,108 @@ export default function initHomeHero(container) {
     const firstVisible = items.find(item => item.style.display !== "none");
     if (firstVisible) setActive(firstVisible, { useHandoff: true });
     section.dataset.introComplete = "true";
-    console.log("[HomeHero] Intro setup complete (no timelines)");
+    console.log("[HomeHero] Intro setup complete");
   }
 
+  // Handle site loader handoff
   const hasSiteLoader = document.querySelector(".site-loader_wrap");
+  let morphListener = null;
+  
   if (hasSiteLoader && window.__initialPageLoad) {
-    window.addEventListener("siteLoaderMorphBegin", async (e) => {
+    morphListener = async (e) => {
       handoff = e?.detail || null;
       console.log("[HomeHero] Handoff received:", handoff);
       
-      // Pre-sync hero video to exact frame
       if (handoff?.src && handoff?.currentTime != null) {
         const heroVideo = videoManager.createVideo(handoff.src);
         if (heroVideo) {
-          heroVideo.currentTime = handoff.currentTime;
-          await heroVideo.play().catch(() => {});
+          try {
+            heroVideo.currentTime = handoff.currentTime;
+            await heroVideo.play().catch(() => {});
+          } catch (err) {
+            console.warn("[HomeHero] Handoff sync failed:", err);
+          }
         }
       }
       
       initializeHero();
-    }, { once: true });
+    };
+    window.addEventListener("siteLoaderMorphBegin", morphListener, { once: true });
+    cleanupFunctions.push(() => {
+      if (morphListener) {
+        window.removeEventListener("siteLoaderMorphBegin", morphListener);
+      }
+    });
   } else {
     initializeHero();
   }
 
   function updateAwards(item) {
     if (!awardsStrip) return;
+    
     const awardsContainer = item?.querySelector(".home-project_awards");
     const newAwardImages = awardsContainer?.querySelectorAll("img") || [];
+    
+    // Only update if content changed
+    const newHTML = Array.from(newAwardImages).map(img => img.src).join("");
+    if (newHTML === currentAwardsHTML) return;
+    currentAwardsHTML = newHTML;
+    
     awardsStrip.innerHTML = "";
-    if (!newAwardImages.length) return awardsStrip.classList.remove("is-visible");
+    if (!newAwardImages.length) {
+      awardsStrip.classList.remove("is-visible");
+      return;
+    }
+    
+    const frag = document.createDocumentFragment();
     newAwardImages.forEach(img => {
       const clone = img.cloneNode(true);
-      clone.removeAttribute("sizes"); clone.removeAttribute("srcset");
-      awardsStrip.appendChild(clone);
+      clone.removeAttribute("sizes");
+      clone.removeAttribute("srcset");
+      frag.appendChild(clone);
     });
+    awardsStrip.appendChild(frag);
     awardsStrip.classList.add("is-visible");
   }
 
   function setActive(item, opts = {}) {
     if (!item || item.style.display === "none") return;
-    if (activeItem === item) return;
+    if (activeItem === item && !opts.useHandoff) return;
 
     activeItem = item;
 
-    // Fade others
-    items.forEach(i => {
-      const link  = i.querySelector(".home-hero_link");
-      const text  = i.querySelector(".home_hero_text");
-      const pills = i.querySelectorAll(".home-category_ref_text:not([hidden])");
-      if (link) link.setAttribute("aria-current", "false");
-      text?.classList.add("u-color-faded");
-      pills.forEach(p => p.classList.add("u-color-faded"));
+    // Batch DOM updates
+    requestAnimationFrame(() => {
+      // Fade others
+      items.forEach(i => {
+        if (i === item) return;
+        const link  = i.querySelector(".home-hero_link");
+        const text  = i.querySelector(".home_hero_text");
+        const pills = i.querySelectorAll(".home-category_ref_text:not([hidden])");
+        if (link) link.setAttribute("aria-current", "false");
+        text?.classList.add("u-color-faded");
+        pills.forEach(p => p.classList.add("u-color-faded"));
+      });
+
+      // Unfade active
+      const activeLink  = item.querySelector(".home-hero_link");
+      const activeText  = item.querySelector(".home_hero_text");
+      const activePills = item.querySelectorAll(".home-category_ref_text:not([hidden])");
+      if (activeLink) activeLink.setAttribute("aria-current", "true");
+      activeText?.classList.remove("u-color-faded");
+      activePills.forEach(p => p.classList.remove("u-color-faded"));
+
+      updateAwards(item);
     });
 
-    // Unfade active
-    const activeLink  = item.querySelector(".home-hero_link");
-    const activeText  = item.querySelector(".home_hero_text");
-    const activePills = item.querySelectorAll(".home-category_ref_text:not([hidden])");
-    if (activeLink) activeLink.setAttribute("aria-current", "true");
-    activeText?.classList.remove("u-color-faded");
-    activePills.forEach(p => p.classList.remove("u-color-faded"));
-
-    // Video
+    // Video update
     const projectEl = item.querySelector(".home-hero_item");
     const videoSrc  = projectEl?.dataset.video;
+    
     if (videoSrc) {
       const useHandoff = !!opts.useHandoff && handoff?.src && handoff.src === videoSrc;
       
-      // Skip setActive if we already have the preloaded video
       if (useHandoff && handoff?.isPreloaded) {
-        // Video already in place, just emit ready
         emitReadyOnce();
       } else {
         videoManager.setActive(videoSrc, activeLink, {
@@ -112,19 +149,24 @@ export default function initHomeHero(container) {
         });
       }
     }
-
-    updateAwards(item);
   }
 
   function preloadVideos() {
+    if (navigator.connection?.saveData) return; // Respect data saver mode
+    
     const MAX_EAGER = 3;
     let count = 0;
+    
     items.forEach(item => {
+      if (count >= MAX_EAGER) return;
       const projectEl = item.querySelector(".home-hero_item");
       const videoSrc  = projectEl?.dataset.video;
       if (videoSrc) {
         const video = videoManager.createVideo(videoSrc);
-        if (video && count < MAX_EAGER) { videoManager.warmVideo(video); count++; }
+        if (video) {
+          videoManager.warmVideo(video);
+          count++;
+        }
       }
     });
   }
@@ -136,42 +178,58 @@ export default function initHomeHero(container) {
     });
   }
 
-  // Interaction
-  let hoverTimeout;
+  // Unified interaction handler with debounce
   function handleInteraction(e) {
     const item = e.target.closest(".home-hero_list");
-    if (!item || !listParent.contains(item)) return;
-    if (item.style.display !== "none") {
-      clearTimeout(hoverTimeout);
-      hoverTimeout = setTimeout(() => setActive(item), 50);
-    }
+    if (!item || !listParent.contains(item) || item.style.display === "none") return;
+    
+    clearTimeout(hoverTimeout);
+    hoverTimeout = setTimeout(() => setActive(item), 50);
   }
 
-  // Pass setActive as the third parameter
+  // Category filter
   const cleanupFilter = initCategoryFilter(section, videoManager, (firstItem) => {
     setActive(firstItem);
   });
+  cleanupFunctions.push(cleanupFilter);
 
-  listParent.addEventListener("mouseenter", handleInteraction, true);
-  listParent.addEventListener("focusin", handleInteraction);
-  listParent.addEventListener("touchstart", handleInteraction, { passive: true });
-  listParent.addEventListener("click", handleInteraction);
-
+  // Single event delegation for interactions
+  listParent.addEventListener("pointerenter", handleInteraction, true);
+  listParent.addEventListener("focus", handleInteraction, true);
+  
+  // Visibility handling
   const handleVisibility = () => {
     if (document.hidden) {
-      videoStage.querySelectorAll(".home-hero_video_el").forEach(v => v.pause?.());
+      videoStage.querySelectorAll(".home-hero_video_el").forEach(v => {
+        try { v.pause(); } catch {}
+      });
+    } else if (activeItem) {
+      // Resume active video when tab becomes visible
+      const projectEl = activeItem.querySelector(".home-hero_item");
+      const videoSrc = projectEl?.dataset.video;
+      if (videoSrc) {
+        const video = videoManager.getVideo(videoSrc);
+        if (video && video.paused) {
+          video.play().catch(() => {});
+        }
+      }
     }
   };
   document.addEventListener("visibilitychange", handleVisibility);
 
+  // Cleanup
   return () => {
     clearTimeout(hoverTimeout);
-    listParent.removeEventListener("mouseenter", handleInteraction, true);
-    listParent.removeEventListener("focusin", handleInteraction);
-    listParent.removeEventListener("touchstart", handleInteraction);
-    listParent.removeEventListener("click", handleInteraction);
+    listParent.removeEventListener("pointerenter", handleInteraction, true);
+    listParent.removeEventListener("focus", handleInteraction, true);
     document.removeEventListener("visibilitychange", handleVisibility);
-    cleanupFilter?.();
+    
+    // Clean up all registered functions
+    cleanupFunctions.forEach(fn => fn && fn());
+    
+    // Clean up video manager
+    videoManager.cleanup();
+    
     delete section.dataset.scriptInitialized;
     delete section.dataset.introComplete;
   };

@@ -1,6 +1,9 @@
-// transitions/grid-transition.js - Grid transition system
+// grid-transition.js - Fixed with proper cleanup and memory management
 import { initPageScripts } from "../page-scripts.js";
-import { calculateStaggerDelay } from "./stagger-calc.js";
+import { calculateStaggerDelay, clearStaggerCache } from "./stagger-calc.js";
+
+let globalGrid = null;
+let globalDivs = [];
 
 export function createGridTransition(options = {}) {
   const { 
@@ -9,11 +12,22 @@ export function createGridTransition(options = {}) {
     onNavReveal = () => {}
   } = options;
   
-  // Register custom ease
-  gsap.registerEase("o4", progress => 1 - Math.pow(1 - progress, 4));
+  // Register custom ease only once
+  if (!gsap.parseEase("o4")) {
+    gsap.registerEase("o4", progress => 1 - Math.pow(1 - progress, 4));
+  }
   
-  // Create grid overlay
-  const { grid, divs } = createTransitionGrid(cols, rows);
+  // Reuse existing grid or create new one
+  let grid = globalGrid;
+  let divs = globalDivs;
+  
+  if (!grid) {
+    const result = createTransitionGrid(cols, rows);
+    grid = result.grid;
+    divs = result.divs;
+    globalGrid = grid;
+    globalDivs = divs;
+  }
   
   return {
     grid,
@@ -23,10 +37,20 @@ export function createGridTransition(options = {}) {
       // Mark as navigating
       document.body.classList.add('barba-navigating');
       
+      // Mark for navigation to prevent FLIP animations
+      const heroSection = container.querySelector('.home-hero_wrap');
+      if (heroSection) {
+        heroSection.dataset.navigating = "true";
+      }
+      
       // Async cleanup
       if (container?.__cleanup) {
         requestAnimationFrame(() => {
-          container.__cleanup();
+          try {
+            container.__cleanup();
+          } catch (err) {
+            console.warn("[Transition] Leave cleanup error:", err);
+          }
           delete container.__cleanup;
         });
       }
@@ -61,8 +85,23 @@ export function createGridTransition(options = {}) {
         onComplete: () => {
           cleanupTransition(oldMain, newMain, grid);
           onNavReveal(newMain);
+          
+          // Clear navigation flag
+          const heroSection = newMain.querySelector('.home-hero_wrap');
+          if (heroSection) {
+            delete heroSection.dataset.navigating;
+          }
         }
       });
+    },
+    
+    cleanup: () => {
+      if (globalGrid && globalGrid.parentNode) {
+        globalGrid.remove();
+      }
+      globalGrid = null;
+      globalDivs = [];
+      clearStaggerCache();
     }
   };
 }
@@ -85,11 +124,12 @@ function createTransitionGrid(cols, rows) {
     contain: layout style paint;
   `;
   
-  // Create grid cells
+  // Create grid cells efficiently
   const fragment = document.createDocumentFragment();
   const divs = [];
   
-  for (let i = 0; i < cols * rows; i++) {
+  const cellCount = cols * rows;
+  for (let i = 0; i < cellCount; i++) {
     const div = document.createElement('div');
     div.style.cssText = `
       width: calc(100% + 2px);
@@ -130,14 +170,18 @@ function setupContainers(oldMain, newMain) {
 
 function animateTransition({ oldMain, newMain, grid, divs, cols, rows, onComplete }) {
   return new Promise(resolve => {
+    let phase1Timeline = null;
+    let phase2Timeline = null;
+    
     // Phase 1: Grid scales up
-    gsap.to(divs, {
-      scaleY: 1,
-      transformOrigin: '0% 100%',
-      duration: 0.7,
-      ease: 'o4',
-      stagger: index => calculateStaggerDelay(index, cols, rows, false),
+    phase1Timeline = gsap.timeline({
       onComplete: () => {
+        // Cleanup phase 1 timeline
+        if (phase1Timeline) {
+          phase1Timeline.kill();
+          phase1Timeline = null;
+        }
+        
         // Phase 2: Swap content
         oldMain.style.opacity = '0';
         newMain.style.opacity = '1';
@@ -146,19 +190,40 @@ function animateTransition({ oldMain, newMain, grid, divs, cols, rows, onComplet
         newMain.offsetHeight;
         
         // Phase 3: Grid scales down
-        gsap.to(divs, {
-          scaleY: 0,
-          transformOrigin: '0% 0%',
-          duration: 0.7,
-          ease: 'o4',
-          stagger: index => calculateStaggerDelay(index, cols, rows, true),
+        phase2Timeline = gsap.timeline({
           onComplete: () => {
-            console.log('exited');
+            // Cleanup phase 2 timeline
+            if (phase2Timeline) {
+              phase2Timeline.kill();
+              phase2Timeline = null;
+            }
+            
+            // Reset grid cells for reuse
+            divs.forEach(div => {
+              gsap.set(div, { scaleY: 0 });
+            });
+            
             onComplete();
             resolve();
           }
         });
+        
+        phase2Timeline.to(divs, {
+          scaleY: 0,
+          transformOrigin: '0% 0%',
+          duration: 0.7,
+          ease: 'o4',
+          stagger: index => calculateStaggerDelay(index, cols, rows, true)
+        });
       }
+    });
+    
+    phase1Timeline.to(divs, {
+      scaleY: 1,
+      transformOrigin: '0% 100%',
+      duration: 0.7,
+      ease: 'o4',
+      stagger: index => calculateStaggerDelay(index, cols, rows, false)
     });
   });
 }
@@ -170,14 +235,18 @@ function cleanupTransition(oldMain, newMain, grid) {
   newMain.style.zIndex = '';
   newMain.style.opacity = '';
   
-  // Remove old container
+  // Remove old container safely
   if (oldMain?.parentNode) {
-    oldMain.remove();
+    try {
+      oldMain.remove();
+    } catch (err) {
+      console.warn("[Transition] Old container removal failed:", err);
+    }
   }
   
   // Reset page state
   window.scrollTo(0, 0);
-  document.body.style.cursor = 'default';
+  document.body.style.cursor = '';
   grid.style.pointerEvents = 'none';
   document.body.classList.remove('barba-navigating');
 }
