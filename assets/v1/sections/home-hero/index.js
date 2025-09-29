@@ -135,6 +135,7 @@ export default function initHomeHero(container) {
     // Video update
     const projectEl = item.querySelector(".home-hero_item");
     const videoSrc  = projectEl?.dataset.video;
+    const activeLink = item.querySelector(".home-hero_link");
     
     if (videoSrc) {
       const useHandoff = !!opts.useHandoff && handoff?.src && handoff.src === videoSrc;
@@ -193,9 +194,11 @@ export default function initHomeHero(container) {
   });
   cleanupFunctions.push(cleanupFilter);
 
-  // Single event delegation for interactions
-  listParent.addEventListener("pointerenter", handleInteraction, true);
-  listParent.addEventListener("focus", handleInteraction, true);
+  // Event delegation for interactions
+  listParent.addEventListener("mouseenter", handleInteraction, true);
+  listParent.addEventListener("focusin", handleInteraction);
+  listParent.addEventListener("touchstart", handleInteraction, { passive: true });
+  listParent.addEventListener("click", handleInteraction);
   
   // Visibility handling
   const handleVisibility = () => {
