@@ -185,7 +185,8 @@ export default function initHomeHero(container) {
     if (!item || !listParent.contains(item) || item.style.display === "none") return;
     
     clearTimeout(hoverTimeout);
-    hoverTimeout = setTimeout(() => setActive(item), 50);
+    // Reduced from 50ms to 10ms for more responsive hover
+    hoverTimeout = setTimeout(() => setActive(item), 10);
   }
 
   // Category filter
@@ -223,8 +224,10 @@ export default function initHomeHero(container) {
   // Cleanup
   return () => {
     clearTimeout(hoverTimeout);
-    listParent.removeEventListener("pointerenter", handleInteraction, true);
-    listParent.removeEventListener("focus", handleInteraction, true);
+    listParent.removeEventListener("mouseenter", handleInteraction, true);
+    listParent.removeEventListener("focusin", handleInteraction);
+    listParent.removeEventListener("touchstart", handleInteraction);
+    listParent.removeEventListener("click", handleInteraction);
     document.removeEventListener("visibilitychange", handleVisibility);
     
     // Clean up all registered functions
