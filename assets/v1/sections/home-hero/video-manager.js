@@ -225,9 +225,9 @@ export function createVideoManager(stage) {
     activeVideo = next;
 
     const mode = opts.mode || "tween";
-    const fromScale = opts.tweenFromScale ?? 1.03;
-    const tweenDur = opts.tweenDuration ?? 0.7;
-    const tweenEase = opts.tweenEase ?? "power3.out";
+    const fromScale = opts.tweenFromScale ?? 1.01; // Very subtle scale (was 1.03)
+    const tweenDur = opts.tweenDuration ?? 0.25; // Faster transition (was 0.4)
+    const tweenEase = opts.tweenEase ?? "power2.inOut"; // Smoother ease
 
     const playNew = async () => {
       try {
@@ -306,8 +306,8 @@ export function createVideoManager(stage) {
           tl.to(previousVideo, { 
             opacity: 0, 
             scale: 1, 
-            duration: tweenDur * 0.86, 
-            ease: "power2.out" 
+            duration: tweenDur * 0.9, // Quick fade out
+            ease: "power1.in" 
           }, 0)
           .to(next, {
             opacity: 1, 
@@ -317,13 +317,13 @@ export function createVideoManager(stage) {
             onComplete: () => { 
               opts.onVisible?.();
             }
-          }, 0.06);
+          }, 0.02); // Minimal overlap for subtle crossfade
         } else {
           gsap.set(next, { opacity: 0, scale: fromScale, transformOrigin: "50% 50%" });
           tl.to(next, {
             opacity: 1, 
             scale: 1, 
-            duration: tweenDur * 0.86, 
+            duration: tweenDur * 0.8, // Adjusted for faster transition
             ease: tweenEase,
             onComplete: () => { 
               opts.onVisible?.();
