@@ -59,23 +59,19 @@ export default function initHomeHero(container) {
         const videoSrc = projectEl?.dataset.video;
         
         if (videoSrc === handoff.src) {
+          // CRITICAL: Adopt video (moves it from loader to hero stage)
           videoManager.adoptVideo(handoff.loaderVideo, videoSrc);
-          handoff.loaderVideo.__keepAlive = true;
           handoff.isPreloaded = true;
           
-          // Sync time if needed
-          if (handoff.currentTime != null) {
-            try {
-              handoff.loaderVideo.currentTime = handoff.currentTime;
-            } catch (err) {
-              console.warn("[HomeHero] Time sync failed:", err);
-            }
-          }
+          console.log("[HomeHero] Video adopted and moved to stage");
         }
       }
       
-      // Remove loader wrapper after adoption
-      handoff?.loaderWrapper?.remove?.();
+      // NOW safe to remove wrapper - video has been moved to hero stage
+      if (handoff?.loaderWrapper) {
+        handoff.loaderWrapper.remove();
+        console.log("[HomeHero] Loader wrapper removed");
+      }
       
       // Initialize hero with handoff
       initializeHero();

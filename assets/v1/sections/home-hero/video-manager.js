@@ -33,9 +33,36 @@ export function createVideoManager(stage) {
 
   function adoptVideo(videoEl, src) {
     if (!videoEl || !src) return null;
-    videoBySrc.set(src, videoEl);
+    
+    // CRITICAL: Move video element to hero stage
+    // The video is currently in the loader's wrapper which will be removed
+    if (videoEl.parentNode) {
+      videoEl.parentNode.removeChild(videoEl);
+    }
+    
+    // Add hero video classes and ensure it's in the stage
+    videoEl.className = "home-hero_video_el";
+    stage.appendChild(videoEl);
+    
+    // Set proper initial state
+    videoEl.__keepAlive = true;
+    videoEl.__warmed = true;
     videoEl.__lastUsed = Date.now();
     videoEl.__isAdopted = true;
+    
+    // Set to visible and active
+    if (window.gsap) {
+      gsap.set(videoEl, { opacity: 1, transformOrigin: "50% 50%" });
+    } else {
+      videoEl.style.opacity = "1";
+      videoEl.style.transformOrigin = "50% 50%";
+    }
+    videoEl.classList.add("is-active");
+    
+    videoBySrc.set(src, videoEl);
+    activeVideo = videoEl;
+    
+    console.log("[VideoManager] Adopted and moved video to stage:", src);
     return videoEl;
   }
 
