@@ -154,15 +154,12 @@ export default function initHomeHero(container) {
     if (videoSrc) {
       const useHandoff = !!opts.useHandoff && handoff?.src && handoff.src === videoSrc;
       
-      if (useHandoff && handoff?.isPreloaded) {
-        emitReadyOnce();
-      } else {
-        videoManager.setActive(videoSrc, activeLink, {
-          startAt: useHandoff ? handoff.currentTime : undefined,
-          mode: useHandoff ? "instant" : "tween",
-          onVisible: emitReadyOnce
-        });
-      }
+      // ALWAYS call setActive, even with handoff - just use instant mode
+      videoManager.setActive(videoSrc, activeLink, {
+        startAt: useHandoff ? handoff.currentTime : undefined,
+        mode: useHandoff ? "instant" : "tween",
+        onVisible: emitReadyOnce
+      });
     }
   }
 
