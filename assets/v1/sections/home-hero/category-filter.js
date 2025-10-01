@@ -1,10 +1,10 @@
-// category-filter.js
+// category-filter.js - Fixed version with correct selectors and state management
 import { getGhostLayer, makeGhost } from "./ghost-layer.js";
 
 export function initCategoryFilter(section, videoManager, setActiveCallback) {
-  const catWrap = section.querySelector(".home-hero_categories");
-  // FIXED: Changed from .home-hero_list-wrapper to .home-hero_list_parent
-  const listParent = section.querySelector(".home-hero_list_parent");
+  // FIXED: Correct selectors - note inconsistent naming in HTML
+  const catWrap = section.querySelector(".home_hero_categories"); // UNDERSCORES
+  const listParent = section.querySelector(".home-hero_list_parent"); // HYPHENS
   
   if (!catWrap || !listParent) {
     console.warn("[CategoryFilter] Missing categories or list parent");
@@ -19,7 +19,7 @@ export function initCategoryFilter(section, videoManager, setActiveCallback) {
     return () => {};
   }
 
-  // Initialize category button states
+  // Initialize category button states on load
   initializeCategoryStates(catWrap);
 
   const handleClick = (e) => {
