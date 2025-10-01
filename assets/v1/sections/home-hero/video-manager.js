@@ -256,7 +256,7 @@ export function createVideoManager(stage) {
     };
 
     if (mode === "instant" || prefersReducedMotion || !window.gsap) {
-      // Instant transition - used for handoff from loader
+      // INSTANT transition - no fade, immediate swap
       if (previousVideo) {
         previousVideo.classList.remove("is-active");
         if (window.gsap) {
@@ -268,19 +268,18 @@ export function createVideoManager(stage) {
       
       next.classList.add("is-active");
       
-      // Start loading and playing BEFORE showing
+      // Start loading and playing
       playNew().then(async () => {
-        // Wait for video to actually be playing smoothly
+        // Wait for first frame only
         await waitForFrameRendered(next);
         
-        // NOW show the video
+        // Show immediately - no fade
         if (window.gsap) {
           gsap.set(next, { opacity: 1, transformOrigin: "50% 50%" });
         } else {
           next.style.opacity = "1";
         }
         
-        // Call onVisible after video is visible and playing
         opts.onVisible?.();
       });
       
@@ -290,7 +289,7 @@ export function createVideoManager(stage) {
           if (!previousVideo.__keepAlive) {
             previousVideo.pause();
           }
-        }, 100);
+        }, 50); // Quick pause
       }
     } else if (window.gsap) {
       // FAST CROSSFADE transition
