@@ -44,26 +44,51 @@ export default function initHomeHero(container) {
 
   // Handle site loader handoff
   const hasSiteLoader = document.querySelector(".site-loader_wrap");
-  if (hasSiteLoader) {
-    handoff = window.__loaderHandoff || null;
-    delete window.__loaderHandoff;
-    window.addEventListener("siteLoaderMorphBegin", (e) => {
-      handoff = e.detail;
-      if (handoff?.loaderVideo) {
+  
+  let morphListener = null;
+  
+  if (hasSiteLoader && window.__initialPageLoad) {
+    morphListener = async (e) => {
+      handoff = e?.detail || null;
+      console.log("[HomeHero] Handoff received:", handoff);
+      
+      // Adopt the loader's video if it matches the first project
+      if (handoff?.loaderVideo && handoff?.src) {
         const firstItem = items.find(i => i.style.display !== "none");
         const projectEl = firstItem?.querySelector(".home-hero_item");
         const videoSrc = projectEl?.dataset.video;
-        if (videoSrc === handoff.src && handoff.loaderVideo) {
+        
+        if (videoSrc === handoff.src) {
           videoManager.adoptVideo(handoff.loaderVideo, videoSrc);
           handoff.loaderVideo.__keepAlive = true;
           handoff.isPreloaded = true;
+          
+          // Sync time if needed
+          if (handoff.currentTime != null) {
+            try {
+              handoff.loaderVideo.currentTime = handoff.currentTime;
+            } catch (err) {
+              console.warn("[HomeHero] Time sync failed:", err);
+            }
+          }
         }
       }
-      handoff.loaderWrapper?.remove?.();
-    }, { once: true });
-
-    window.addEventListener("siteLoaderComplete", initializeHero, { once: true });
+      
+      // Remove loader wrapper after adoption
+      handoff?.loaderWrapper?.remove?.();
+      
+      // Initialize hero with handoff
+      initializeHero();
+    };
+    
+    window.addEventListener("siteLoaderMorphBegin", morphListener, { once: true });
+    cleanupFunctions.push(() => {
+      if (morphListener) {
+        window.removeEventListener("siteLoaderMorphBegin", morphListener);
+      }
+    });
   } else {
+    // No loader - initialize immediately
     requestAnimationFrame(initializeHero);
   }
 

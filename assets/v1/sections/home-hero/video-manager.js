@@ -306,6 +306,10 @@ export function createVideoManager(stage) {
         // Start playing and wait for frame BEFORE animating
         await playNew();
         next.classList.add("is-active");
+        
+        // CRITICAL: Call onVisible as soon as video is ready and playing
+        // Don't wait for animation to complete - morph can happen during transition
+        opts.onVisible?.();
 
         if (previousVideo) {
           // Set initial states
@@ -327,9 +331,6 @@ export function createVideoManager(stage) {
               if (next.paused) {
                 next.play().catch(() => {});
               }
-            },
-            onComplete: () => { 
-              opts.onVisible?.();
             }
           }, tweenDur * 0.15); // CRITICAL: 0.15 overlap (was 0.02) for smooth crossfade
         } else {
@@ -338,10 +339,7 @@ export function createVideoManager(stage) {
           tl.to(next, {
             opacity: 1, 
             duration: tweenDur * 0.8,
-            ease: tweenEase,
-            onComplete: () => { 
-              opts.onVisible?.();
-            }
+            ease: tweenEase
           });
         }
       };
