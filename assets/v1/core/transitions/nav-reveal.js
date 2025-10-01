@@ -10,6 +10,13 @@ export function createHomeRevealAnimation(container) {
   
   if (namespace !== "home") return null;
   
+  // Don't animate if site-loader is handling initial reveal
+  const hasSiteLoader = document.querySelector(".site-loader_wrap[data-script-initialized='true']");
+  if (hasSiteLoader && window.__initialPageLoad) {
+    console.log("[NavReveal] Skipping - site loader will handle reveal");
+    return null;
+  }
+  
   // Set initial hidden states
   gsap.set([
     ".nav_wrap",
@@ -134,20 +141,24 @@ export function createHomeRevealAnimation(container) {
 export function createProjectNavAnimation(container) {
   const namespace = container.dataset.barbaNamespace;
   
-  // Always ensure nav is visible on all pages
-  gsap.set(".nav_wrap", {
-    visibility: "visible",
-    opacity: 1
-  });
-  
-  gsap.set(".nav_link", {
-    visibility: "visible",
-    opacity: 1
-  });
-  
-  // Check if home page and run home reveal
+  // Check if home page and run home reveal (will skip if site-loader present)
   const homeReveal = createHomeRevealAnimation(container);
   if (homeReveal) return homeReveal;
+  
+  // Don't force nav visibility if site-loader is handling initial load
+  const hasSiteLoader = document.querySelector(".site-loader_wrap[data-script-initialized='true']");
+  if (!hasSiteLoader || !window.__initialPageLoad) {
+    // Always ensure nav is visible on non-initial loads
+    gsap.set(".nav_wrap", {
+      visibility: "visible",
+      opacity: 1
+    });
+    
+    gsap.set(".nav_link", {
+      visibility: "visible",
+      opacity: 1
+    });
+  }
   
   // Only animate project-specific elements on project pages
   if (namespace === "project") {
@@ -210,7 +221,7 @@ export function createProjectNavAnimation(container) {
     return tl;
   }
   
-  // For other pages, just ensure nav is visible
+  // For other pages, nav is already visible
   return null;
 }
 
