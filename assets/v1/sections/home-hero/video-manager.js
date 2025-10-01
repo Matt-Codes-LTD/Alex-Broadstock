@@ -1,4 +1,4 @@
-// video-manager.js - Optimized for seamless video transitions
+// video-manager.js - Instant video switching with no transitions
 export function createVideoManager(stage) {
   const MAX_VIDEOS = 8;
   const videoBySrc = new Map();
@@ -177,19 +177,15 @@ export function createVideoManager(stage) {
     return v;
   }
 
-  // CRITICAL: Wait for actual frame rendering before showing video
   function waitForFrameRendered(v) {
     return new Promise((resolve) => {
       if ("requestVideoFrameCallback" in v) {
-        // Modern browsers - wait for actual frame
         v.requestVideoFrameCallback(() => {
-          // Wait one more frame to ensure smooth start
           requestAnimationFrame(() => {
             requestAnimationFrame(() => resolve());
           });
         });
       } else {
-        // Fallback - wait for timeupdate + RAF
         const handler = () => {
           v.removeEventListener("timeupdate", handler);
           requestAnimationFrame(() => {
@@ -198,19 +194,14 @@ export function createVideoManager(stage) {
         };
         v.addEventListener("timeupdate", handler, { once: true });
         
-        // Safety timeout
         const timeout = setTimeout(resolve, 200);
         cleanupTimeouts.add(timeout);
       }
     });
   }
 
-  async function setActive(src, linkEl, opts = {}) {
-    // Handle pending transitions - cancel or queue
-    if (transitionInProgress) {
-      pendingTransition = { src, linkEl, opts };
-      return;
-    }
+  function setActive(src, linkEl, opts = {}) {
+    if (transitionInProgress) return;
 
     const next = videoBySrc.get(src) || createVideo(src);
     if (!next) return;
@@ -235,134 +226,39 @@ export function createVideoManager(stage) {
     const previousVideo = activeVideo;
     activeVideo = next;
 
-    const mode = opts.mode || "tween";
-    // IMPROVED: Longer, smoother transition
-    const tweenDur = opts.tweenDuration ?? 0.5; // Increased from 0.25
-    const tweenEase = opts.tweenEase ?? "power1.inOut"; // Gentler ease
-
-    const playNew = async () => {
-      try {
-        await whenReady(next);
-        if (opts.startAt != null) {
-          await seekTo(next, Math.max(0, opts.startAt));
-          await next.play();
-        } else {
-          restart(next);
-        }
-        // CRITICAL: Wait for actual frame before transitioning
-        await waitForFrameRendered(next);
-      } catch (err) {
-        console.warn("[VideoManager] Play failed:", err);
-      }
-    };
-
-    if (mode === "instant" || prefersReducedMotion || !window.gsap) {
-      // INSTANT transition - show immediately, no waiting
-      
-      // Hide old video immediately
-      if (previousVideo) {
-        previousVideo.classList.remove("is-active");
-        if (window.gsap) {
-          gsap.set(previousVideo, { opacity: 0 });
-        } else {
-          previousVideo.style.opacity = "0";
-        }
-        // Pause old video immediately
-        if (!previousVideo.__keepAlive) {
-          previousVideo.pause();
-        }
-      }
-      
-      // Show new video IMMEDIATELY (should already be playing from preload)
-      next.classList.add("is-active");
+    // INSTANT SWITCH - No fade, no transition, just swap
+    
+    // Hide old video immediately
+    if (previousVideo) {
+      previousVideo.classList.remove("is-active");
       if (window.gsap) {
-        gsap.set(next, { opacity: 1, transformOrigin: "50% 50%" });
+        gsap.set(previousVideo, { opacity: 0 });
       } else {
-        next.style.opacity = "1";
+        previousVideo.style.opacity = "0";
       }
-      
-      // Only start playing if not already playing
-      if (next.paused || next.currentTime === 0) {
-        playNew().catch(() => {});
+      // Pause old video immediately
+      if (!previousVideo.__keepAlive) {
+        previousVideo.pause();
       }
-      
-      // Signal ready immediately
-      opts.onVisible?.();
-      
-      transitionInProgress = false;
-    } else if (window.gsap) {
-      // FAST CROSSFADE transition
-      const tl = gsap.timeline({
-        onComplete: () => {
-          transitionInProgress = false;
-          if (previousVideo) {
-            previousVideo.classList.remove("is-active");
-            // Quick pause after fast transition
-            setTimeout(() => {
-              if (!previousVideo.__keepAlive) {
-                previousVideo.pause();
-              }
-            }, 150); // Reduced from 300ms for faster feel
-          }
-          
-          // Process pending transition if exists
-          if (pendingTransition) {
-            const pending = pendingTransition;
-            pendingTransition = null;
-            setTimeout(() => {
-              setActive(pending.src, pending.linkEl, pending.opts);
-            }, 16);
-          }
-        }
-      });
-
-      // CRITICAL: Start playing new video immediately in parallel
-      const playPromise = playNew();
-      
-      // Don't wait - begin crossfade as soon as we have a frame
-      const prepareTransition = async () => {
-        // Wait ONLY for first frame, not full load
-        await waitForFrameRendered(next);
-        
-        next.classList.add("is-active");
-        
-        // Signal ready immediately
-        opts.onVisible?.();
-
-        if (previousVideo) {
-          // Set initial states
-          gsap.set(next, { opacity: 0, transformOrigin: "50% 50%" });
-          gsap.set(previousVideo, { opacity: 1, transformOrigin: "50% 50%" });
-
-          // FAST CROSSFADE: New video fades in quickly, old fades out
-          tl.to(previousVideo, { 
-            opacity: 0, 
-            duration: tweenDur,
-            ease: "power2.in" // Fast fade out
-          }, 0)
-          .to(next, {
-            opacity: 1, 
-            duration: tweenDur * 0.6, // Faster fade in (0.18s)
-            ease: tweenEase
-          }, tweenDur * 0.1); // Start at 10% = 0.03s overlap
-        } else {
-          // First video - simple fade in
-          gsap.set(next, { opacity: 0, transformOrigin: "50% 50%" });
-          tl.to(next, {
-            opacity: 1, 
-            duration: tweenDur * 0.6,
-            ease: tweenEase
-          });
-        }
-      };
-      
-      // Start transition as soon as possible
-      prepareTransition();
-    } else {
-      // Fallback CSS transition
-      transitionInProgress = false;
-      opts.onVisible?.();
     }
+    
+    // Show new video IMMEDIATELY
+    next.classList.add("is-active");
+    if (window.gsap) {
+      gsap.set(next, { opacity: 1, transformOrigin: "50% 50%" });
+    } else {
+      next.style.opacity = "1";
+    }
+    
+    // Only start playing if not already playing from preload
+    if (next.paused || next.currentTime === 0) {
+      restart(next);
+    }
+    
+    // Signal ready immediately
+    opts.onVisible?.();
+    
+    transitionInProgress = false;
 
     if (linkEl && linkEl !== activeLink) {
       updateLinkState(activeLink, linkEl);
