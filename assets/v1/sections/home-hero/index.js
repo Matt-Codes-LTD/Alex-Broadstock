@@ -36,10 +36,19 @@ export default function initHomeHero(container) {
   function initializeHero() {
     hideMetaTags();
     preloadVideos();
+    
+    // Show the hero video stage (was hidden by site-loader)
+    if (window.gsap) {
+      gsap.set(videoStage, { opacity: 1, zIndex: 0 });
+    } else {
+      videoStage.style.opacity = "1";
+      videoStage.style.zIndex = "0";
+    }
+    
     const firstVisible = items.find(item => item.style.display !== "none");
     if (firstVisible) setActive(firstVisible, { useHandoff: true });
     section.dataset.introComplete = "true";
-    console.log("[HomeHero] Intro setup complete");
+    console.log("[HomeHero] Intro setup complete, stage visible");
   }
 
   // Handle site loader handoff
@@ -52,36 +61,32 @@ export default function initHomeHero(container) {
       handoff = e?.detail || null;
       console.log("[HomeHero] Handoff received:", handoff);
       
-      // Adopt the loader's video if it matches the first project
-      if (handoff?.loaderVideo && handoff?.src) {
-        const firstItem = items.find(i => i.style.display !== "none");
-        const projectEl = firstItem?.querySelector(".home-hero_item");
-        const videoSrc = projectEl?.dataset.video;
-        
-        if (videoSrc === handoff.src) {
-          // CRITICAL: Adopt video (moves it from loader to hero stage)
-          videoManager.adoptVideo(handoff.loaderVideo, videoSrc);
-          handoff.isPreloaded = true;
-          
-          console.log("[HomeHero] Video adopted and moved to stage");
-        }
+      // Don't remove wrapper yet - morph animation needs it!
+      // Just store the handoff data for timing sync
+      if (handoff) {
+        handoff.isPreloaded = true;
       }
       
-      // NOW safe to remove wrapper - video has been moved to hero stage
-      if (handoff?.loaderWrapper) {
-        handoff.loaderWrapper.remove();
-        console.log("[HomeHero] Loader wrapper removed");
-      }
-      
-      // Initialize hero with handoff
+      // Initialize hero - will create its own video with handoff timing
       initializeHero();
     };
     
     window.addEventListener("siteLoaderMorphBegin", morphListener, { once: true });
+    
+    // Clean up wrapper AFTER site-loader completes (morph done, wrapper faded)
+    const completeListener = () => {
+      if (handoff?.loaderWrapper) {
+        handoff.loaderWrapper.remove();
+        console.log("[HomeHero] Loader wrapper removed after completion");
+      }
+    };
+    window.addEventListener("siteLoaderComplete", completeListener, { once: true });
+    
     cleanupFunctions.push(() => {
       if (morphListener) {
         window.removeEventListener("siteLoaderMorphBegin", morphListener);
       }
+      window.removeEventListener("siteLoaderComplete", completeListener);
     });
   } else {
     // No loader - initialize immediately
