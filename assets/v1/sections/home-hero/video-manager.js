@@ -273,7 +273,7 @@ export function createVideoManager(stage) {
         }
       }
       
-      // Show new video IMMEDIATELY (should already be preloaded)
+      // Show new video IMMEDIATELY (should already be playing from preload)
       next.classList.add("is-active");
       if (window.gsap) {
         gsap.set(next, { opacity: 1, transformOrigin: "50% 50%" });
@@ -281,8 +281,10 @@ export function createVideoManager(stage) {
         next.style.opacity = "1";
       }
       
-      // Start playing (async, non-blocking)
-      playNew().catch(() => {});
+      // Only start playing if not already playing
+      if (next.paused || next.currentTime === 0) {
+        playNew().catch(() => {});
+      }
       
       // Signal ready immediately
       opts.onVisible?.();

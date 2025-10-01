@@ -192,15 +192,23 @@ export default function initHomeHero(container) {
     });
   }
 
-  // IMPROVED: Hover-intent preloading
+  // IMPROVED: Hover-intent preloading with keepAlive
   function preloadVideoForItem(item) {
     if (navigator.connection?.saveData) return;
     const projectEl = item.querySelector(".home-hero_item");
     const videoSrc = projectEl?.dataset.video;
     if (videoSrc) {
       const video = videoManager.getVideo(videoSrc) || videoManager.createVideo(videoSrc);
-      if (video && !video.__warmed) {
-        videoManager.warmVideo(video);
+      if (video) {
+        // Mark as keepAlive so it doesn't auto-pause
+        video.__keepAlive = true;
+        if (!video.__warmed) {
+          videoManager.warmVideo(video);
+        }
+        // Ensure it's playing
+        if (video.paused) {
+          video.play().catch(() => {});
+        }
       }
     }
   }
@@ -219,8 +227,8 @@ export default function initHomeHero(container) {
       preloadVideoForItem(item);
     }, 50); // Preload after 50ms hover
     
-    // Switch after slightly longer delay for smooth transitions
-    hoverTimeout = setTimeout(() => setActive(item), 120); // Increased from 10ms
+    // Switch after slightly longer delay
+    hoverTimeout = setTimeout(() => setActive(item), 120);
   }
 
   // Category filter
