@@ -293,17 +293,18 @@ export function createVideoManager(stage) {
         }, 100);
       }
     } else if (window.gsap) {
-      // GSAP smooth crossfade transition
+      // ULTRA SMOOTH GSAP transition
       const tl = gsap.timeline({
         onComplete: () => {
           transitionInProgress = false;
           if (previousVideo) {
             previousVideo.classList.remove("is-active");
+            // Wait longer before pausing old video
             setTimeout(() => {
               if (!previousVideo.__keepAlive) {
                 previousVideo.pause();
               }
-            }, 100);
+            }, 300); // Increased from 100ms
           }
           
           // Process pending transition if exists
@@ -317,13 +318,17 @@ export function createVideoManager(stage) {
         }
       });
 
-      const prepare = async () => {
-        // Start playing and wait for frame BEFORE animating
-        await playNew();
+      // CRITICAL: Start playing new video immediately in parallel
+      const playPromise = playNew();
+      
+      // Don't wait - begin crossfade as soon as we have a frame
+      const prepareTransition = async () => {
+        // Wait ONLY for first frame, not full load
+        await waitForFrameRendered(next);
+        
         next.classList.add("is-active");
         
-        // CRITICAL: Call onVisible as soon as video is ready and playing
-        // Don't wait for animation to complete - morph can happen during transition
+        // Signal ready immediately
         opts.onVisible?.();
 
         if (previousVideo) {
@@ -331,25 +336,19 @@ export function createVideoManager(stage) {
           gsap.set(next, { opacity: 0, transformOrigin: "50% 50%" });
           gsap.set(previousVideo, { opacity: 1, transformOrigin: "50% 50%" });
 
-          // IMPROVED: Longer crossfade overlap for seamless blend
+          // ULTRA SMOOTH: Massive overlap crossfade (70% overlap!)
           tl.to(previousVideo, { 
             opacity: 0, 
-            duration: tweenDur * 0.7, // Fade out slightly faster
-            ease: "power1.in" 
+            duration: tweenDur,
+            ease: "power1.out" 
           }, 0)
           .to(next, {
             opacity: 1, 
-            duration: tweenDur, // Full duration for fade in
-            ease: tweenEase,
-            onStart: () => {
-              // Ensure video is playing
-              if (next.paused) {
-                next.play().catch(() => {});
-              }
-            }
-          }, tweenDur * 0.15); // CRITICAL: 0.15 overlap (was 0.02) for smooth crossfade
+            duration: tweenDur,
+            ease: tweenEase
+          }, tweenDur * 0.3); // Start at 30% = 70% overlap!
         } else {
-          // First video - simple fade in, no scale
+          // First video - simple fade in
           gsap.set(next, { opacity: 0, transformOrigin: "50% 50%" });
           tl.to(next, {
             opacity: 1, 
@@ -359,11 +358,8 @@ export function createVideoManager(stage) {
         }
       };
       
-      if (next.readyState >= 2) {
-        prepare();
-      } else {
-        setTimeout(prepare, 0);
-      }
+      // Start transition as soon as possible
+      prepareTransition();
     } else {
       // Fallback CSS transition
       transitionInProgress = false;
