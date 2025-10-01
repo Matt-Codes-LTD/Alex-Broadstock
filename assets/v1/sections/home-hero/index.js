@@ -156,8 +156,9 @@ export default function initHomeHero(container) {
       const useHandoff = !!opts.useHandoff && handoff?.src && handoff.src === videoSrc;
       
       // ALWAYS call setActive, even with handoff - just use instant mode
+      // Don't pass startAt for handoff - let it start from beginning
+      // The morph animation takes time anyway, starting fresh is smoother
       videoManager.setActive(videoSrc, activeLink, {
-        startAt: useHandoff ? handoff.currentTime : undefined,
         mode: useHandoff ? "instant" : "tween",
         onVisible: emitReadyOnce
       });

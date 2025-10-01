@@ -267,14 +267,20 @@ export function createVideoManager(stage) {
       }
       
       next.classList.add("is-active");
-      if (window.gsap) {
-        gsap.set(next, { opacity: 1, transformOrigin: "50% 50%" });
-      } else {
-        next.style.opacity = "1";
-      }
       
-      playNew().then(() => {
-        // Call onVisible immediately for instant mode
+      // Start loading and playing BEFORE showing
+      playNew().then(async () => {
+        // Wait for video to actually be playing smoothly
+        await waitForFrameRendered(next);
+        
+        // NOW show the video
+        if (window.gsap) {
+          gsap.set(next, { opacity: 1, transformOrigin: "50% 50%" });
+        } else {
+          next.style.opacity = "1";
+        }
+        
+        // Call onVisible after video is visible and playing
         opts.onVisible?.();
       });
       
