@@ -1,5 +1,4 @@
-// grid-transition.js - Fixed with proper cleanup and memory management
-import { initPageScripts } from "../page-scripts.js";
+// grid-transition.js - Fixed to hide home content before revealing
 import { calculateStaggerDelay, clearStaggerCache } from "./stagger-calc.js";
 
 let globalGrid = null;
@@ -60,8 +59,21 @@ export function createGridTransition(options = {}) {
       const oldMain = current.container;
       const newMain = next.container;
       
-      // Initialize new page scripts
-      newMain.__cleanup = initPageScripts(newMain);
+      // CRITICAL: Hide home content IMMEDIATELY before it becomes visible
+      if (newMain.dataset.barbaNamespace === "home") {
+        gsap.set([
+          ".nav_wrap",
+          ".brand_logo",
+          ".nav_link",
+          ".home-category_text",
+          ".home_hero_text",
+          ".home-category_ref_text:not([hidden])",
+          ".home-awards_list"
+        ], {
+          opacity: 0,
+          visibility: "visible"
+        });
+      }
       
       // Position containers
       setupContainers(oldMain, newMain);
