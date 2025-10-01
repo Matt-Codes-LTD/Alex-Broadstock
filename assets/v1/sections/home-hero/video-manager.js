@@ -293,18 +293,18 @@ export function createVideoManager(stage) {
         }, 100);
       }
     } else if (window.gsap) {
-      // ULTRA SMOOTH GSAP transition
+      // FAST CROSSFADE transition
       const tl = gsap.timeline({
         onComplete: () => {
           transitionInProgress = false;
           if (previousVideo) {
             previousVideo.classList.remove("is-active");
-            // Wait longer before pausing old video
+            // Quick pause after fast transition
             setTimeout(() => {
               if (!previousVideo.__keepAlive) {
                 previousVideo.pause();
               }
-            }, 300); // Increased from 100ms
+            }, 150); // Reduced from 300ms for faster feel
           }
           
           // Process pending transition if exists
@@ -313,7 +313,7 @@ export function createVideoManager(stage) {
             pendingTransition = null;
             setTimeout(() => {
               setActive(pending.src, pending.linkEl, pending.opts);
-            }, 16); // Small delay for smoothness
+            }, 16);
           }
         }
       });
@@ -336,23 +336,23 @@ export function createVideoManager(stage) {
           gsap.set(next, { opacity: 0, transformOrigin: "50% 50%" });
           gsap.set(previousVideo, { opacity: 1, transformOrigin: "50% 50%" });
 
-          // ULTRA SMOOTH: Massive overlap crossfade (70% overlap!)
+          // FAST CROSSFADE: New video fades in quickly, old fades out
           tl.to(previousVideo, { 
             opacity: 0, 
             duration: tweenDur,
-            ease: "power1.out" 
+            ease: "power2.in" // Fast fade out
           }, 0)
           .to(next, {
             opacity: 1, 
-            duration: tweenDur,
+            duration: tweenDur * 0.6, // Faster fade in (0.18s)
             ease: tweenEase
-          }, tweenDur * 0.3); // Start at 30% = 70% overlap!
+          }, tweenDur * 0.1); // Start at 10% = 0.03s overlap
         } else {
           // First video - simple fade in
           gsap.set(next, { opacity: 0, transformOrigin: "50% 50%" });
           tl.to(next, {
             opacity: 1, 
-            duration: tweenDur * 0.8,
+            duration: tweenDur * 0.6,
             ease: tweenEase
           });
         }
