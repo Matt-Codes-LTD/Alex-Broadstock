@@ -1,16 +1,28 @@
 // category-filter.js
 import { getGhostLayer, makeGhost } from "./ghost-layer.js";
 
-export function initCategoryFilter(section, state) {
+export function initCategoryFilter(section, videoManager, setActiveCallback) {
   const catWrap = section.querySelector(".home-hero_categories");
-  const listParent = section.querySelector(".home-hero_list-wrapper");
-  if (!catWrap || !listParent) return;
+  // FIXED: Changed from .home-hero_list-wrapper to .home-hero_list_parent
+  const listParent = section.querySelector(".home-hero_list_parent");
+  
+  if (!catWrap || !listParent) {
+    console.warn("[CategoryFilter] Missing categories or list parent");
+    console.warn("[CategoryFilter] catWrap:", !!catWrap, "listParent:", !!listParent);
+    return () => {};
+  }
 
   cacheCats(section);
   const allBtn = ensureAllButton(catWrap);
-  if (!allBtn) return;
+  if (!allBtn) {
+    console.warn("[CategoryFilter] Failed to create All button");
+    return () => {};
+  }
 
-  catWrap.addEventListener("click", (e) => {
+  // Initialize category button states
+  initializeCategoryStates(catWrap);
+
+  const handleClick = (e) => {
     const btn = e.target.closest(".home-category_text");
     if (!btn || section.dataset.navigating) return;
     e.preventDefault();
@@ -18,11 +30,47 @@ export function initCategoryFilter(section, state) {
     const prevActive = catWrap.querySelector('[aria-current="true"]');
     if (prevActive === btn) return;
 
-    if (prevActive) prevActive.removeAttribute("aria-current");
-    btn.setAttribute("aria-current", "true");
+    // Update category button states
+    updateCategoryStates(catWrap, prevActive, btn);
 
-    filterItems(section, listParent, btn, state.setActive);
+    filterItems(section, listParent, btn, setActiveCallback);
+  };
+
+  catWrap.addEventListener("click", handleClick);
+
+  return () => {
+    catWrap.removeEventListener("click", handleClick);
+  };
+}
+
+// Initialize all category button states on load
+function initializeCategoryStates(catWrap) {
+  const buttons = Array.from(catWrap.querySelectorAll(".home-category_text"));
+  
+  buttons.forEach(btn => {
+    const isActive = btn.getAttribute("aria-current") === "true";
+    
+    if (isActive) {
+      btn.classList.remove("u-color-faded");
+    } else {
+      btn.classList.add("u-color-faded");
+    }
   });
+}
+
+// Update category button states when switching
+function updateCategoryStates(catWrap, prevActive, newActive) {
+  // Remove active from previous
+  if (prevActive) {
+    prevActive.setAttribute("aria-current", "false");
+    prevActive.classList.add("u-color-faded");
+  }
+  
+  // Set new active
+  if (newActive) {
+    newActive.setAttribute("aria-current", "true");
+    newActive.classList.remove("u-color-faded");
+  }
 }
 
 function filterItems(section, listParent, btn, setActiveCallback) {
@@ -175,6 +223,8 @@ function ensureAllButton(catWrap) {
   let allBtn = buttons.find((b) => normalize(b.textContent) === "all") || null;
   
   if (!allBtn) {
+    console.log("[CategoryFilter] Creating 'All' button");
+    
     const item = document.createElement("div");
     item.setAttribute("role", "listitem");
     item.className = "home-hero_category u-text-style-main w-dyn-item";
@@ -184,11 +234,15 @@ function ensureAllButton(catWrap) {
     a.className = "home-category_text u-text-style-main";
     a.textContent = "All";
     a.setAttribute("aria-current", "true");
+    // Don't add u-color-faded to the initial active button
 
     item.appendChild(a);
     catWrap.insertBefore(item, catWrap.firstChild);
     allBtn = a;
+  } else {
+    console.log("[CategoryFilter] 'All' button already exists");
   }
+  
   return allBtn;
 }
 
