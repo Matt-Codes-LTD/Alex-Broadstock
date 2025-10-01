@@ -10,10 +10,6 @@ export function getGhostLayer() {
 }
 
 export function stripArtifacts(root) {
-  root.querySelectorAll("[data-animate-chars],[data-animate-chars-inner]").forEach((n) => {
-    n.removeAttribute("data-animate-chars");
-    n.removeAttribute("data-animate-chars-inner");
-  });
   [...[root], ...root.querySelectorAll("*")].forEach((n) => {
     Object.assign(n.style, {
       background: "transparent",
