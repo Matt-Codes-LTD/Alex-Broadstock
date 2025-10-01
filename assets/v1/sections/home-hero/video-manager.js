@@ -90,11 +90,12 @@ export function createVideoManager(stage) {
     
     const start = () => {
       v.play().then(() => {
+        // Keep video playing longer so it's ready
         const timeout = setTimeout(() => { 
           if (!v.__keepAlive) {
             v.pause();
           }
-        }, 250);
+        }, 2000); // Increased from 250ms - keeps video buffering
         cleanupTimeouts.add(timeout);
       }).catch(() => {});
     };
@@ -256,7 +257,9 @@ export function createVideoManager(stage) {
     };
 
     if (mode === "instant" || prefersReducedMotion || !window.gsap) {
-      // INSTANT transition - no fade, immediate swap
+      // INSTANT transition - show immediately, no waiting
+      
+      // Hide old video immediately
       if (previousVideo) {
         previousVideo.classList.remove("is-active");
         if (window.gsap) {
@@ -264,33 +267,27 @@ export function createVideoManager(stage) {
         } else {
           previousVideo.style.opacity = "0";
         }
+        // Pause old video immediately
+        if (!previousVideo.__keepAlive) {
+          previousVideo.pause();
+        }
       }
       
+      // Show new video IMMEDIATELY (should already be preloaded)
       next.classList.add("is-active");
+      if (window.gsap) {
+        gsap.set(next, { opacity: 1, transformOrigin: "50% 50%" });
+      } else {
+        next.style.opacity = "1";
+      }
       
-      // Start loading and playing
-      playNew().then(async () => {
-        // Wait for first frame only
-        await waitForFrameRendered(next);
-        
-        // Show immediately - no fade
-        if (window.gsap) {
-          gsap.set(next, { opacity: 1, transformOrigin: "50% 50%" });
-        } else {
-          next.style.opacity = "1";
-        }
-        
-        opts.onVisible?.();
-      });
+      // Start playing (async, non-blocking)
+      playNew().catch(() => {});
+      
+      // Signal ready immediately
+      opts.onVisible?.();
       
       transitionInProgress = false;
-      if (previousVideo) {
-        setTimeout(() => {
-          if (!previousVideo.__keepAlive) {
-            previousVideo.pause();
-          }
-        }, 50); // Quick pause
-      }
     } else if (window.gsap) {
       // FAST CROSSFADE transition
       const tl = gsap.timeline({
