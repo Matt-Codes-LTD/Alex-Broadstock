@@ -1,4 +1,4 @@
-// index.js - Fixed with proper cleanup and race condition prevention
+// index.js - Optimized hover handling with preloading
 import { createVideoManager } from "./video-manager.js";
 import { initCategoryFilter } from "./category-filter.js";
 
@@ -23,6 +23,7 @@ export default function initHomeHero(container) {
   let handoff = null;
   let revealedOnce = false;
   let hoverTimeout = null;
+  let preloadTimeout = null;
   let currentAwardsHTML = "";
   let cleanupFunctions = [];
   
@@ -43,57 +44,45 @@ export default function initHomeHero(container) {
 
   // Handle site loader handoff
   const hasSiteLoader = document.querySelector(".site-loader_wrap");
-  let morphListener = null;
-  
-  if (hasSiteLoader && window.__initialPageLoad) {
-    morphListener = async (e) => {
-      handoff = e?.detail || null;
-      console.log("[HomeHero] Handoff received:", handoff);
-      
-      if (handoff?.src && handoff?.currentTime != null) {
-        const heroVideo = videoManager.createVideo(handoff.src);
-        if (heroVideo) {
-          try {
-            heroVideo.currentTime = handoff.currentTime;
-            await heroVideo.play().catch(() => {});
-          } catch (err) {
-            console.warn("[HomeHero] Handoff sync failed:", err);
-          }
+  if (hasSiteLoader) {
+    handoff = window.__loaderHandoff || null;
+    delete window.__loaderHandoff;
+    window.addEventListener("siteLoaderMorphBegin", (e) => {
+      handoff = e.detail;
+      if (handoff?.loaderVideo) {
+        const firstItem = items.find(i => i.style.display !== "none");
+        const projectEl = firstItem?.querySelector(".home-hero_item");
+        const videoSrc = projectEl?.dataset.video;
+        if (videoSrc === handoff.src && handoff.loaderVideo) {
+          videoManager.adoptVideo(handoff.loaderVideo, videoSrc);
+          handoff.loaderVideo.__keepAlive = true;
+          handoff.isPreloaded = true;
         }
       }
-      
-      initializeHero();
-    };
-    window.addEventListener("siteLoaderMorphBegin", morphListener, { once: true });
-    cleanupFunctions.push(() => {
-      if (morphListener) {
-        window.removeEventListener("siteLoaderMorphBegin", morphListener);
-      }
-    });
+      handoff.loaderWrapper?.remove?.();
+    }, { once: true });
+
+    window.addEventListener("siteLoaderComplete", initializeHero, { once: true });
   } else {
-    initializeHero();
+    requestAnimationFrame(initializeHero);
   }
 
   function updateAwards(item) {
     if (!awardsStrip) return;
-    
-    const awardsContainer = item?.querySelector(".home-project_awards");
-    const newAwardImages = awardsContainer?.querySelectorAll("img") || [];
-    
-    // Only update if content changed
-    const newHTML = Array.from(newAwardImages).map(img => img.src).join("");
-    if (newHTML === currentAwardsHTML) return;
-    currentAwardsHTML = newHTML;
-    
-    awardsStrip.innerHTML = "";
-    if (!newAwardImages.length) {
+    const badges = item.querySelectorAll(".home-hero_award_ref");
+    if (!badges.length) {
+      awardsStrip.innerHTML = "";
       awardsStrip.classList.remove("is-visible");
+      currentAwardsHTML = "";
       return;
     }
-    
+    const newHTML = Array.from(badges).map(b => b.innerHTML).join("");
+    if (newHTML === currentAwardsHTML) return;
+    currentAwardsHTML = newHTML;
+    awardsStrip.innerHTML = "";
     const frag = document.createDocumentFragment();
-    newAwardImages.forEach(img => {
-      const clone = img.cloneNode(true);
+    badges.forEach(badge => {
+      const clone = badge.cloneNode(true);
       clone.removeAttribute("sizes");
       clone.removeAttribute("srcset");
       frag.appendChild(clone);
@@ -153,7 +142,7 @@ export default function initHomeHero(container) {
   }
 
   function preloadVideos() {
-    if (navigator.connection?.saveData) return; // Respect data saver mode
+    if (navigator.connection?.saveData) return;
     
     const MAX_EAGER = 3;
     let count = 0;
@@ -179,14 +168,35 @@ export default function initHomeHero(container) {
     });
   }
 
-  // Unified interaction handler with debounce
+  // IMPROVED: Hover-intent preloading
+  function preloadVideoForItem(item) {
+    if (navigator.connection?.saveData) return;
+    const projectEl = item.querySelector(".home-hero_item");
+    const videoSrc = projectEl?.dataset.video;
+    if (videoSrc) {
+      const video = videoManager.getVideo(videoSrc) || videoManager.createVideo(videoSrc);
+      if (video && !video.__warmed) {
+        videoManager.warmVideo(video);
+      }
+    }
+  }
+
+  // IMPROVED: Better hover handling with preloading on intent
   function handleInteraction(e) {
     const item = e.target.closest(".home-hero_list");
     if (!item || !listParent.contains(item) || item.style.display === "none") return;
     
+    // Clear existing timeouts
     clearTimeout(hoverTimeout);
-    // Reduced from 50ms to 10ms for more responsive hover
-    hoverTimeout = setTimeout(() => setActive(item), 10);
+    clearTimeout(preloadTimeout);
+    
+    // Preload immediately on hover intent (before actual switch)
+    preloadTimeout = setTimeout(() => {
+      preloadVideoForItem(item);
+    }, 50); // Preload after 50ms hover
+    
+    // Switch after slightly longer delay for smooth transitions
+    hoverTimeout = setTimeout(() => setActive(item), 120); // Increased from 10ms
   }
 
   // Category filter
@@ -208,7 +218,6 @@ export default function initHomeHero(container) {
         try { v.pause(); } catch {}
       });
     } else if (activeItem) {
-      // Resume active video when tab becomes visible
       const projectEl = activeItem.querySelector(".home-hero_item");
       const videoSrc = projectEl?.dataset.video;
       if (videoSrc) {
@@ -224,16 +233,14 @@ export default function initHomeHero(container) {
   // Cleanup
   return () => {
     clearTimeout(hoverTimeout);
+    clearTimeout(preloadTimeout);
     listParent.removeEventListener("mouseenter", handleInteraction, true);
     listParent.removeEventListener("focusin", handleInteraction);
     listParent.removeEventListener("touchstart", handleInteraction);
     listParent.removeEventListener("click", handleInteraction);
     document.removeEventListener("visibilitychange", handleVisibility);
     
-    // Clean up all registered functions
     cleanupFunctions.forEach(fn => fn && fn());
-    
-    // Clean up video manager
     videoManager.cleanup();
     
     delete section.dataset.scriptInitialized;
