@@ -1,4 +1,4 @@
-// grid-transition.js - Fixed to hide home content before revealing
+// grid-transition.js - Fixed with proper navigation flag management
 import { calculateStaggerDelay, clearStaggerCache } from "./stagger-calc.js";
 
 let globalGrid = null;
@@ -40,6 +40,7 @@ export function createGridTransition(options = {}) {
       const heroSection = container.querySelector('.home-hero_wrap');
       if (heroSection) {
         heroSection.dataset.navigating = "true";
+        console.log("[Transition] Set navigating flag on leave");
       }
       
       // Async cleanup
@@ -98,10 +99,20 @@ export function createGridTransition(options = {}) {
           cleanupTransition(oldMain, newMain, grid);
           onNavReveal(newMain);
           
-          // Clear navigation flag
+          // Clear navigation flag with fallback timeout
           const heroSection = newMain.querySelector('.home-hero_wrap');
           if (heroSection) {
+            // Clear immediately
             delete heroSection.dataset.navigating;
+            console.log("[Transition] Cleared navigating flag on enter complete");
+            
+            // Safety fallback - ensure it's cleared even if something goes wrong
+            setTimeout(() => {
+              if (heroSection.dataset.navigating) {
+                delete heroSection.dataset.navigating;
+                console.log("[Transition] Cleared stuck navigating flag via fallback");
+              }
+            }, 1000);
           }
         }
       });
@@ -131,61 +142,46 @@ function createTransitionGrid(cols, rows) {
     grid-template-columns: repeat(${cols}, 1fr);
     grid-template-rows: repeat(${rows}, 1fr);
     pointer-events: none;
-    z-index: 10000;
-    will-change: transform;
-    contain: layout style paint;
+    z-index: 9999;
   `;
   
-  // Create grid cells efficiently
-  const fragment = document.createDocumentFragment();
   const divs = [];
-  
-  const cellCount = cols * rows;
-  for (let i = 0; i < cellCount; i++) {
+  for (let i = 0; i < cols * rows; i++) {
     const div = document.createElement('div');
     div.style.cssText = `
-      width: calc(100% + 2px);
-      height: calc(100% + 2px);
-      margin-left: -1px;
-      margin-top: -1px;
+      background: #000;
       transform: scaleY(0);
       transform-origin: 0% 100%;
-      background: var(--swatch--brand-paper, #FDFCF3);
       will-change: transform;
-      backface-visibility: hidden;
-      contain: layout style paint;
     `;
+    grid.appendChild(div);
     divs.push(div);
-    fragment.appendChild(div);
   }
   
-  grid.appendChild(fragment);
   document.body.appendChild(grid);
-  
   return { grid, divs };
 }
 
 function setupContainers(oldMain, newMain) {
-  Object.assign(oldMain.style, { 
-    position: 'absolute', 
-    inset: '0', 
-    zIndex: '1'
-  });
+  // Old container - fade out
+  oldMain.style.position = 'fixed';
+  oldMain.style.inset = '0';
+  oldMain.style.zIndex = '1';
+  oldMain.style.opacity = '1';
   
-  Object.assign(newMain.style, { 
-    position: 'absolute', 
-    inset: '0', 
-    zIndex: '2',
-    opacity: '0'
-  });
+  // New container - ready but hidden
+  newMain.style.position = 'fixed';
+  newMain.style.inset = '0';
+  newMain.style.zIndex = '0';
+  newMain.style.opacity = '0';
 }
 
-function animateTransition({ oldMain, newMain, grid, divs, cols, rows, onComplete }) {
-  return new Promise(resolve => {
+function animateTransition({ oldMain, newMain, grid, divs, cols, rows, onNavReveal, onComplete }) {
+  return new Promise((resolve) => {
     let phase1Timeline = null;
     let phase2Timeline = null;
     
-    // Phase 1: Grid scales up
+    // Phase 1: Grid covers screen
     phase1Timeline = gsap.timeline({
       onComplete: () => {
         // Cleanup phase 1 timeline
@@ -194,14 +190,15 @@ function animateTransition({ oldMain, newMain, grid, divs, cols, rows, onComplet
           phase1Timeline = null;
         }
         
-        // Phase 2: Swap content
+        // Swap container visibility
         oldMain.style.opacity = '0';
+        newMain.style.zIndex = '2';
         newMain.style.opacity = '1';
         
         // Force paint
         newMain.offsetHeight;
         
-        // Phase 3: Grid scales down
+        // Phase 2: Grid scales down
         phase2Timeline = gsap.timeline({
           onComplete: () => {
             // Cleanup phase 2 timeline

@@ -1,8 +1,8 @@
-// category-filter.js - Fixed version with correct selectors and state management
+// category-filter.js - Fixed with proper navigation flag management
 import { getGhostLayer, makeGhost } from "./ghost-layer.js";
 
 export function initCategoryFilter(section, videoManager, setActiveCallback) {
-  // FIXED: Correct selectors - note inconsistent naming in HTML
+  // Correct selectors - note inconsistent naming in HTML
   const catWrap = section.querySelector(".home_hero_categories"); // UNDERSCORES
   const listParent = section.querySelector(".home-hero_list_parent"); // HYPHENS
   
@@ -11,6 +11,9 @@ export function initCategoryFilter(section, videoManager, setActiveCallback) {
     console.warn("[CategoryFilter] catWrap:", !!catWrap, "listParent:", !!listParent);
     return () => {};
   }
+
+  // CRITICAL FIX: Clear any stuck navigation flag on initialization
+  delete section.dataset.navigating;
 
   cacheCats(section);
   const allBtn = ensureAllButton(catWrap);
@@ -24,22 +27,45 @@ export function initCategoryFilter(section, videoManager, setActiveCallback) {
 
   const handleClick = (e) => {
     const btn = e.target.closest(".home-category_text");
-    if (!btn || section.dataset.navigating) return;
+    if (!btn) return;
+    
+    // Check navigation flag but with debugging
+    if (section.dataset.navigating) {
+      console.log("[CategoryFilter] Click blocked - navigation in progress");
+      return;
+    }
+    
     e.preventDefault();
 
     const prevActive = catWrap.querySelector('[aria-current="true"]');
-    if (prevActive === btn) return;
+    if (prevActive === btn) {
+      console.log("[CategoryFilter] Already active, ignoring");
+      return;
+    }
+
+    // Set navigation flag during filter animation
+    section.dataset.navigating = "true";
+    console.log("[CategoryFilter] Filter animation starting:", btn.textContent.trim());
 
     // Update category button states
     updateCategoryStates(catWrap, prevActive, btn);
 
+    // Run filter animation
     filterItems(section, listParent, btn, setActiveCallback);
+    
+    // Clear navigation flag after animation completes
+    // Timeout matches FLIP animation duration (MOVE_DUR + EXIT_DUR + buffer)
+    setTimeout(() => {
+      delete section.dataset.navigating;
+      console.log("[CategoryFilter] Filter animation complete, flag cleared");
+    }, 800); // 0.4s move + 0.3s exit + 0.1s buffer
   };
 
   catWrap.addEventListener("click", handleClick);
 
   return () => {
     catWrap.removeEventListener("click", handleClick);
+    delete section.dataset.navigating;
   };
 }
 
@@ -78,82 +104,71 @@ function filterItems(section, listParent, btn, setActiveCallback) {
   const allItems = Array.from(section.querySelectorAll(".home-hero_list"));
   const visibleBefore = allItems.filter((it) => it.offsetParent);
 
-  const matcher = cat === "all" ? () => true : (it) => {
-    const cats = (it.dataset.cats || "").split("|");
-    return cats.some((c) => normalize(c) === cat);
-  };
+  const matcher = cat === "all" 
+    ? () => true 
+    : (item) => {
+        const cats = item.dataset.cats || "";
+        return cats.split("|").includes(cat);
+      };
 
+  // Determine which items will be visible after filter
   const visibleAfter = allItems.filter(matcher);
-  const firstVisibleItem = visibleAfter[0] || null;
+  
+  if (visibleAfter.length === 0) {
+    console.warn("[CategoryFilter] No items match filter:", cat);
+    return;
+  }
 
-  const rectBefore = new Map(visibleBefore.map((el) => [el, el.getBoundingClientRect()]));
+  const firstVisibleItem = visibleAfter[0];
 
   requestAnimationFrame(() => {
-    allItems.forEach((it) => {
-      it.hidden = !matcher(it);
-    });
+    // Create ghost layer
+    const layer = getGhostLayer();
+    const ghosts = visibleBefore.map((el) => makeGhost(el, layer));
 
-    const ghosts = [];
-    visibleBefore.forEach((el) => {
-      if (!visibleAfter.includes(el)) {
-        const rect = rectBefore.get(el);
-        if (rect) ghosts.push(makeGhost(el, rect));
+    // Update visibility
+    allItems.forEach((item) => {
+      if (matcher(item)) {
+        item.style.display = "";
+      } else {
+        item.style.display = "none";
       }
     });
 
-    const rectAfter = new Map(visibleAfter.map((el) => [el, el.getBoundingClientRect()]));
+    // Force layout
+    listParent.offsetHeight;
 
+    // Lock pointer events during animation
     listParent.style.pointerEvents = "none";
-    visibleAfter.forEach((el) => {
-      el.style.willChange = "transform,opacity";
-      el.style.backfaceVisibility = "hidden";
-    });
 
-    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const MOVE_DUR = prefersReducedMotion ? 0 : 0.36;
-    const ENTER_DUR = prefersReducedMotion ? 0 : 0.32;
-    const EXIT_DUR = prefersReducedMotion ? 0 : 0.3;
-    const EASE_MOVE = "cubic-bezier(.16,.84,.28,1)";
-    const EASE_ENTER = "cubic-bezier(.22,1,.36,1)";
-    const EASE_EXIT = "cubic-bezier(.36,0,.1,1)";
-    const STAGGER = 12;
+    // Animation constants
+    const MOVE_DUR = 0.4;
+    const EXIT_DUR = 0.3;
+    const STAGGER = 20;
+    const EASE_MOVE = "cubic-bezier(0.65, 0, 0.35, 1)";
+    const EASE_EXIT = "cubic-bezier(0.4, 0, 1, 1)";
 
     const anims = [];
 
+    // Animate visible items
     visibleAfter.forEach((el, i) => {
-      const before = rectBefore.get(el),
-        after = rectAfter.get(el);
-      if (!before) {
-        if (ENTER_DUR) {
-          anims.push(
-            el.animate(
-              [
-                { opacity: 0, transform: "translateY(12px) translateZ(0)" },
-                { opacity: 1, transform: "translateY(0px) translateZ(0)" },
-              ],
-              {
-                duration: ENTER_DUR * 1000,
-                easing: EASE_ENTER,
-                delay: i * STAGGER,
-                fill: "both",
-              }
-            ).finished.catch(() => {})
-          );
-        } else {
-          el.style.opacity = "";
-          el.style.transform = "";
-        }
-      } else {
+      const ghost = ghosts.find((g) => g.dataset.originalId === el.dataset.itemId);
+      
+      if (ghost) {
+        const before = ghost.getBoundingClientRect();
+        const after = el.getBoundingClientRect();
         const dx = before.left - after.left;
         const dy = before.top - after.top;
-        if (dx || dy) {
+
+        if (dx !== 0 || dy !== 0) {
+          el.style.willChange = "transform, opacity";
+          el.style.backfaceVisibility = "hidden";
+          
           anims.push(
             el.animate(
               [
-                {
-                  transform: `translate(${dx}px, ${dy}px) translateZ(0)`,
-                },
-                { transform: "translate(0,0) translateZ(0)" },
+                { transform: `translate(${dx}px, ${dy}px) translateZ(0)`, opacity: 0 },
+                { transform: "translate(0px, 0px) translateZ(0)", opacity: 1 },
               ],
               {
                 duration: MOVE_DUR * 1000,
@@ -169,6 +184,7 @@ function filterItems(section, listParent, btn, setActiveCallback) {
       }
     });
 
+    // Animate ghosts out
     ghosts.forEach((g, i) =>
       anims.push(
         g.animate(
@@ -186,6 +202,7 @@ function filterItems(section, listParent, btn, setActiveCallback) {
       )
     );
 
+    // Cleanup after animations
     Promise.allSettled(anims).finally(() => {
       visibleAfter.forEach((el) => {
         el.style.willChange = "";
@@ -234,7 +251,6 @@ function ensureAllButton(catWrap) {
     a.className = "home-category_text u-text-style-main";
     a.textContent = "All";
     a.setAttribute("aria-current", "true");
-    // Don't add u-color-faded to the initial active button
 
     item.appendChild(a);
     catWrap.insertBefore(item, catWrap.firstChild);

@@ -1,4 +1,4 @@
-// index.js - Optimized hover handling with preloading
+// index.js - Fixed with proper navigation flag clearing
 import { createVideoManager } from "./video-manager.js";
 import { initCategoryFilter } from "./category-filter.js";
 
@@ -6,6 +6,9 @@ export default function initHomeHero(container) {
   const section = container.querySelector(".home-hero_wrap");
   if (!section || section.dataset.scriptInitialized) return () => {};
   section.dataset.scriptInitialized = "true";
+
+  // CRITICAL FIX: Clear navigation flag on initialization
+  delete section.dataset.navigating;
 
   const videoStage  = section.querySelector(".home-hero_video");
   const listParent  = section.querySelector(".home-hero_list_parent");
@@ -61,73 +64,36 @@ export default function initHomeHero(container) {
       handoff = e?.detail || null;
       console.log("[HomeHero] Handoff received:", handoff);
       
-      // Don't remove wrapper yet - morph animation needs it!
-      // Just store the handoff data for timing sync
-      if (handoff) {
-        handoff.isPreloaded = true;
-      }
-      
-      // Initialize hero - will create its own video with handoff timing
+      // Small delay for morph animation, then init
+      await new Promise(resolve => setTimeout(resolve, 100));
       initializeHero();
     };
     
     window.addEventListener("siteLoaderMorphBegin", morphListener, { once: true });
-    
-    // Clean up wrapper AFTER site-loader completes (morph done, wrapper faded)
-    const completeListener = () => {
-      if (handoff?.loaderWrapper) {
-        handoff.loaderWrapper.remove();
-        console.log("[HomeHero] Loader wrapper removed after completion");
-      }
-    };
-    window.addEventListener("siteLoaderComplete", completeListener, { once: true });
-    
-    cleanupFunctions.push(() => {
-      if (morphListener) {
-        window.removeEventListener("siteLoaderMorphBegin", morphListener);
-      }
-      window.removeEventListener("siteLoaderComplete", completeListener);
-    });
   } else {
-    // No loader - initialize immediately
-    requestAnimationFrame(initializeHero);
+    // No site loader or not initial load
+    requestAnimationFrame(() => initializeHero());
   }
 
   function updateAwards(item) {
     if (!awardsStrip) return;
-    const badges = item.querySelectorAll(".home-hero_award_ref");
-    if (!badges.length) {
-      awardsStrip.innerHTML = "";
-      awardsStrip.classList.remove("is-visible");
-      currentAwardsHTML = "";
-      return;
-    }
-    const newHTML = Array.from(badges).map(b => b.innerHTML).join("");
+    const list = item.querySelector(".home-awards_list");
+    if (!list) return;
+
+    const newHTML = list.innerHTML;
     if (newHTML === currentAwardsHTML) return;
+    
     currentAwardsHTML = newHTML;
-    awardsStrip.innerHTML = "";
-    const frag = document.createDocumentFragment();
-    badges.forEach(badge => {
-      const clone = badge.cloneNode(true);
-      clone.removeAttribute("sizes");
-      clone.removeAttribute("srcset");
-      frag.appendChild(clone);
-    });
-    awardsStrip.appendChild(frag);
-    awardsStrip.classList.add("is-visible");
+    awardsStrip.innerHTML = newHTML;
   }
 
   function setActive(item, opts = {}) {
-    if (!item || item.style.display === "none") return;
-    if (activeItem === item && !opts.useHandoff) return;
-
+    if (!item || item === activeItem) return;
     activeItem = item;
 
-    // Batch DOM updates
     requestAnimationFrame(() => {
-      // Fade others
-      items.forEach(i => {
-        if (i === item) return;
+      // Fade all other items
+      items.forEach((i) => {
         const link  = i.querySelector(".home-hero_link");
         const text  = i.querySelector(".home_hero_text");
         const pills = i.querySelectorAll(".home-category_ref_text:not([hidden])");
@@ -155,9 +121,6 @@ export default function initHomeHero(container) {
     if (videoSrc) {
       const useHandoff = !!opts.useHandoff && handoff?.src && handoff.src === videoSrc;
       
-      // ALWAYS call setActive, even with handoff - just use instant mode
-      // Don't pass startAt for handoff - let it start from beginning
-      // The morph animation takes time anyway, starting fresh is smoother
       videoManager.setActive(videoSrc, activeLink, {
         mode: useHandoff ? "instant" : "tween",
         onVisible: emitReadyOnce
@@ -192,7 +155,7 @@ export default function initHomeHero(container) {
     });
   }
 
-  // IMPROVED: Hover-intent preloading with keepAlive
+  // Hover-intent preloading
   function preloadVideoForItem(item) {
     if (navigator.connection?.saveData) return;
     const projectEl = item.querySelector(".home-hero_item");
@@ -200,12 +163,10 @@ export default function initHomeHero(container) {
     if (videoSrc) {
       const video = videoManager.getVideo(videoSrc) || videoManager.createVideo(videoSrc);
       if (video) {
-        // Mark as keepAlive so it doesn't auto-pause
         video.__keepAlive = true;
         if (!video.__warmed) {
           videoManager.warmVideo(video);
         }
-        // Ensure it's playing
         if (video.paused) {
           video.play().catch(() => {});
         }
@@ -213,7 +174,7 @@ export default function initHomeHero(container) {
     }
   }
 
-  // IMPROVED: Better hover handling with preloading on intent
+  // Hover handling
   function handleInteraction(e) {
     const item = e.target.closest(".home-hero_list");
     if (!item || !listParent.contains(item) || item.style.display === "none") return;
@@ -222,10 +183,10 @@ export default function initHomeHero(container) {
     clearTimeout(hoverTimeout);
     clearTimeout(preloadTimeout);
     
-    // Preload immediately on hover intent (before actual switch)
+    // Preload immediately on hover intent
     preloadTimeout = setTimeout(() => {
       preloadVideoForItem(item);
-    }, 50); // Preload after 50ms hover
+    }, 50);
     
     // Switch after slightly longer delay
     hoverTimeout = setTimeout(() => setActive(item), 120);
@@ -272,10 +233,15 @@ export default function initHomeHero(container) {
     listParent.removeEventListener("click", handleInteraction);
     document.removeEventListener("visibilitychange", handleVisibility);
     
+    if (morphListener) {
+      window.removeEventListener("siteLoaderMorphBegin", morphListener);
+    }
+    
     cleanupFunctions.forEach(fn => fn && fn());
     videoManager.cleanup();
     
     delete section.dataset.scriptInitialized;
     delete section.dataset.introComplete;
+    delete section.dataset.navigating; // Ensure flag is cleared
   };
 }
