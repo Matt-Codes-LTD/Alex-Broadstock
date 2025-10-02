@@ -171,7 +171,9 @@ export function createProjectNavAnimation(container) {
       visibility: "visible"
     });
     
-    const tl = gsap.timeline();
+    const tl = gsap.timeline({
+      delay: 0.3 // Initial breathing room after transition
+    });
     
     // Nav wrapper - slide from top
     tl.fromTo(".nav_wrap", {
@@ -180,62 +182,69 @@ export function createProjectNavAnimation(container) {
     }, {
       opacity: 1,
       y: 0,
-      duration: 0.3,
+      duration: 0.5,
       ease: "power2.out"
     })
     
-    // Center button - fade only (no position change to preserve CSS centering)
-    .fromTo(".project-player_center-toggle", {
-      opacity: 0
+    // Links and project name - staggered fade in
+    .fromTo([".nav_link", ".project_name"], {
+      opacity: 0,
+      y: -5
     }, {
       opacity: 1,
-      duration: 0.3,
+      y: 0,
+      duration: 0.4,
+      stagger: 0.08, // Increased stagger
       ease: "power2.out"
-    }, "<")
+    }, "-=0.2") // Start slightly before nav finishes
     
-    // Controls container - appears with nav
+    // Center button - fade in after nav settles
+    .fromTo(".project-player_center-toggle", {
+      opacity: 0,
+      scale: 0.95
+    }, {
+      opacity: 1,
+      scale: 1,
+      duration: 0.5,
+      ease: "back.out(1.4)"
+    }, "-=0.1")
+    
+    // Controls container - appears after center button
     .fromTo(".project-player_controls", {
       opacity: 0,
       y: 10
     }, {
       opacity: 1,
       y: 0,
-      duration: 0.3,
+      duration: 0.5,
       ease: "power2.out"
-    }, "<")
+    }, "+=0.1") // Breathing room
     
-    // Links and project name - quick fade in
-    .fromTo([".nav_link", ".project_name"], {
-      opacity: 0
-    }, {
-      opacity: 1,
-      duration: 0.25,
-      stagger: 0.02,
-      ease: "power2.out"
-    }, "<0.05")
-    
-    // Player controls - all together
+    // Player controls - staggered appearance
     .fromTo([
       ".project-player_btn--play", 
       ".project-player_timeline",
       ".project-player_btn--mute", 
       ".project-player_btn--fs"
     ], {
-      opacity: 0
+      opacity: 0,
+      y: 5
     }, {
       opacity: 1,
-      duration: 0.25,
+      y: 0,
+      duration: 0.35,
+      stagger: 0.06, // Stagger each control
       ease: "power2.out"
-    }, "<")
+    }, "-=0.3")
     
-    // Navigation overlay - appears with controls
+    // Navigation overlay - appears last
     .fromTo(".project-navigation_overlay", {
       opacity: 0
     }, {
       opacity: 1,
-      duration: 0.25,
+      duration: 0.4,
       ease: "power2.out"
-    }, "<");
+    }, "-=0.2");
     
     return tl;
   }
