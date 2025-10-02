@@ -149,7 +149,7 @@ function createTransitionGrid(cols, rows) {
   for (let i = 0; i < cols * rows; i++) {
     const div = document.createElement('div');
     div.style.cssText = `
-      background: #000;
+      background: var(--swatch--brand-paper);
       transform: scaleY(0);
       transform-origin: 0% 100%;
       will-change: transform;
