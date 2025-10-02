@@ -1,10 +1,9 @@
-// index.js - Fixed with proper state management and cleanup
+// index.js - Fixed with immediate start and proper state management
 import { createState } from "./state.js";
 import { createUIElements, lockScroll } from "./ui-elements.js";
 import { setupVideo } from "./video-setup.js";
 import { createMainTimeline } from "./timeline.js";
 import { hideHeroContent } from "./hero-handoff.js";
-import { CONFIG } from "./constants.js";
 
 export default function initSiteLoader(container) {
   // Guard: only on initial page load
@@ -98,27 +97,21 @@ export default function initSiteLoader(container) {
       if (timeline) timeline.kill();
     });
     
-    // Start after minimum time
-    timeline.pause();
-    
-    // Don't start if tab is hidden
+    // Start immediately or wait for visibility
     if (document.hidden) {
+      // If tab is hidden, pause and wait for visibility
+      timeline.pause();
       state.visibilityListener = () => {
         if (!document.hidden && timeline && timeline.paused()) {
           timeline.play();
         }
       };
       document.addEventListener("visibilitychange", state.visibilityListener, { once: true });
-    } else {
-      setTimeout(() => {
-        if (timeline && !timeline.isActive()) {
-          timeline.play();
-        }
-      }, CONFIG.MIN_LOAD_TIME);
     }
+    // Timeline plays immediately on creation if tab is visible
   } else {
-    // No GSAP fallback - just hide after minimum time
-    setTimeout(onComplete, CONFIG.MIN_LOAD_TIME);
+    // No GSAP fallback - just hide immediately
+    onComplete();
   }
 
   // Cleanup
