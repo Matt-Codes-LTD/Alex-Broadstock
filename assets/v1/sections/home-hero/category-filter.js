@@ -1,18 +1,32 @@
-// category-filter.js - Fixed with proper navigation flag management
+// category-filter.js - Fixed with correct DOM scope
 import { getGhostLayer, makeGhost } from "./ghost-layer.js";
 
 export function initCategoryFilter(section, videoManager, setActiveCallback) {
-  // Correct selectors - note inconsistent naming in HTML
-  const catWrap = section.querySelector(".home_hero_categories"); // UNDERSCORES
-  const listParent = section.querySelector(".home-hero_list_parent"); // HYPHENS
+  // CRITICAL FIX: Search from document root, not just section
+  // The categories wrapper exists outside the .home-hero_wrap scope
+  const catWrap = document.querySelector(".home_hero_categories");
+  const listParent = section.querySelector(".home-hero_list_parent");
   
   if (!catWrap || !listParent) {
     console.warn("[CategoryFilter] Missing categories or list parent");
     console.warn("[CategoryFilter] catWrap:", !!catWrap, "listParent:", !!listParent);
+    
+    // Fallback: Try alternative selectors
+    if (!catWrap) {
+      const altWrap = document.querySelector("[data-home-cats-proxy]") || 
+                      document.querySelector(".home-hero_categories");
+      if (altWrap) {
+        console.log("[CategoryFilter] Found wrapper with fallback selector");
+        return initCategoryFilter.call(this, section, videoManager, setActiveCallback, altWrap, listParent);
+      }
+    }
+    
     return () => {};
   }
 
-  // CRITICAL FIX: Clear any stuck navigation flag on initialization
+  console.log("[CategoryFilter] Initializing with wrapper:", catWrap.className);
+
+  // Clear any stuck navigation flags
   delete section.dataset.navigating;
 
   cacheCats(section);
@@ -27,9 +41,12 @@ export function initCategoryFilter(section, videoManager, setActiveCallback) {
 
   const handleClick = (e) => {
     const btn = e.target.closest(".home-category_text");
-    if (!btn) return;
+    if (!btn) {
+      console.log("[CategoryFilter] Click not on a category button");
+      return;
+    }
     
-    // Check navigation flag but with debugging
+    // Check navigation flag
     if (section.dataset.navigating) {
       console.log("[CategoryFilter] Click blocked - navigation in progress");
       return;
@@ -54,14 +71,14 @@ export function initCategoryFilter(section, videoManager, setActiveCallback) {
     filterItems(section, listParent, btn, setActiveCallback);
     
     // Clear navigation flag after animation completes
-    // Timeout matches FLIP animation duration (MOVE_DUR + EXIT_DUR + buffer)
     setTimeout(() => {
       delete section.dataset.navigating;
       console.log("[CategoryFilter] Filter animation complete, flag cleared");
-    }, 800); // 0.4s move + 0.3s exit + 0.1s buffer
+    }, 800);
   };
 
   catWrap.addEventListener("click", handleClick);
+  console.log("[CategoryFilter] Click handler attached");
 
   return () => {
     catWrap.removeEventListener("click", handleClick);
@@ -72,6 +89,7 @@ export function initCategoryFilter(section, videoManager, setActiveCallback) {
 // Initialize all category button states on load
 function initializeCategoryStates(catWrap) {
   const buttons = Array.from(catWrap.querySelectorAll(".home-category_text"));
+  console.log("[CategoryFilter] Found", buttons.length, "category buttons");
   
   buttons.forEach(btn => {
     const isActive = btn.getAttribute("aria-current") === "true";
@@ -104,6 +122,9 @@ function filterItems(section, listParent, btn, setActiveCallback) {
   const allItems = Array.from(section.querySelectorAll(".home-hero_list"));
   const visibleBefore = allItems.filter((it) => it.offsetParent);
 
+  console.log("[CategoryFilter] Filtering for category:", cat);
+  console.log("[CategoryFilter] Total items:", allItems.length);
+
   const matcher = cat === "all" 
     ? () => true 
     : (item) => {
@@ -113,6 +134,8 @@ function filterItems(section, listParent, btn, setActiveCallback) {
 
   // Determine which items will be visible after filter
   const visibleAfter = allItems.filter(matcher);
+  
+  console.log("[CategoryFilter] Visible after filter:", visibleAfter.length);
   
   if (visibleAfter.length === 0) {
     console.warn("[CategoryFilter] No items match filter:", cat);
@@ -223,6 +246,8 @@ function filterItems(section, listParent, btn, setActiveCallback) {
 /* Helpers */
 function cacheCats(section) {
   const items = Array.from(section.querySelectorAll(".home-hero_list"));
+  console.log("[CategoryFilter] Caching categories for", items.length, "items");
+  
   for (const it of items) {
     const cats = new Set();
     it.querySelectorAll(".home-category_ref_text").forEach((n) => {
@@ -231,6 +256,7 @@ function cacheCats(section) {
       if (t) cats.add(t);
     });
     it.dataset.cats = Array.from(cats).join("|");
+    console.log("  - Item categories:", it.dataset.cats);
   }
 }
 
