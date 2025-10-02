@@ -1,4 +1,4 @@
-// barba-bootstrap.js - Fixed with proper cleanup
+// barba-bootstrap.js - Fixed with deferred cleanup
 import { initPageScripts, initGlobal } from "./page-scripts.js";
 import { createGridTransition } from "./transitions/grid-transition.js";
 import { createProjectNavAnimation } from "./transitions/nav-reveal.js";
@@ -52,25 +52,24 @@ document.addEventListener("DOMContentLoaded", () => {
       },
       
       async leave({ current }) {
-        // Run cleanup before leaving
-        if (activeCleanup) {
-          try {
-            activeCleanup();
-          } catch (err) {
-            console.warn("[Barba] Leave cleanup error:", err);
-          }
-          activeCleanup = null;
-        }
-        
+        // DON'T run cleanup here - videos need to stay visible
+        // Just run the grid animation
         await gridTransition.leave(current);
       },
       
       async enter({ current, next }) {
-        // Initialize new page
-        activeCleanup = initPageScripts(next.container);
-        next.container.__cleanup = activeCleanup;
+        // Pass the old cleanup to the transition so it can run it at the right time
+        const oldCleanup = activeCleanup;
+        activeCleanup = null;
         
-        return gridTransition.enter(current, next);
+        // Initialize new page
+        const newCleanup = initPageScripts(next.container);
+        next.container.__cleanup = newCleanup;
+        
+        // Run transition and pass old cleanup to be called after grid covers screen
+        return gridTransition.enter(current, next, oldCleanup).then(() => {
+          activeCleanup = newCleanup;
+        });
       }
     }],
     prefetch: true,

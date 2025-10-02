@@ -1,4 +1,4 @@
-// grid-transition.js - Fixed to preserve video during transition
+// grid-transition.js - Accepts cleanup callback
 import { calculateStaggerDelay, clearStaggerCache } from "./stagger-calc.js";
 
 let globalGrid = null;
@@ -43,11 +43,10 @@ export function createGridTransition(options = {}) {
         console.log("[Transition] Set navigating flag on leave");
       }
       
-      // DON'T cleanup here - let video stay visible during transition
-      // Cleanup will happen after grid covers the screen
+      // NO cleanup here - video stays visible
     },
     
-    async enter(current, next) {
+    async enter(current, next, oldCleanup = null) {
       const oldMain = current.container;
       const newMain = next.container;
       
@@ -85,6 +84,7 @@ export function createGridTransition(options = {}) {
         divs,
         cols,
         rows,
+        oldCleanup,
         onNavReveal,
         onComplete: () => {
           cleanupTransition(oldMain, newMain, grid);
@@ -165,7 +165,7 @@ function setupContainers(oldMain, newMain) {
   newMain.style.opacity = '0';
 }
 
-function animateTransition({ oldMain, newMain, grid, divs, cols, rows, onNavReveal, onComplete }) {
+function animateTransition({ oldMain, newMain, grid, divs, cols, rows, oldCleanup, onNavReveal, onComplete }) {
   return new Promise((resolve) => {
     let phase1Timeline = null;
     let phase2Timeline = null;
@@ -176,15 +176,14 @@ function animateTransition({ oldMain, newMain, grid, divs, cols, rows, onNavReve
         // Grid has now covered the screen - safe to cleanup old container
         console.log("[Transition] Grid covered screen, running cleanup");
         
-        // NOW run the cleanup on the old container
-        if (oldMain?.__cleanup) {
+        // NOW run the cleanup that was passed from barba-bootstrap
+        if (oldCleanup) {
           try {
-            oldMain.__cleanup();
+            oldCleanup();
             console.log("[Transition] Old container cleanup complete");
           } catch (err) {
             console.warn("[Transition] Cleanup error:", err);
           }
-          delete oldMain.__cleanup;
         }
         
         // Cleanup phase 1 timeline
