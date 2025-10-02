@@ -173,8 +173,8 @@ export function createProjectNavAnimation(container) {
     
     const tl = gsap.timeline();
     
-    // Nav wrapper and center button - appear immediately
-    tl.fromTo([".nav_wrap", ".project-player_center-toggle"], {
+    // Nav wrapper - slide from top
+    tl.fromTo(".nav_wrap", {
       opacity: 0,
       y: -10
     }, {
@@ -183,6 +183,15 @@ export function createProjectNavAnimation(container) {
       duration: 0.3,
       ease: "power2.out"
     })
+    
+    // Center button - fade only (no position change to preserve CSS centering)
+    .fromTo(".project-player_center-toggle", {
+      opacity: 0
+    }, {
+      opacity: 1,
+      duration: 0.3,
+      ease: "power2.out"
+    }, "<")
     
     // Controls container - appears with nav
     .fromTo(".project-player_controls", {
