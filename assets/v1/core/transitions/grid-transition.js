@@ -1,4 +1,4 @@
-// grid-transition.js - Fixed with proper navigation flag management
+// grid-transition.js - Fixed to preserve video during transition
 import { calculateStaggerDelay, clearStaggerCache } from "./stagger-calc.js";
 
 let globalGrid = null;
@@ -43,17 +43,8 @@ export function createGridTransition(options = {}) {
         console.log("[Transition] Set navigating flag on leave");
       }
       
-      // Async cleanup
-      if (container?.__cleanup) {
-        requestAnimationFrame(() => {
-          try {
-            container.__cleanup();
-          } catch (err) {
-            console.warn("[Transition] Leave cleanup error:", err);
-          }
-          delete container.__cleanup;
-        });
-      }
+      // DON'T cleanup here - let video stay visible during transition
+      // Cleanup will happen after grid covers the screen
     },
     
     async enter(current, next) {
@@ -102,11 +93,9 @@ export function createGridTransition(options = {}) {
           // Clear navigation flag with fallback timeout
           const heroSection = newMain.querySelector('.home-hero_wrap');
           if (heroSection) {
-            // Clear immediately
             delete heroSection.dataset.navigating;
             console.log("[Transition] Cleared navigating flag on enter complete");
             
-            // Safety fallback - ensure it's cleared even if something goes wrong
             setTimeout(() => {
               if (heroSection.dataset.navigating) {
                 delete heroSection.dataset.navigating;
@@ -163,7 +152,7 @@ function createTransitionGrid(cols, rows) {
 }
 
 function setupContainers(oldMain, newMain) {
-  // Old container - fade out
+  // Old container - fade out (keep visible during grid animation)
   oldMain.style.position = 'fixed';
   oldMain.style.inset = '0';
   oldMain.style.zIndex = '1';
@@ -181,9 +170,23 @@ function animateTransition({ oldMain, newMain, grid, divs, cols, rows, onNavReve
     let phase1Timeline = null;
     let phase2Timeline = null;
     
-    // Phase 1: Grid covers screen
+    // Phase 1: Grid covers screen (video stays visible behind grid)
     phase1Timeline = gsap.timeline({
       onComplete: () => {
+        // Grid has now covered the screen - safe to cleanup old container
+        console.log("[Transition] Grid covered screen, running cleanup");
+        
+        // NOW run the cleanup on the old container
+        if (oldMain?.__cleanup) {
+          try {
+            oldMain.__cleanup();
+            console.log("[Transition] Old container cleanup complete");
+          } catch (err) {
+            console.warn("[Transition] Cleanup error:", err);
+          }
+          delete oldMain.__cleanup;
+        }
+        
         // Cleanup phase 1 timeline
         if (phase1Timeline) {
           phase1Timeline.kill();
@@ -198,7 +201,7 @@ function animateTransition({ oldMain, newMain, grid, divs, cols, rows, onNavReve
         // Force paint
         newMain.offsetHeight;
         
-        // Phase 2: Grid scales down
+        // Phase 2: Grid scales down to reveal new page
         phase2Timeline = gsap.timeline({
           onComplete: () => {
             // Cleanup phase 2 timeline
@@ -248,6 +251,7 @@ function cleanupTransition(oldMain, newMain, grid) {
   if (oldMain?.parentNode) {
     try {
       oldMain.remove();
+      console.log("[Transition] Old container removed from DOM");
     } catch (err) {
       console.warn("[Transition] Old container removal failed:", err);
     }
