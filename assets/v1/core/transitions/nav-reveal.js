@@ -1,4 +1,4 @@
-// transitions/nav-reveal.js - Navigation reveal animations for all pages
+// assets/v1/core/transitions/nav-reveal.js - Navigation reveal animations for all pages
 
 /**
  * Animate navigation and content on home page
@@ -165,7 +165,8 @@ export function createProjectNavAnimation(container) {
     gsap.set([
       ".project_name",
       ".project-player_center-toggle",
-      ".project-player_controls"
+      ".project-player_controls",
+      ".project-navigation_overlay"
     ], {
       visibility: "visible"
     });
@@ -216,6 +217,15 @@ export function createProjectNavAnimation(container) {
       opacity: 1,
       duration: 0.25,
       ease: "power2.out"
+    }, "<")
+    
+    // Navigation overlay - appears with controls
+    .fromTo(".project-navigation_overlay", {
+      opacity: 0
+    }, {
+      opacity: 1,
+      duration: 0.25,
+      ease: "power2.out"
     }, "<");
     
     return tl;
@@ -239,7 +249,8 @@ export function hideNavElements(container) {
     ".project-player_btn--play",
     ".project-player_btn--mute",
     ".project-player_btn--fs",
-    ".project-player_timeline"
+    ".project-player_timeline",
+    ".project-navigation_overlay"
   ], {
     opacity: 0
   });
@@ -259,7 +270,8 @@ export function resetNavElements(container) {
     ".project-player_btn--play",
     ".project-player_btn--mute", 
     ".project-player_btn--fs",
-    ".project-player_timeline"
+    ".project-player_timeline",
+    ".project-navigation_overlay"
   ], {
     clearProps: "all"
   });
