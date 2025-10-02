@@ -7,7 +7,6 @@ export const SELECTORS = {
   loader: '.site-loader_wrap',
   container: '.site-loader_container',
   progressText: '.site-loader_progress-text',
-  fpsCounter: '.site-loader_fps-counter',
   edgesBox: '.site-loader_edges',
   corners: '.site-loader_corner',
   heroVideo: '.home-hero_video',

@@ -4,7 +4,6 @@ import { SELECTORS } from "./constants.js";
 export function createUIElements(loaderEl, container) {
   const elements = {
     progressText: loaderEl.querySelector(SELECTORS.progressText),
-    fpsCounter: loaderEl.querySelector(SELECTORS.fpsCounter),
     edgesBox: loaderEl.querySelector(SELECTORS.edgesBox),
     corners: loaderEl.querySelectorAll(SELECTORS.corners),
     loaderContainer: loaderEl.querySelector(SELECTORS.container),
@@ -104,10 +103,4 @@ export function updateEdgesUI(edgesBox, progress) {
   const width = Math.round(67 + (371 - 67) * progress);
   const height = Math.round(67 + (220 - 67) * progress);
   gsap.set(edgesBox, { '--sl-width': width, '--sl-height': height });
-}
-
-export function updateFPSUI(fpsCounter, fps) {
-  if (fpsCounter) {
-    fpsCounter.textContent = `FPS: ${Math.round(fps)}`;
-  }
 }

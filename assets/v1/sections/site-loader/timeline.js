@@ -1,6 +1,6 @@
-// timeline.js - Fixed with simplified race condition handling and optimized FPS
+// timeline.js - Fixed with simplified race condition handling
 import { CONFIG, EASES } from "./constants.js";
-import { updateProgressUI, updateEdgesUI, updateFPSUI } from "./ui-elements.js";
+import { updateProgressUI, updateEdgesUI } from "./ui-elements.js";
 import { ensureVideoReady } from "./video-setup.js";
 import { morphToHeroStage } from "./morph.js";
 
@@ -73,29 +73,16 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
   
   // Main timeline
   const tl = gsap.timeline({ onComplete });
-  
-  // Optimized FPS tracking (only update every 250ms)
-  let lastFpsUpdate = 0;
-  let fpsValue = 120;
 
   // Phase 1: Progress animation
   tl.to(state.progress, {
     value: 1, 
-    fps: 120, 
     duration: 3, 
     ease: "sine.inOut",
     onUpdate: function() {
       const pct = Math.round(state.progress.value * 100);
       updateProgressUI(ui.progressText, pct);
       updateEdgesUI(ui.edgesBox, state.progress.value);
-      
-      // Throttled FPS update
-      const now = Date.now();
-      if (now - lastFpsUpdate > 250) {
-        fpsValue = Math.round(state.progress.fps);
-        updateFPSUI(ui.fpsCounter, fpsValue);
-        lastFpsUpdate = now;
-      }
       
       // Start video at 80%
       if (state.progress.value >= 0.8 && video && !video.__started) {
@@ -164,7 +151,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
   })
   
   // Phase 4: Fade UI elements while morphing
-  .to([ui.corners, ui.fpsCounter], { 
+  .to([ui.corners], { 
     opacity: 0, 
     duration: 0.6, 
     stagger: 0.02 
