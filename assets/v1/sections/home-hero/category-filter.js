@@ -1,26 +1,14 @@
-// category-filter.js - Fixed with correct DOM scope
+// category-filter.js - Fixed with correct ghost positioning
 import { getGhostLayer, makeGhost } from "./ghost-layer.js";
 
 export function initCategoryFilter(section, videoManager, setActiveCallback) {
-  // CRITICAL FIX: Search from document root, not just section
-  // The categories wrapper exists outside the .home-hero_wrap scope
+  // Search from document root - categories exist outside .home-hero_wrap
   const catWrap = document.querySelector(".home_hero_categories");
   const listParent = section.querySelector(".home-hero_list_parent");
   
   if (!catWrap || !listParent) {
     console.warn("[CategoryFilter] Missing categories or list parent");
     console.warn("[CategoryFilter] catWrap:", !!catWrap, "listParent:", !!listParent);
-    
-    // Fallback: Try alternative selectors
-    if (!catWrap) {
-      const altWrap = document.querySelector("[data-home-cats-proxy]") || 
-                      document.querySelector(".home-hero_categories");
-      if (altWrap) {
-        console.log("[CategoryFilter] Found wrapper with fallback selector");
-        return initCategoryFilter.call(this, section, videoManager, setActiveCallback, altWrap, listParent);
-      }
-    }
-    
     return () => {};
   }
 
@@ -144,11 +132,10 @@ function filterItems(section, listParent, btn, setActiveCallback) {
 
   const firstVisibleItem = visibleAfter[0];
 
-  requestAnimationFrame(() => {
-    // Create ghost layer
-    const layer = getGhostLayer();
-    const ghosts = visibleBefore.map((el) => makeGhost(el, layer));
+  // CRITICAL: Capture bounding rects BEFORE any DOM changes
+  const rectBefore = new Map(visibleBefore.map((el) => [el, el.getBoundingClientRect()]));
 
+  requestAnimationFrame(() => {
     // Update visibility
     allItems.forEach((item) => {
       if (matcher(item)) {
@@ -158,40 +145,81 @@ function filterItems(section, listParent, btn, setActiveCallback) {
       }
     });
 
+    // Create ghosts for items that are disappearing
+    const ghosts = [];
+    visibleBefore.forEach((el) => {
+      if (!visibleAfter.includes(el)) {
+        const rect = rectBefore.get(el);
+        if (rect) {
+          ghosts.push(makeGhost(el, rect));
+        }
+      }
+    });
+
+    // Capture new positions AFTER DOM changes
+    const rectAfter = new Map(visibleAfter.map((el) => [el, el.getBoundingClientRect()]));
+
     // Force layout
     listParent.offsetHeight;
 
     // Lock pointer events during animation
     listParent.style.pointerEvents = "none";
+    
+    // Prepare visible items for animation
+    visibleAfter.forEach((el) => {
+      el.style.willChange = "transform, opacity";
+      el.style.backfaceVisibility = "hidden";
+    });
 
     // Animation constants
-    const MOVE_DUR = 0.4;
-    const EXIT_DUR = 0.3;
-    const STAGGER = 20;
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const MOVE_DUR = prefersReducedMotion ? 0 : 0.4;
+    const ENTER_DUR = prefersReducedMotion ? 0 : 0.32;
+    const EXIT_DUR = prefersReducedMotion ? 0 : 0.3;
     const EASE_MOVE = "cubic-bezier(0.65, 0, 0.35, 1)";
+    const EASE_ENTER = "cubic-bezier(0.22, 1, 0.36, 1)";
     const EASE_EXIT = "cubic-bezier(0.4, 0, 1, 1)";
+    const STAGGER = 20;
 
     const anims = [];
 
     // Animate visible items
     visibleAfter.forEach((el, i) => {
-      const ghost = ghosts.find((g) => g.dataset.originalId === el.dataset.itemId);
+      const before = rectBefore.get(el);
+      const after = rectAfter.get(el);
       
-      if (ghost) {
-        const before = ghost.getBoundingClientRect();
-        const after = el.getBoundingClientRect();
-        const dx = before.left - after.left;
-        const dy = before.top - after.top;
-
-        if (dx !== 0 || dy !== 0) {
-          el.style.willChange = "transform, opacity";
-          el.style.backfaceVisibility = "hidden";
-          
+      if (!before) {
+        // Item is entering (wasn't visible before)
+        if (ENTER_DUR) {
           anims.push(
             el.animate(
               [
-                { transform: `translate(${dx}px, ${dy}px) translateZ(0)`, opacity: 0 },
-                { transform: "translate(0px, 0px) translateZ(0)", opacity: 1 },
+                { opacity: 0, transform: "translateY(12px) translateZ(0)" },
+                { opacity: 1, transform: "translateY(0px) translateZ(0)" },
+              ],
+              {
+                duration: ENTER_DUR * 1000,
+                easing: EASE_ENTER,
+                delay: i * STAGGER,
+                fill: "both",
+              }
+            ).finished.catch(() => {})
+          );
+        } else {
+          el.style.opacity = "";
+          el.style.transform = "";
+        }
+      } else {
+        // Item is moving (was visible before)
+        const dx = before.left - after.left;
+        const dy = before.top - after.top;
+        
+        if (dx !== 0 || dy !== 0) {
+          anims.push(
+            el.animate(
+              [
+                { transform: `translate(${dx}px, ${dy}px) translateZ(0)` },
+                { transform: "translate(0px, 0px) translateZ(0)" },
               ],
               {
                 duration: MOVE_DUR * 1000,
@@ -256,7 +284,6 @@ function cacheCats(section) {
       if (t) cats.add(t);
     });
     it.dataset.cats = Array.from(cats).join("|");
-    console.log("  - Item categories:", it.dataset.cats);
   }
 }
 
