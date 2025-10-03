@@ -171,9 +171,8 @@ export function createProjectNavAnimation(container) {
       visibility: "visible"
     });
     
-    const tl = gsap.timeline({
-      delay: ANIMATION.DELAY.initial
-    });
+    // NO INITIAL DELAY - start immediately like home page
+    const tl = gsap.timeline();
     
     // Nav wrapper - SAME AS HOME PAGE
     tl.fromTo(".nav_wrap", {
@@ -188,34 +187,24 @@ export function createProjectNavAnimation(container) {
     // Links and project name - SAME AS HOME PAGE NAV LINKS
     .fromTo([".nav_link", ".project_name"], {
       opacity: 0,
-      x: ANIMATION.TRANSFORM.tagX  // Same as nav links on home
+      x: ANIMATION.TRANSFORM.tagX
     }, {
       opacity: 1,
       x: 0,
       ...getAnimProps('navLinks')
     }, "-=0.4")  // Same overlap as home page
     
-    // Center button - SAME TIMING AS BRAND LOGO
+    // Center button - SAME TIMING AS BRAND LOGO (starts during links)
     .fromTo(".project-player_center-toggle", {
       opacity: 0,
       scale: ANIMATION.TRANSFORM.scaleSmall
     }, {
       opacity: 1,
       scale: 1,
-      ...getAnimProps('brand')  // Uses same bounce as logo
-    }, "-=0.3")
+      ...getAnimProps('brand')
+    }, "-=0.3")  // Overlaps with links
     
-    // Controls container - SAME AS PROJECT ROWS
-    .fromTo(".project-player_controls", {
-      opacity: 0,
-      y: ANIMATION.TRANSFORM.controlY
-    }, {
-      opacity: 1,
-      y: 0,
-      ...getAnimProps('playerControls')
-    }, `-=${ANIMATION.DELAY.sequential}`)
-    
-    // Player controls buttons - SAME STAGGER AS TAGS
+    // Player controls - START WITH CENTER BUTTON (not after)
     .fromTo([
       ".project-player_btn--play", 
       ".project-player_timeline",
@@ -228,15 +217,16 @@ export function createProjectNavAnimation(container) {
       opacity: 1,
       y: 0,
       ...getAnimProps('playerButtons')
-    }, `-=${ANIMATION.DURATION.controls - ANIMATION.DURATION.controlsShort}`)
+    }, "-=0.4")  // Heavy overlap - starts during center button
     
-    // Navigation overlay - SAME AS AWARDS
+    // Navigation overlay - OVERLAPS WITH EVERYTHING
     .fromTo(".project-navigation_overlay", {
       opacity: 0
     }, {
       opacity: 1,
-      ...getAnimProps('awards')
-    }, `-=${ANIMATION.DELAY.sequential}`);
+      duration: ANIMATION.DURATION.fade,
+      ease: ANIMATION.EASE.fade
+    }, "-=0.5");  // Starts even earlier
     
     return tl;
   }
