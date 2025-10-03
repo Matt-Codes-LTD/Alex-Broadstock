@@ -16,6 +16,11 @@ export default function initProjectInfo(container) {
     link.textContent.trim() === 'Back'
   );
   
+  // Find player controls
+  const playerControls = container.querySelector('.project-player_controls');
+  const navigationOverlay = container.querySelector('.project-navigation_overlay');
+  const centerToggle = container.querySelector('.project-player_center-toggle');
+  
   if (!playerWrap || !infoOverlay || !infoButton || !backLink) {
     console.warn('[ProjectInfo] Missing required elements');
     return () => {};
@@ -53,6 +58,19 @@ export default function initProjectInfo(container) {
     backLink.textContent = 'Close';
     backLink.removeAttribute('href');
     backLink.style.cursor = 'pointer';
+
+    // Hide player controls
+    if (window.gsap) {
+      gsap.to([playerControls, navigationOverlay, centerToggle], {
+        opacity: 0,
+        duration: 0.3,
+        ease: "power2.out"
+      });
+    } else {
+      if (playerControls) playerControls.style.opacity = '0';
+      if (navigationOverlay) navigationOverlay.style.opacity = '0';
+      if (centerToggle) centerToggle.style.opacity = '0';
+    }
 
     // Run reveal animation
     if (window.gsap) {
@@ -92,6 +110,19 @@ export default function initProjectInfo(container) {
           backLink.setAttribute('href', originalBackHref);
           backLink.style.cursor = '';
 
+          // Show player controls again
+          if (window.gsap) {
+            gsap.to([playerControls, navigationOverlay, centerToggle], {
+              opacity: 1,
+              duration: 0.3,
+              ease: "power2.out"
+            });
+          } else {
+            if (playerControls) playerControls.style.opacity = '1';
+            if (navigationOverlay) navigationOverlay.style.opacity = '1';
+            if (centerToggle) centerToggle.style.opacity = '1';
+          }
+
           gsap.set([
             '.project-info_description',
             '.project-info_crew-label',
@@ -114,6 +145,11 @@ export default function initProjectInfo(container) {
       backLink.textContent = 'Back';
       backLink.setAttribute('href', originalBackHref);
       backLink.style.cursor = '';
+
+      // Show player controls again
+      if (playerControls) playerControls.style.opacity = '1';
+      if (navigationOverlay) navigationOverlay.style.opacity = '1';
+      if (centerToggle) centerToggle.style.opacity = '1';
     }
   }
 
