@@ -7,13 +7,16 @@ export default function initProjectInfo(container) {
   const playerWrap = container.querySelector('.project-player_wrap');
   const infoOverlay = container.querySelector('.project-info_overlay');
   
-  // Find the Info button specifically
+  // Find the Info button and Back link
   const navLinks = container.querySelectorAll('.nav_link');
   const infoButton = Array.from(navLinks).find(link => 
     link.textContent.trim() === 'Info'
   );
+  const backLink = Array.from(navLinks).find(link => 
+    link.textContent.trim() === 'Back'
+  );
   
-  if (!playerWrap || !infoOverlay || !infoButton) {
+  if (!playerWrap || !infoOverlay || !infoButton || !backLink) {
     console.warn('[ProjectInfo] Missing required elements');
     return () => {};
   }
@@ -24,6 +27,7 @@ export default function initProjectInfo(container) {
   const video = playerWrap.querySelector('video');
   let isOpen = false;
   let revealTimeline = null;
+  let originalBackHref = backLink.getAttribute('href');
   const handlers = [];
 
   function open() {
@@ -37,6 +41,18 @@ export default function initProjectInfo(container) {
 
     // Show overlay
     infoOverlay.classList.remove('u-display-none');
+
+    // Update nav states
+    navLinks.forEach(link => {
+      if (link !== infoButton) {
+        link.classList.add('u-color-faded');
+      }
+    });
+
+    // Change Back to Close
+    backLink.textContent = 'Close';
+    backLink.removeAttribute('href');
+    backLink.style.cursor = 'pointer';
 
     // Run reveal animation
     if (window.gsap) {
@@ -65,6 +81,17 @@ export default function initProjectInfo(container) {
         ease: "power2.inOut",
         onComplete: () => {
           infoOverlay.classList.add('u-display-none');
+          
+          // Restore nav states
+          navLinks.forEach(link => {
+            link.classList.remove('u-color-faded');
+          });
+
+          // Restore Back link
+          backLink.textContent = 'Back';
+          backLink.setAttribute('href', originalBackHref);
+          backLink.style.cursor = '';
+
           gsap.set([
             '.project-info_description',
             '.project-info_crew-label',
@@ -77,6 +104,16 @@ export default function initProjectInfo(container) {
       });
     } else {
       infoOverlay.classList.add('u-display-none');
+      
+      // Restore nav states
+      navLinks.forEach(link => {
+        link.classList.remove('u-color-faded');
+      });
+
+      // Restore Back link
+      backLink.textContent = 'Back';
+      backLink.setAttribute('href', originalBackHref);
+      backLink.style.cursor = '';
     }
   }
 
@@ -84,6 +121,14 @@ export default function initProjectInfo(container) {
   const onInfoClick = (e) => {
     e.preventDefault();
     isOpen ? close() : open();
+  };
+
+  // Click Back/Close button to close when popup is open
+  const onBackClick = (e) => {
+    if (isOpen) {
+      e.preventDefault();
+      close();
+    }
   };
 
   // ESC key to close
@@ -101,11 +146,13 @@ export default function initProjectInfo(container) {
   };
 
   infoButton.addEventListener('click', onInfoClick);
+  backLink.addEventListener('click', onBackClick);
   document.addEventListener('keydown', onKeyDown);
   infoOverlay.addEventListener('click', onOverlayClick);
 
   handlers.push(() => {
     infoButton.removeEventListener('click', onInfoClick);
+    backLink.removeEventListener('click', onBackClick);
     document.removeEventListener('keydown', onKeyDown);
     infoOverlay.removeEventListener('click', onOverlayClick);
   });
