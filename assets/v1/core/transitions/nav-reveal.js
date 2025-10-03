@@ -1,9 +1,9 @@
-// assets/v1/core/transitions/nav-reveal.js - Navigation reveal animations for all pages
+// assets/v1/core/transitions/nav-reveal.js
+// Navigation reveal animations - UNIFIED with site-loader timing
+import { ANIMATION, getAnimProps } from "../animation-constants.js";
 
 /**
  * Animate navigation and content on home page
- * @param {HTMLElement} container - The page container
- * @returns {GSAPTimeline|null} The animation timeline
  */
 export function createHomeRevealAnimation(container) {
   const namespace = container.dataset.barbaNamespace;
@@ -30,13 +30,22 @@ export function createHomeRevealAnimation(container) {
     opacity: 0
   });
   
-  gsap.set(".nav_wrap", { y: -20 });
-  gsap.set(".brand_logo", { scale: 0.9 });
-  gsap.set(".nav_link", { x: 20 });
-  gsap.set(".home-category_text", { y: 15, rotateX: -45 });
-  gsap.set(".home_hero_text", { x: -30, filter: "blur(4px)" });
-  gsap.set(".home-category_ref_text:not([hidden])", { x: 20 });
-  gsap.set(".home-awards_list", { y: 20, scale: 0.95 });
+  gsap.set(".nav_wrap", { y: ANIMATION.TRANSFORM.navY });
+  gsap.set(".brand_logo", { scale: ANIMATION.TRANSFORM.scaleSmall });
+  gsap.set(".nav_link", { x: ANIMATION.TRANSFORM.tagX });
+  gsap.set(".home-category_text", { 
+    y: ANIMATION.TRANSFORM.textY, 
+    rotateX: ANIMATION.TRANSFORM.rotateX 
+  });
+  gsap.set(".home_hero_text", { 
+    x: ANIMATION.TRANSFORM.textX, 
+    filter: ANIMATION.FILTER.blur 
+  });
+  gsap.set(".home-category_ref_text:not([hidden])", { x: ANIMATION.TRANSFORM.tagX });
+  gsap.set(".home-awards_list", { 
+    y: ANIMATION.TRANSFORM.tagX, 
+    scale: ANIMATION.TRANSFORM.scaleLarge 
+  });
   
   const tl = gsap.timeline();
   
@@ -44,25 +53,21 @@ export function createHomeRevealAnimation(container) {
   tl.to(".nav_wrap", {
     opacity: 1, 
     y: 0,
-    duration: 0.8,
-    ease: "power3.out"
+    ...getAnimProps('nav')
   })
   
   // Brand logo
   .to(".brand_logo", {
     opacity: 1, 
     scale: 1,
-    duration: 0.6,
-    ease: "back.out(1.2)"
+    ...getAnimProps('brand')
   }, "-=0.5")
   
   // Nav links
   .to(".nav_link", {
     opacity: 1, 
     x: 0,
-    duration: 0.5,
-    stagger: 0.08,
-    ease: "power2.out"
+    ...getAnimProps('navLinks')
   }, "-=0.4")
   
   // Category filters
@@ -70,14 +75,14 @@ export function createHomeRevealAnimation(container) {
     opacity: 1, 
     y: 0, 
     rotateX: 0,
-    duration: 0.6,
-    stagger: 0.05,
-    ease: "power3.out"
+    ...getAnimProps('categories')
   }, "-=0.5")
   
-  // Project rows - animate visible ones
+  // Project rows
   .add(() => {
     const visibleRows = container.querySelectorAll(".home-hero_list:not([style*='display: none'])");
+    const rowProps = getAnimProps('projectRows');
+    
     visibleRows.forEach((row, index) => {
       const name = row.querySelector(".home_hero_text");
       const tags = row.querySelectorAll(".home-category_ref_text:not([hidden])");
@@ -86,21 +91,22 @@ export function createHomeRevealAnimation(container) {
         gsap.to(name, {
           opacity: 1, 
           x: 0, 
-          filter: "blur(0px)",
-          duration: 0.5,
-          ease: "power2.out",
-          delay: index * 0.05
+          filter: ANIMATION.FILTER.blurNone,
+          duration: rowProps.duration,
+          ease: rowProps.ease,
+          delay: index * rowProps.stagger
         });
       }
       
       if (tags.length) {
+        const tagProps = getAnimProps('tags');
         gsap.to(tags, {
           opacity: 1, 
           x: 0,
-          duration: 0.5,
-          ease: "power2.out",
-          delay: index * 0.05,
-          stagger: 0.02
+          duration: tagProps.duration,
+          ease: tagProps.ease,
+          delay: index * rowProps.stagger,
+          stagger: tagProps.stagger
         });
       }
     });
@@ -111,11 +117,8 @@ export function createHomeRevealAnimation(container) {
     opacity: 1, 
     y: 0, 
     scale: 1,
-    duration: 0.6,
-    ease: "power3.out",
-    delay: 0.3,
+    ...getAnimProps('awards'),
     onComplete: () => {
-      // Clean up will-change
       gsap.set([
         ".nav_wrap",
         ".brand_logo",
@@ -134,21 +137,18 @@ export function createHomeRevealAnimation(container) {
 }
 
 /**
- * Animate navigation elements on project pages
- * @param {HTMLElement} container - The page container
- * @returns {GSAPTimeline|null} The animation timeline
+ * Animate navigation elements on project pages - UNIFIED timing
  */
 export function createProjectNavAnimation(container) {
   const namespace = container.dataset.barbaNamespace;
   
-  // Check if home page and run home reveal (will skip if site-loader present)
+  // Check if home page and run home reveal
   const homeReveal = createHomeRevealAnimation(container);
   if (homeReveal) return homeReveal;
   
   // Don't force nav visibility if site-loader is handling initial load
   const hasSiteLoader = document.querySelector(".site-loader_wrap[data-script-initialized='true']");
   if (!hasSiteLoader || !window.__initialPageLoad) {
-    // Always ensure nav is visible on non-initial loads
     gsap.set(".nav_wrap", {
       visibility: "visible",
       opacity: 1
@@ -172,55 +172,50 @@ export function createProjectNavAnimation(container) {
     });
     
     const tl = gsap.timeline({
-      delay: 0.3 // Initial breathing room after transition
+      delay: ANIMATION.DELAY.initial
     });
     
-    // Nav wrapper - slide from top
+    // Nav wrapper - SAME AS HOME PAGE
     tl.fromTo(".nav_wrap", {
       opacity: 0,
-      y: -10
+      y: ANIMATION.TRANSFORM.navY
     }, {
       opacity: 1,
       y: 0,
-      duration: 0.5,
-      ease: "power2.out"
+      ...getAnimProps('nav')
     })
     
-    // Links and project name - staggered fade in
+    // Links and project name - SAME AS HOME PAGE NAV LINKS
     .fromTo([".nav_link", ".project_name"], {
       opacity: 0,
-      y: -5
+      x: ANIMATION.TRANSFORM.tagX  // Same as nav links on home
     }, {
       opacity: 1,
-      y: 0,
-      duration: 0.4,
-      stagger: 0.08, // Increased stagger
-      ease: "power2.out"
-    }, "-=0.2") // Start slightly before nav finishes
+      x: 0,
+      ...getAnimProps('navLinks')
+    }, "-=0.4")  // Same overlap as home page
     
-    // Center button - fade in after nav settles
+    // Center button - SAME TIMING AS BRAND LOGO
     .fromTo(".project-player_center-toggle", {
       opacity: 0,
-      scale: 0.95
+      scale: ANIMATION.TRANSFORM.scaleSmall
     }, {
       opacity: 1,
       scale: 1,
-      duration: 0.5,
-      ease: "back.out(1.4)"
-    }, "-=0.1")
+      ...getAnimProps('brand')  // Uses same bounce as logo
+    }, "-=0.3")
     
-    // Controls container - appears after center button
+    // Controls container - SAME AS PROJECT ROWS
     .fromTo(".project-player_controls", {
       opacity: 0,
-      y: 10
+      y: ANIMATION.TRANSFORM.controlY
     }, {
       opacity: 1,
       y: 0,
-      duration: 0.5,
-      ease: "power2.out"
-    }, "+=0.1") // Breathing room
+      ...getAnimProps('playerControls')
+    }, `-=${ANIMATION.DELAY.sequential}`)
     
-    // Player controls - staggered appearance
+    // Player controls buttons - SAME STAGGER AS TAGS
     .fromTo([
       ".project-player_btn--play", 
       ".project-player_timeline",
@@ -232,30 +227,25 @@ export function createProjectNavAnimation(container) {
     }, {
       opacity: 1,
       y: 0,
-      duration: 0.35,
-      stagger: 0.06, // Stagger each control
-      ease: "power2.out"
-    }, "-=0.3")
+      ...getAnimProps('playerButtons')
+    }, `-=${ANIMATION.DURATION.controls - ANIMATION.DURATION.controlsShort}`)
     
-    // Navigation overlay - appears last
+    // Navigation overlay - SAME AS AWARDS
     .fromTo(".project-navigation_overlay", {
       opacity: 0
     }, {
       opacity: 1,
-      duration: 0.4,
-      ease: "power2.out"
-    }, "-=0.2");
+      ...getAnimProps('awards')
+    }, `-=${ANIMATION.DELAY.sequential}`);
     
     return tl;
   }
   
-  // For other pages, nav is already visible
   return null;
 }
 
 /**
  * Hide navigation elements (useful for transitions)
- * @param {HTMLElement} container - The page container
  */
 export function hideNavElements(container) {
   gsap.set([
@@ -276,7 +266,6 @@ export function hideNavElements(container) {
 
 /**
  * Reset navigation elements to default state
- * @param {HTMLElement} container - The page container
  */
 export function resetNavElements(container) {
   gsap.set([

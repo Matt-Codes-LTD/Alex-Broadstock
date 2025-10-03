@@ -1,5 +1,6 @@
-// timeline.js - Fixed with simplified race condition handling
+// assets/v1/sections/site-loader/timeline.js
 import { CONFIG, EASES } from "./constants.js";
+import { ANIMATION, getAnimProps } from "../../core/animation-constants.js";
 import { updateProgressUI, updateEdgesUI } from "./ui-elements.js";
 import { ensureVideoReady } from "./video-setup.js";
 import { morphToHeroStage } from "./morph.js";
@@ -54,7 +55,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     nameChars = splitTextToSpans(nameEl);
   }
   
-  // Simplified resume handler - use Promise instead of complex event system
+  // Simplified resume handler
   let heroReadyResolve = null;
   const heroReadyPromise = new Promise(resolve => {
     heroReadyResolve = resolve;
@@ -84,7 +85,6 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
       updateProgressUI(ui.progressText, pct);
       updateEdgesUI(ui.edgesBox, state.progress.value);
       
-      // Start video at 80%
       if (state.progress.value >= 0.8 && video && !video.__started) {
         video.__started = true;
         video.currentTime = 0.001;
@@ -182,21 +182,19 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     
     window.dispatchEvent(new CustomEvent("siteLoaderMorphBegin", { detail }));
     
-    // Wait for hero ready with timeout fallback
     const timeoutPromise = new Promise(resolve => {
       state.heroResumeTimeout = setTimeout(resolve, 1500);
     });
     
     await Promise.race([heroReadyPromise, timeoutPromise]);
     
-    // Clear timeout if hero responded
     if (state.heroResumeTimeout) {
       clearTimeout(state.heroResumeTimeout);
       state.heroResumeTimeout = null;
     }
   }, null, "-=1.2")
   
-  // Phase 6: Hero reveal
+  // Phase 6: UNIFIED HOME PAGE REVEAL using constants
   .set(loaderEl, { zIndex: 1 })
   .set([
     ".nav_wrap",
@@ -222,71 +220,84 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     opacity: 0
   })
   
-  // Nav animation
+  // Nav wrapper - using unified constants
   .fromTo(".nav_wrap", {
-    opacity: 0, y: -20
+    opacity: 0, 
+    y: ANIMATION.TRANSFORM.navY
   }, {
-    opacity: 1, y: 0,
-    duration: 0.8,
-    ease: "power3.out"
+    opacity: 1, 
+    y: 0,
+    ...getAnimProps('nav')
   })
   
-  // Brand logo
+  // Brand logo - using unified constants
   .fromTo(".brand_logo", {
-    opacity: 0, scale: 0.9
+    opacity: 0, 
+    scale: ANIMATION.TRANSFORM.scaleSmall
   }, {
-    opacity: 1, scale: 1,
-    duration: 0.6,
-    ease: "back.out(1.2)"
+    opacity: 1, 
+    scale: 1,
+    ...getAnimProps('brand')
   }, "-=0.5")
   
-  // Nav links
+  // Nav links - using unified constants
   .fromTo(".nav_link", {
-    opacity: 0, x: 20
+    opacity: 0, 
+    x: ANIMATION.TRANSFORM.tagX
   }, {
-    opacity: 1, x: 0,
-    duration: 0.5,
-    stagger: 0.08,
-    ease: "power2.out"
+    opacity: 1, 
+    x: 0,
+    ...getAnimProps('navLinks')
   }, "-=0.4")
   
-  // Category filters
+  // Category filters - using unified constants
   .fromTo(".home-category_text", {
-    opacity: 0, y: 15, rotateX: -45
+    opacity: 0, 
+    y: ANIMATION.TRANSFORM.textY, 
+    rotateX: ANIMATION.TRANSFORM.rotateX
   }, {
-    opacity: 1, y: 0, rotateX: 0,
-    duration: 0.6,
-    stagger: 0.05,
-    ease: "power3.out"
+    opacity: 1, 
+    y: 0, 
+    rotateX: 0,
+    ...getAnimProps('categories')
   }, "-=0.5")
   
-  // Project rows
+  // Project rows - using unified constants
   .add(() => {
     const visibleRows = container.querySelectorAll(".home-hero_list:not([style*='display: none'])");
+    const rowProps = getAnimProps('projectRows');
+    
     visibleRows.forEach((row, index) => {
       const name = row.querySelector(".home_hero_text");
       const tags = row.querySelectorAll(".home-category_ref_text:not([hidden])");
       
       if (name) {
         gsap.fromTo(name, {
-          opacity: 0, x: -30, filter: "blur(4px)"
+          opacity: 0, 
+          x: ANIMATION.TRANSFORM.textX, 
+          filter: ANIMATION.FILTER.blur
         }, {
-          opacity: 1, x: 0, filter: "blur(0px)",
-          duration: 0.5,
-          ease: "power2.out",
-          delay: index * 0.05
+          opacity: 1, 
+          x: 0, 
+          filter: ANIMATION.FILTER.blurNone,
+          duration: rowProps.duration,
+          ease: rowProps.ease,
+          delay: index * rowProps.stagger
         });
       }
       
       if (tags.length) {
+        const tagProps = getAnimProps('tags');
         gsap.fromTo(tags, {
-          opacity: 0, x: 20
+          opacity: 0, 
+          x: ANIMATION.TRANSFORM.tagX
         }, {
-          opacity: 1, x: 0,
-          duration: 0.5,
-          ease: "power2.out",
-          delay: index * 0.05,
-          stagger: 0.02
+          opacity: 1, 
+          x: 0,
+          duration: tagProps.duration,
+          ease: tagProps.ease,
+          delay: index * rowProps.stagger,
+          stagger: tagProps.stagger
         });
       }
     });
@@ -311,16 +322,17 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     }
   }, "-=0.1")
   
-  // Awards strip
+  // Awards strip - using unified constants
   .fromTo(".home-awards_list", {
-    opacity: 0, y: 20, scale: 0.95
+    opacity: 0, 
+    y: ANIMATION.TRANSFORM.tagX, 
+    scale: ANIMATION.TRANSFORM.scaleLarge
   }, {
-    opacity: 1, y: 0, scale: 1,
-    duration: 0.6,
-    ease: "power3.out",
-    delay: 0.3,
+    opacity: 1, 
+    y: 0, 
+    scale: 1,
+    ...getAnimProps('awards'),
     onComplete: () => {
-      // Clean up will-change
       gsap.set([
         ".nav_wrap",
         ".brand_logo",
