@@ -72,29 +72,40 @@ export function revealHeroContent(container) {
   // Project rows
   tl.add(() => revealProjectRows(container), "-=0.2");
   
-  // ✨ AWARDS - SMOOTH ITEM STAGGER (FIXED)
-  tl.set(".home-awards_list", {
-    visibility: "visible",
-    opacity: 1
-  });
-  
-  tl.fromTo(".home-awards_list > *", {
-    opacity: 0, 
-    y: 20, 
-    scale: 0.95
-  }, {
-    opacity: 1, 
-    y: 0, 
-    scale: 1,
-    duration: 0.5,
-    ease: "power3.out",
-    stagger: {
-      amount: 0.3,
-      from: "start"
-    },
-    delay: 0.3,
-    onComplete: clearProps
-  });
+  // ✨ AWARDS - SMOOTH ITEM STAGGER (FIXED - Check if exists)
+  tl.add(() => {
+    const awardsList = container.querySelector(".home-awards_list");
+    const awardsItems = awardsList ? awardsList.querySelectorAll(":scope > *") : [];
+    
+    if (awardsItems.length > 0) {
+      // Set parent visible
+      gsap.set(awardsList, {
+        visibility: "visible",
+        opacity: 1
+      });
+      
+      // Animate children
+      gsap.fromTo(awardsItems, {
+        opacity: 0, 
+        y: 20, 
+        scale: 0.95
+      }, {
+        opacity: 1, 
+        y: 0, 
+        scale: 1,
+        duration: 0.5,
+        ease: "power3.out",
+        stagger: {
+          amount: 0.3,
+          from: "start"
+        },
+        delay: 0.3,
+        onComplete: clearProps
+      });
+    } else {
+      console.warn("[RevealAnimations] No awards items found to animate");
+    }
+  }, "-=0.2");
   
   return tl;
 }

@@ -323,40 +323,54 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     }
   }, "-=0.1")
   
-  // ✨ AWARDS STRIP - SMOOTH ITEM STAGGER (FIXED)
-  .set(".home-awards_list", {
-    visibility: "visible",
-    opacity: 1  // Parent visible
-  })
-  .fromTo(".home-awards_list > *", {
-    opacity: 0,
-    y: 20,
-    scale: 0.95
-  }, {
-    opacity: 1, 
-    y: 0, 
-    scale: 1,
-    duration: 0.5,
-    ease: "power3.out",
-    stagger: {
-      amount: 0.3,
-      from: "start"
-    },
-    delay: 0.3,
-    onComplete: () => {
-      gsap.set([
-        ".nav_wrap",
-        ".brand_logo",
-        ".nav_link",
-        ".home-category_text",
-        ".home_hero_text",
-        ".home-category_ref_text",
-        ".home-awards_list",
-        ".home-awards_list > *"
-      ], {
-        clearProps: "transform,filter"
+  // ✨ AWARDS STRIP - SMOOTH ITEM STAGGER (FIXED - Check if exists)
+  .add(() => {
+    const awardsList = container.querySelector(".home-awards_list");
+    const awardsItems = awardsList ? awardsList.querySelectorAll(":scope > *") : [];
+    
+    if (awardsItems.length > 0) {
+      // Set parent visible
+      gsap.set(awardsList, {
+        visibility: "visible",
+        opacity: 1
       });
+      
+      // Animate children
+      gsap.fromTo(awardsItems, {
+        opacity: 0,
+        y: 20,
+        scale: 0.95
+      }, {
+        opacity: 1, 
+        y: 0, 
+        scale: 1,
+        duration: 0.5,
+        ease: "power3.out",
+        stagger: {
+          amount: 0.3,
+          from: "start"
+        },
+        delay: 0.3
+      });
+    } else {
+      console.warn("[SiteLoader] No awards items found to animate");
     }
+  }, "-=0.2")
+  
+  // Clear props
+  .add(() => {
+    gsap.set([
+      ".nav_wrap",
+      ".brand_logo",
+      ".nav_link",
+      ".home-category_text",
+      ".home_hero_text",
+      ".home-category_ref_text",
+      ".home-awards_list",
+      ".home-awards_list > *"
+    ], {
+      clearProps: "transform,filter"
+    });
   })
   
   // Final fade - more breathing room
