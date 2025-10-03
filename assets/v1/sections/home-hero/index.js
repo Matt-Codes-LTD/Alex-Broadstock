@@ -28,7 +28,6 @@ export default function initHomeHero(container) {
   let preloadTimeout = null;
   let currentAwardsHTML = "";
   let cleanupFunctions = [];
-  let skipFirstAwardsAnimation = window.__initialPageLoad && !!document.querySelector(".site-loader_wrap"); // ✅ NEW FLAG
   
   const emitReadyOnce = () => {
     if (revealedOnce) return;
@@ -85,18 +84,6 @@ export default function initHomeHero(container) {
     // Check if awards strip has existing content
     const existingItems = awardsStrip.querySelectorAll(":scope > *");
     
-    // ✅ If first load with site loader, just populate without animation
-    if (skipFirstAwardsAnimation) {
-      skipFirstAwardsAnimation = false;
-      awardsStrip.innerHTML = newHTML;
-      // Set to full opacity immediately - site loader already animated
-      if (window.gsap) {
-        const newItems = awardsStrip.querySelectorAll(":scope > *");
-        gsap.set(newItems, { opacity: 1, y: 0 });
-      }
-      return;
-    }
-    
     if (window.gsap && existingItems.length > 0) {
       // Fade out existing awards
       gsap.to(existingItems, {
@@ -125,10 +112,9 @@ export default function initHomeHero(container) {
         }
       });
     } else {
-      // No existing items or no GSAP - just populate directly
+      // No existing items - populate and animate in
       awardsStrip.innerHTML = newHTML;
       
-      // If GSAP is available, animate the new items in
       if (window.gsap) {
         const newItems = awardsStrip.querySelectorAll(":scope > *");
         if (newItems.length > 0) {
