@@ -2,14 +2,22 @@
 import { createRevealAnimation } from "./animations.js";
 
 export default function initProjectInfo(container) {
-  // Only run on project pages
   if (container.dataset.barbaNamespace !== "project") return () => {};
   
   const playerWrap = container.querySelector('.project-player_wrap');
   const infoOverlay = container.querySelector('.project-info_overlay');
-  const infoButton = container.querySelector('.nav_link[href="/"]'); // Adjust selector if needed
   
-  if (!playerWrap || !infoOverlay) return () => {};
+  // Find the Info button specifically
+  const navLinks = container.querySelectorAll('.nav_link');
+  const infoButton = Array.from(navLinks).find(link => 
+    link.textContent.trim() === 'Info'
+  );
+  
+  if (!playerWrap || !infoOverlay || !infoButton) {
+    console.warn('[ProjectInfo] Missing required elements');
+    return () => {};
+  }
+  
   if (infoOverlay.dataset.scriptInitialized) return () => {};
   infoOverlay.dataset.scriptInitialized = "true";
 
@@ -22,7 +30,7 @@ export default function initProjectInfo(container) {
     if (isOpen) return;
     isOpen = true;
 
-    // Pause video (triggers is-paused class and pausefx overlay)
+    // Pause video
     if (video && !video.paused) {
       video.pause();
     }
@@ -40,7 +48,6 @@ export default function initProjectInfo(container) {
     if (!isOpen) return;
     isOpen = false;
 
-    // Animate out
     if (window.gsap && revealTimeline) {
       gsap.to([
         '.project-info_description',
@@ -57,7 +64,6 @@ export default function initProjectInfo(container) {
         ease: "power2.in",
         onComplete: () => {
           infoOverlay.classList.add('u-display-none');
-          // Reset for next open
           gsap.set([
             '.project-info_description',
             '.project-info_crew-label',
@@ -73,16 +79,10 @@ export default function initProjectInfo(container) {
     }
   }
 
-  // Click handler for Info button
+  // Click Info button to toggle
   const onInfoClick = (e) => {
-    if (e.target.textContent.trim() === 'Info') {
-      e.preventDefault();
-      if (isOpen) {
-        close();
-      } else {
-        open();
-      }
-    }
+    e.preventDefault();
+    isOpen ? close() : open();
   };
 
   // ESC key to close
@@ -99,17 +99,16 @@ export default function initProjectInfo(container) {
     }
   };
 
-  container.addEventListener('click', onInfoClick);
+  infoButton.addEventListener('click', onInfoClick);
   document.addEventListener('keydown', onKeyDown);
   infoOverlay.addEventListener('click', onOverlayClick);
 
   handlers.push(() => {
-    container.removeEventListener('click', onInfoClick);
+    infoButton.removeEventListener('click', onInfoClick);
     document.removeEventListener('keydown', onKeyDown);
     infoOverlay.removeEventListener('click', onOverlayClick);
   });
 
-  // Cleanup
   return () => {
     if (revealTimeline) revealTimeline.kill();
     handlers.forEach(fn => fn());
