@@ -1,10 +1,6 @@
-// index.js - Enhanced with hover, click, and blend mode
+// cursor/index.js - Performance optimized with blend mode fix
 import { initGeometry } from "./geometry.js";
-import { createFollowLoop } from "./follow-loop.js";
 
-/* =========================
-   CURSOR (global, once)
-========================= */
 export default function initCursor() {
   if (window.__cursorInit) return;
   window.__cursorInit = true;
@@ -25,32 +21,85 @@ export default function initCursor() {
     overlay.appendChild(box);
   }
 
+  // CRITICAL: Force blend mode via JS (ensures it applies)
+  box.style.mixBlendMode = "difference";
+  box.style.isolation = "isolate";
+
   // Geometry
   const geom = initGeometry(overlay);
 
-  // Follow loop
-  const loop = createFollowLoop(box);
-  loop.start();
-
-  // State for hover/click
+  // State
+  let targetX = 0, targetY = 0;
+  let x = 0, y = 0;
+  let scale = 1;
+  let targetScale = 1;
   let isHovering = false;
-  let isClicking = false;
-
-  // Throttled pointer move (16ms = ~60fps)
+  let rafId = null;
   let moveRaf = null;
-  let lastX = 0, lastY = 0;
+  let lastMoveTime = 0;
+
+  // PERFORMANCE: Throttle to 60fps max, skip if behind
+  const FRAME_TIME = 16; // ~60fps
+
+  // Animation loop - handles both position and scale
+  function tick() {
+    const now = performance.now();
+    const delta = now - lastMoveTime;
+    
+    // Skip frame if we're behind (prevents stacking)
+    if (delta < FRAME_TIME) {
+      rafId = requestAnimationFrame(tick);
+      return;
+    }
+    
+    lastMoveTime = now;
+    
+    // Smooth easing
+    x += (targetX - x) * 0.18;
+    y += (targetY - y) * 0.18;
+    scale += (targetScale - scale) * 0.2;
+    
+    // Only update if there's actual movement (saves GPU)
+    const moved = Math.abs(targetX - x) > 0.1 || Math.abs(targetY - y) > 0.1;
+    const scaled = Math.abs(targetScale - scale) > 0.01;
+    
+    if (moved || scaled) {
+      if (window.gsap) {
+        gsap.set(box, {
+          x: x,
+          y: y,
+          xPercent: -50,
+          yPercent: -50,
+          scale: scale,
+          force3D: true
+        });
+      } else {
+        box.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%) scale(${scale})`;
+      }
+    }
+    
+    rafId = requestAnimationFrame(tick);
+  }
+
+  // Start animation loop
+  tick();
+
+  // Mouse move handler - THROTTLED
+  const MOVE_THROTTLE = 8; // ~120fps max for mouse tracking
+  let lastMouseUpdate = 0;
   
   function onMove(e) {
-    lastX = e.clientX;
-    lastY = e.clientY;
+    const now = performance.now();
+    if (now - lastMouseUpdate < MOVE_THROTTLE) return;
+    lastMouseUpdate = now;
     
-    if (!moveRaf) {
-      moveRaf = requestAnimationFrame(() => {
-        if (!geom.rect.width || !geom.rect.height) geom.computeGeometry();
-        loop.setTarget(lastX - geom.rect.left, lastY - geom.rect.top);
-        moveRaf = null;
-      });
-    }
+    if (moveRaf) return;
+    moveRaf = requestAnimationFrame(() => {
+      if (!geom.rect.width || !geom.rect.height) geom.computeGeometry();
+      targetX = e.clientX - geom.rect.left;
+      targetY = e.clientY - geom.rect.top;
+      moveRaf = null;
+    });
   }
   
   addEventListener("pointermove", onMove, { passive: true });
@@ -64,63 +113,67 @@ export default function initCursor() {
       e.clientX <= 0 || e.clientY <= 0 || e.clientX >= innerWidth || e.clientY >= innerHeight;
     if (leftViewport || atEdge) {
       geom.computeGeometry();
-      loop.setTarget(geom.rect.width / 2, geom.rect.height / 2);
+      targetX = geom.rect.width / 2;
+      targetY = geom.rect.height / 2;
     }
   }
   document.addEventListener("mouseleave", onHardLeave, true);
   document.addEventListener("mouseout", onHardLeave, true);
   document.addEventListener("pointerout", onHardLeave, true);
 
-  // Upgrade to GSAP if loaded after init
-  const loadHandler = () => {
-    if (!loop.hasGSAP()) return;
-    loop.stop();
-    loop.start();
-  };
-  addEventListener("load", loadHandler, { once: true });
-
-  // Pause on tab hidden
-  const onVis = () => { document.hidden ? loop.stop() : loop.start(); };
-  document.addEventListener("visibilitychange", onVis);
-
-  // ===== NEW: HOVER STATE =====
-  function updateHoverState(hovering) {
-    if (hovering === isHovering) return;
-    isHovering = hovering;
-    
-    // Set CSS custom property for scale
-    box.style.setProperty('--cursor-scale', hovering ? '2.5' : '1');
-  }
-
-  // Track hover over interactive elements
+  // Hover detection - DEBOUNCED
+  let hoverTimeout = null;
   function onMouseOver(e) {
-    const target = e.target.closest('a, button, [role="button"], .home-hero_link, .nav_link, .home-category_text');
-    updateHoverState(!!target);
+    if (hoverTimeout) return; // Debounce
+    
+    hoverTimeout = setTimeout(() => {
+      hoverTimeout = null;
+    }, 50);
+    
+    const target = e.target.closest('a, button, [role="button"], .home-hero_link, .nav_link, .home-category_text, .brand_logo');
+    if (target && !isHovering) {
+      isHovering = true;
+      targetScale = 2.5;
+    } else if (!target && isHovering) {
+      isHovering = false;
+      targetScale = 1;
+    }
   }
 
   document.addEventListener("mouseover", onMouseOver, true);
   document.addEventListener("mouseout", (e) => {
     if (!e.relatedTarget) {
-      updateHoverState(false);
+      isHovering = false;
+      targetScale = 1;
     }
   }, true);
 
-  // ===== NEW: CLICK STATE =====
+  // Click animation - pulse effect
   function onPointerDown() {
-    if (isClicking) return;
-    isClicking = true;
-    box.style.setProperty('--cursor-scale', '3.5');
+    targetScale = 3.5;
   }
 
   function onPointerUp() {
-    if (!isClicking) return;
-    isClicking = false;
-    box.style.setProperty('--cursor-scale', isHovering ? '2.5' : '1');
+    targetScale = isHovering ? 2.5 : 1;
   }
 
   document.addEventListener("pointerdown", onPointerDown);
   document.addEventListener("pointerup", onPointerUp);
   document.addEventListener("pointercancel", onPointerUp);
+
+  // Pause on tab hidden (saves CPU)
+  const onVis = () => { 
+    if (document.hidden) {
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+    } else if (!rafId) {
+      lastMoveTime = performance.now();
+      tick();
+    }
+  };
+  document.addEventListener("visibilitychange", onVis);
 
   // Cleanup if overlay removed
   const mo = new MutationObserver(() => {
@@ -132,11 +185,11 @@ export default function initCursor() {
   
   // Unified cleanup
   function cleanup() {
+    if (rafId) cancelAnimationFrame(rafId);
     if (moveRaf) cancelAnimationFrame(moveRaf);
-    loop.stop();
+    if (hoverTimeout) clearTimeout(hoverTimeout);
     removeEventListener("pointermove", onMove);
     removeEventListener("pointerenter", onMove);
-    removeEventListener("load", loadHandler);
     document.removeEventListener("mouseleave", onHardLeave, true);
     document.removeEventListener("mouseout", onHardLeave, true);
     document.removeEventListener("pointerout", onHardLeave, true);
