@@ -4,55 +4,55 @@
 export const ANIMATION = {
   // Easing curves
   EASE: {
-    nav: "power3.out",           // Smooth deceleration for nav elements
-    brand: "back.out(1.2)",      // Slight bounce for logo
-    text: "power2.out",          // Standard text reveals
-    controls: "power2.out",      // Player controls
-    fade: "power3.out"           // Gentle fades
+    nav: "power3.out",
+    brand: "back.out(1.2)",
+    text: "power2.out",
+    controls: "power2.out",
+    fade: "power3.out"
   },
   
-  // Durations (in seconds)
+  // Durations (in seconds) - FASTER
   DURATION: {
-    nav: 0.8,                    // Nav wrapper
-    brand: 0.6,                  // Brand logo
-    text: 0.5,                   // Text elements
-    controls: 0.5,               // Player controls
-    controlsShort: 0.35,         // Individual buttons
-    fade: 0.6                    // Opacity changes
+    nav: 0.5,              // Was 0.8
+    brand: 0.4,            // Was 0.6
+    text: 0.35,            // Was 0.5
+    controls: 0.35,        // Was 0.5
+    controlsShort: 0.25,   // Was 0.35
+    fade: 0.4              // Was 0.6
   },
   
-  // Stagger timings (in seconds)
+  // Stagger timings (in seconds) - TIGHTER
   STAGGER: {
-    navLinks: 0.08,              // Between nav links
-    categories: 0.05,            // Between category buttons
-    projects: 0.05,              // Between project rows
-    tags: 0.02,                  // Between project tags
-    controls: 0.06               // Between player controls
+    navLinks: 0.04,        // Was 0.08
+    categories: 0.03,      // Was 0.05
+    projects: 0.03,        // Was 0.05
+    tags: 0.01,            // Was 0.02
+    controls: 0.04         // Was 0.06
   },
   
-  // Delays (in seconds)
+  // Delays (in seconds) - REDUCED
   DELAY: {
-    initial: 0.3,                // Initial breathing room
-    sequential: 0.1,             // Between animation groups
-    awards: 0.3                  // Awards strip delay
+    initial: 0.15,         // Was 0.3
+    sequential: 0.05,      // Was 0.1
+    awards: 0.15           // Was 0.3
   },
   
   // Transform values
   TRANSFORM: {
-    navY: -20,                   // Nav slide distance
-    textY: 15,                   // Text slide distance
-    textX: -30,                  // Project name slide
-    tagX: 20,                    // Tag slide distance
-    controlY: 10,                // Control slide distance
-    scaleSmall: 0.9,             // Small scale start
-    scaleLarge: 0.95,            // Large scale start
-    rotateX: -45                 // Text rotation
+    navY: -20,
+    textY: 15,
+    textX: -30,
+    tagX: 20,
+    controlY: 10,
+    scaleSmall: 0.9,
+    scaleLarge: 0.95,
+    rotateX: -45
   },
   
   // Filter values
   FILTER: {
-    blur: "blur(4px)",           // Initial blur
-    blurNone: "blur(0px)"        // Clear state
+    blur: "blur(4px)",
+    blurNone: "blur(0px)"
   }
 };
 
