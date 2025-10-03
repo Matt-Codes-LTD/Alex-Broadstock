@@ -49,7 +49,6 @@ export default function initHomeHero(container) {
     const firstVisible = items.find(item => item.style.display !== "none");
     if (firstVisible) {
       setActive(firstVisible, { useHandoff: true });
-      // ✅ FIX: Explicitly populate initial awards
       updateAwards(firstVisible);
     }
     section.dataset.introComplete = "true";
@@ -69,22 +68,26 @@ export default function initHomeHero(container) {
     requestAnimationFrame(() => initializeHero());
   }
 
-  // ✅ FIX: Changed selector from .home-awards_list to .home-project_awards
   function updateAwards(item) {
     if (!awardsStrip) return;
-    const list = item.querySelector(".home-project_awards");  // ✅ Correct class
-    if (!list) return;
+    const list = item.querySelector(".home-project_awards");
+    if (!list) {
+      console.warn("[HomeHero] No awards found for item:", item);
+      return;
+    }
 
     const newHTML = list.innerHTML;
     if (newHTML === currentAwardsHTML) return;
     
+    console.log("[HomeHero] Updating awards, new HTML length:", newHTML.length);
     currentAwardsHTML = newHTML;
     
-    // Smooth transition for awards
-    if (window.gsap) {
-      const items = awardsStrip.querySelectorAll(":scope > *");
-      
-      gsap.to(items, {
+    // Check if awards strip has existing content
+    const existingItems = awardsStrip.querySelectorAll(":scope > *");
+    
+    if (window.gsap && existingItems.length > 0) {
+      // Fade out existing awards
+      gsap.to(existingItems, {
         opacity: 0,
         y: -10,
         duration: 0.2,
@@ -94,6 +97,29 @@ export default function initHomeHero(container) {
           awardsStrip.innerHTML = newHTML;
           const newItems = awardsStrip.querySelectorAll(":scope > *");
           
+          if (newItems.length > 0) {
+            gsap.fromTo(newItems, {
+              opacity: 0,
+              y: 10
+            }, {
+              opacity: 1,
+              y: 0,
+              duration: 0.3,
+              ease: "power2.out",
+              stagger: 0.03,
+              delay: 0.1
+            });
+          }
+        }
+      });
+    } else {
+      // No existing items or no GSAP - just populate directly
+      awardsStrip.innerHTML = newHTML;
+      
+      // If GSAP is available, animate the new items in
+      if (window.gsap) {
+        const newItems = awardsStrip.querySelectorAll(":scope > *");
+        if (newItems.length > 0) {
           gsap.fromTo(newItems, {
             opacity: 0,
             y: 10
@@ -102,13 +128,10 @@ export default function initHomeHero(container) {
             y: 0,
             duration: 0.3,
             ease: "power2.out",
-            stagger: 0.03,
-            delay: 0.1
+            stagger: 0.03
           });
         }
-      });
-    } else {
-      awardsStrip.innerHTML = newHTML;
+      }
     }
   }
 
