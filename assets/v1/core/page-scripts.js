@@ -4,14 +4,16 @@ import initHomeHero from "../sections/home-hero/index.js";
 import initProjectPlayer from "../sections/project-player/index.js";
 import initSiteLoader from "../sections/site-loader/index.js";
 import initMobileFilters from "../sections/mobile-filters/index.js";
-import initProjectNavigation from "../sections/project-navigation/index.js"; // ADD THIS
+import initProjectNavigation from "../sections/project-navigation/index.js";
+import initProjectInfo from "../sections/project-info/index.js";
 
 export function initPageScripts(container) {
   const cleanups = [];
 
   cleanups.push(initHomeHero(container));
   cleanups.push(initProjectPlayer(container));
-  cleanups.push(initProjectNavigation(container)); // ADD THIS
+  cleanups.push(initProjectNavigation(container));
+  cleanups.push(initProjectInfo(container));
   
   if (container.dataset.barbaNamespace === "home") {
     cleanups.push(initMobileFilters(container));
