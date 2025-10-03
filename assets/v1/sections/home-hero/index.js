@@ -1,4 +1,4 @@
-// index.js - Fixed with autoplay sound signal
+// index.js - DEBUG VERSION with extensive logging
 import { createVideoManager } from "./video-manager.js";
 import { initCategoryFilter } from "./category-filter.js";
 
@@ -17,6 +17,8 @@ export default function initHomeHero(container) {
     console.warn("[HomeHero] Missing required elements"); 
     return () => {};
   }
+
+  console.log("✅ [HomeHero] Initialized");
 
   const items = Array.from(section.querySelectorAll(".home-hero_list"));
   const videoManager = createVideoManager(videoStage);
@@ -176,13 +178,35 @@ export default function initHomeHero(container) {
     hoverTimeout = setTimeout(() => setActive(item), 120);
   }
 
-  // NEW: Signal autoplay sound intent on click
+  // DEBUG: Enhanced click handler with extensive logging
   function handleClick(e) {
+    console.log("🖱️ [HomeHero] Click event fired", e.target);
+    
     const link = e.target.closest(".home-hero_link");
+    console.log("🔍 [HomeHero] Found link:", link);
+    console.log("🔍 [HomeHero] Navigating flag:", section.dataset.navigating);
+    
     if (link && !section.dataset.navigating) {
-      // User clicked a project - signal they want sound on next page
+      console.log("✅ [HomeHero] Valid project link click detected!");
+      console.log("📝 [HomeHero] Setting autoplay-sound flag in sessionStorage");
+      
+      // Set the flag
       sessionStorage.setItem("pp:autoplay-sound", "1");
-      console.log("[HomeHero] Autoplay sound signaled for next page");
+      
+      // Verify it was set
+      const verification = sessionStorage.getItem("pp:autoplay-sound");
+      console.log("✅ [HomeHero] Flag verification:", verification);
+      console.log("📦 [HomeHero] All sessionStorage keys:", Object.keys(sessionStorage));
+      
+      // Log the href for debugging
+      console.log("🔗 [HomeHero] Navigating to:", link.href);
+    } else {
+      if (!link) {
+        console.log("⚠️ [HomeHero] Click was not on a link");
+      }
+      if (section.dataset.navigating) {
+        console.log("⚠️ [HomeHero] Navigation already in progress, ignoring click");
+      }
     }
   }
 
@@ -191,13 +215,16 @@ export default function initHomeHero(container) {
   });
   cleanupFunctions.push(cleanupFilter);
 
+  console.log("🎧 [HomeHero] Attaching event listeners to:", listParent);
+
   listParent.addEventListener("mouseenter", handleInteraction, true);
   listParent.addEventListener("focusin", handleInteraction);
   listParent.addEventListener("touchstart", handleInteraction, { passive: true });
   listParent.addEventListener("click", handleInteraction);
   
-  // NEW: Add click handler for autoplay signal
-  listParent.addEventListener("click", handleClick);
+  // DEBUG: Attach click handler with capture phase to catch early
+  listParent.addEventListener("click", handleClick, true);
+  console.log("✅ [HomeHero] Click handler attached (capture phase)");
   
   const handleVisibility = () => {
     if (document.hidden) {
@@ -224,7 +251,7 @@ export default function initHomeHero(container) {
     listParent.removeEventListener("focusin", handleInteraction);
     listParent.removeEventListener("touchstart", handleInteraction);
     listParent.removeEventListener("click", handleInteraction);
-    listParent.removeEventListener("click", handleClick); // NEW
+    listParent.removeEventListener("click", handleClick, true);
     document.removeEventListener("visibilitychange", handleVisibility);
     
     if (morphListener) {
