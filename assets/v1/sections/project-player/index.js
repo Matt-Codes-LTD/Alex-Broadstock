@@ -1,4 +1,4 @@
-// index.js - DEBUG VERSION with extensive logging
+// index.js - Production version with autoplay sound support
 import { createState } from "./state.js";
 import { initControls } from "./controls.js";
 import { initTimeline } from "./timeline.js";
@@ -97,24 +97,17 @@ export default function initProjectPlayer(container) {
   if (poster) video.poster = poster;
   if (!video.isConnected && host) host.appendChild(video);
 
-  // DEBUG: Check for autoplay sound signal
-  const flagValue = sessionStorage.getItem("pp:autoplay-sound");
-  console.log("🔍 [ProjectPlayer] Autoplay flag check:", flagValue);
-  console.log("🔍 [ProjectPlayer] SessionStorage keys:", Object.keys(sessionStorage));
-  
-  const shouldAutoplaySound = flagValue === "1";
+  // Check for autoplay sound signal from home page
+  const shouldAutoplaySound = sessionStorage.getItem("pp:autoplay-sound") === "1";
   sessionStorage.removeItem("pp:autoplay-sound");
   
-  console.log("🎵 [ProjectPlayer] Should autoplay with sound:", shouldAutoplaySound);
-  
   if (shouldAutoplaySound) {
-    console.log("✅ [ProjectPlayer] Setting up for autoplay WITH SOUND");
+    // Start unmuted with stored volume
     video.muted = false;
     video.removeAttribute("muted");
     video.volume = Number(localStorage.getItem("pp:vol") || 1) || 1;
-    console.log("🔊 [ProjectPlayer] Video muted:", video.muted, "Volume:", video.volume);
   } else {
-    console.log("🔇 [ProjectPlayer] Default muted autoplay");
+    // Default muted behavior
     video.muted = true;
     video.setAttribute("muted", "");
     video.volume = 0;
@@ -131,9 +124,6 @@ export default function initProjectPlayer(container) {
   const btnMute = wrap.querySelector('[data-role="mute"]');
   const muteLabel = wrap.querySelector('[data-role="mute-label"]');
 
-  // DEBUG: Log before initializing controls
-  console.log("🎮 [ProjectPlayer] Initializing controls...");
-  
   const cleanupControls = initControls(video, wrap, centerBtn, state);
   const cleanupTimeline = initTimeline(video, tl, tlBuf, tlHandle, state);
   const cleanupSync = initSync(video, wrap, state);
@@ -144,54 +134,30 @@ export default function initProjectPlayer(container) {
   let initComplete = false;
   
   const startPlayback = async () => {
-    console.log("🎬 [ProjectPlayer] startPlayback called");
-    console.log("🎬 [ProjectPlayer] Video state - muted:", video.muted, "paused:", video.paused);
-    
     try {
       await ensureFirstFramePainted(video);
-      console.log("✅ [ProjectPlayer] First frame painted");
       
       if (shouldAutoplaySound) {
-        console.log("🎵 [ProjectPlayer] Attempting autoplay WITH SOUND");
-        console.log("🎵 [ProjectPlayer] Video muted before play:", video.muted);
-        console.log("🎵 [ProjectPlayer] Video volume before play:", video.volume);
-        
+        // Try to play with sound
         try {
-          const playPromise = video.play();
-          console.log("▶️ [ProjectPlayer] play() called, promise:", playPromise);
+          await video.play();
           
-          await playPromise;
-          console.log("✅ [ProjectPlayer] play() succeeded!");
-          console.log("✅ [ProjectPlayer] Video playing:", !video.paused, "muted:", video.muted);
-          
-          // Mark as sound restart done
+          // Success! Mark sound restart as done and switch to play/pause mode
           state.didFirstSoundRestart = true;
-          console.log("✅ [ProjectPlayer] didFirstSoundRestart = true");
-          
-          // Switch center button to play/pause mode
-          console.log("🔄 [ProjectPlayer] Switching center button to play/pause mode");
           switchCenterToPlayMode(centerBtn, video);
-          console.log("✅ [ProjectPlayer] Center button class:", centerBtn.className);
-          
-          // Update all UI
           setMuteUI(btnMute, muteLabel, false);
           setPlayUI(video, btnPlay, centerBtn, true);
           setPausedUI(wrap, false);
           
-          console.log("✅✅✅ [ProjectPlayer] Autoplay with sound SUCCESSFUL!");
-          
         } catch (playErr) {
-          console.error("❌ [ProjectPlayer] Autoplay with sound BLOCKED:", playErr);
-          console.log("🔄 [ProjectPlayer] Falling back to muted autoplay");
+          console.warn("[ProjectPlayer] Autoplay with sound blocked, falling back to muted:", playErr);
           
-          // Fall back to muted autoplay
+          // Browser blocked - fall back to muted
           video.muted = true;
           video.setAttribute("muted", "");
           video.volume = 0;
           
           await video.play();
-          console.log("✅ [ProjectPlayer] Muted autoplay succeeded");
-          
           setPlayUI(video, btnPlay, centerBtn, !video.paused);
           setPausedUI(wrap, video.paused);
           centerBtn.classList.remove("is-mode-play");
@@ -199,13 +165,11 @@ export default function initProjectPlayer(container) {
           setMuteUI(btnMute, muteLabel, true);
         }
       } else {
-        console.log("🔇 [ProjectPlayer] Standard muted autoplay");
-        
+        // Default muted autoplay
         try {
           await video.play();
-          console.log("✅ [ProjectPlayer] Muted autoplay succeeded");
         } catch (playErr) {
-          console.warn("❌ [ProjectPlayer] Autoplay failed:", playErr);
+          console.warn("[ProjectPlayer] Autoplay failed:", playErr);
         }
         
         setPlayUI(video, btnPlay, centerBtn, !video.paused);
@@ -216,10 +180,8 @@ export default function initProjectPlayer(container) {
       }
       
       initComplete = true;
-      console.log("✅ [ProjectPlayer] Init complete");
-      
     } catch (err) {
-      console.error("❌❌❌ [ProjectPlayer] Init failed:", err);
+      console.error("[ProjectPlayer] Init failed:", err);
     }
   };
 

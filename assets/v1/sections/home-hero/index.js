@@ -1,4 +1,4 @@
-// index.js - DEBUG VERSION with extensive logging
+// index.js - Production version with autoplay sound signal
 import { createVideoManager } from "./video-manager.js";
 import { initCategoryFilter } from "./category-filter.js";
 
@@ -17,8 +17,6 @@ export default function initHomeHero(container) {
     console.warn("[HomeHero] Missing required elements"); 
     return () => {};
   }
-
-  console.log("✅ [HomeHero] Initialized");
 
   const items = Array.from(section.querySelectorAll(".home-hero_list"));
   const videoManager = createVideoManager(videoStage);
@@ -51,7 +49,6 @@ export default function initHomeHero(container) {
     const firstVisible = items.find(item => item.style.display !== "none");
     if (firstVisible) setActive(firstVisible, { useHandoff: true });
     section.dataset.introComplete = "true";
-    console.log("[HomeHero] Intro setup complete, stage visible");
   }
 
   const hasSiteLoader = document.querySelector(".site-loader_wrap");
@@ -60,7 +57,6 @@ export default function initHomeHero(container) {
   if (hasSiteLoader && window.__initialPageLoad) {
     morphListener = async (e) => {
       handoff = e?.detail || null;
-      console.log("[HomeHero] Handoff received:", handoff);
       await new Promise(resolve => setTimeout(resolve, 100));
       initializeHero();
     };
@@ -178,35 +174,13 @@ export default function initHomeHero(container) {
     hoverTimeout = setTimeout(() => setActive(item), 120);
   }
 
-  // DEBUG: Enhanced click handler with extensive logging
+  // Signal autoplay sound intent on click (using correct class name)
   function handleClick(e) {
-    console.log("🖱️ [HomeHero] Click event fired", e.target);
-    
-    const link = e.target.closest(".home-hero_link");
-    console.log("🔍 [HomeHero] Found link:", link);
-    console.log("🔍 [HomeHero] Navigating flag:", section.dataset.navigating);
+    // FIX: Use .home-hero_url (the actual class in your HTML)
+    const link = e.target.closest(".home-hero_url");
     
     if (link && !section.dataset.navigating) {
-      console.log("✅ [HomeHero] Valid project link click detected!");
-      console.log("📝 [HomeHero] Setting autoplay-sound flag in sessionStorage");
-      
-      // Set the flag
       sessionStorage.setItem("pp:autoplay-sound", "1");
-      
-      // Verify it was set
-      const verification = sessionStorage.getItem("pp:autoplay-sound");
-      console.log("✅ [HomeHero] Flag verification:", verification);
-      console.log("📦 [HomeHero] All sessionStorage keys:", Object.keys(sessionStorage));
-      
-      // Log the href for debugging
-      console.log("🔗 [HomeHero] Navigating to:", link.href);
-    } else {
-      if (!link) {
-        console.log("⚠️ [HomeHero] Click was not on a link");
-      }
-      if (section.dataset.navigating) {
-        console.log("⚠️ [HomeHero] Navigation already in progress, ignoring click");
-      }
     }
   }
 
@@ -215,16 +189,11 @@ export default function initHomeHero(container) {
   });
   cleanupFunctions.push(cleanupFilter);
 
-  console.log("🎧 [HomeHero] Attaching event listeners to:", listParent);
-
   listParent.addEventListener("mouseenter", handleInteraction, true);
   listParent.addEventListener("focusin", handleInteraction);
   listParent.addEventListener("touchstart", handleInteraction, { passive: true });
   listParent.addEventListener("click", handleInteraction);
-  
-  // DEBUG: Attach click handler with capture phase to catch early
   listParent.addEventListener("click", handleClick, true);
-  console.log("✅ [HomeHero] Click handler attached (capture phase)");
   
   const handleVisibility = () => {
     if (document.hidden) {
