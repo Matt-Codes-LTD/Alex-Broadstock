@@ -1,4 +1,4 @@
-// index.js - Fixed with proper navigation flag clearing
+// index.js - Fixed with autoplay sound signal
 import { createVideoManager } from "./video-manager.js";
 import { initCategoryFilter } from "./category-filter.js";
 
@@ -7,7 +7,6 @@ export default function initHomeHero(container) {
   if (!section || section.dataset.scriptInitialized) return () => {};
   section.dataset.scriptInitialized = "true";
 
-  // CRITICAL FIX: Clear navigation flag on initialization
   delete section.dataset.navigating;
 
   const videoStage  = section.querySelector(".home-hero_video");
@@ -40,7 +39,6 @@ export default function initHomeHero(container) {
     hideMetaTags();
     preloadVideos();
     
-    // Show the hero video stage (was hidden by site-loader)
     if (window.gsap) {
       gsap.set(videoStage, { opacity: 1, zIndex: 0 });
     } else {
@@ -54,24 +52,18 @@ export default function initHomeHero(container) {
     console.log("[HomeHero] Intro setup complete, stage visible");
   }
 
-  // Handle site loader handoff
   const hasSiteLoader = document.querySelector(".site-loader_wrap");
-  
   let morphListener = null;
   
   if (hasSiteLoader && window.__initialPageLoad) {
     morphListener = async (e) => {
       handoff = e?.detail || null;
       console.log("[HomeHero] Handoff received:", handoff);
-      
-      // Small delay for morph animation, then init
       await new Promise(resolve => setTimeout(resolve, 100));
       initializeHero();
     };
-    
     window.addEventListener("siteLoaderMorphBegin", morphListener, { once: true });
   } else {
-    // No site loader or not initial load
     requestAnimationFrame(() => initializeHero());
   }
 
@@ -92,7 +84,6 @@ export default function initHomeHero(container) {
     activeItem = item;
 
     requestAnimationFrame(() => {
-      // Fade all other items
       items.forEach((i) => {
         const link  = i.querySelector(".home-hero_link");
         const text  = i.querySelector(".home_hero_text");
@@ -102,7 +93,6 @@ export default function initHomeHero(container) {
         pills.forEach(p => p.classList.add("u-color-faded"));
       });
 
-      // Unfade active
       const activeLink  = item.querySelector(".home-hero_link");
       const activeText  = item.querySelector(".home_hero_text");
       const activePills = item.querySelectorAll(".home-category_ref_text:not([hidden])");
@@ -113,7 +103,6 @@ export default function initHomeHero(container) {
       updateAwards(item);
     });
 
-    // Video update
     const projectEl = item.querySelector(".home-hero_item");
     const videoSrc  = projectEl?.dataset.video;
     const activeLink = item.querySelector(".home-hero_link");
@@ -155,7 +144,6 @@ export default function initHomeHero(container) {
     });
   }
 
-  // Hover-intent preloading
   function preloadVideoForItem(item) {
     if (navigator.connection?.saveData) return;
     const projectEl = item.querySelector(".home-hero_item");
@@ -174,37 +162,43 @@ export default function initHomeHero(container) {
     }
   }
 
-  // Hover handling
   function handleInteraction(e) {
     const item = e.target.closest(".home-hero_list");
     if (!item || !listParent.contains(item) || item.style.display === "none") return;
     
-    // Clear existing timeouts
     clearTimeout(hoverTimeout);
     clearTimeout(preloadTimeout);
     
-    // Preload immediately on hover intent
     preloadTimeout = setTimeout(() => {
       preloadVideoForItem(item);
     }, 50);
     
-    // Switch after slightly longer delay
     hoverTimeout = setTimeout(() => setActive(item), 120);
   }
 
-  // Category filter
+  // NEW: Signal autoplay sound intent on click
+  function handleClick(e) {
+    const link = e.target.closest(".home-hero_link");
+    if (link && !section.dataset.navigating) {
+      // User clicked a project - signal they want sound on next page
+      sessionStorage.setItem("pp:autoplay-sound", "1");
+      console.log("[HomeHero] Autoplay sound signaled for next page");
+    }
+  }
+
   const cleanupFilter = initCategoryFilter(section, videoManager, (firstItem) => {
     setActive(firstItem);
   });
   cleanupFunctions.push(cleanupFilter);
 
-  // Event delegation for interactions
   listParent.addEventListener("mouseenter", handleInteraction, true);
   listParent.addEventListener("focusin", handleInteraction);
   listParent.addEventListener("touchstart", handleInteraction, { passive: true });
   listParent.addEventListener("click", handleInteraction);
   
-  // Visibility handling
+  // NEW: Add click handler for autoplay signal
+  listParent.addEventListener("click", handleClick);
+  
   const handleVisibility = () => {
     if (document.hidden) {
       videoStage.querySelectorAll(".home-hero_video_el").forEach(v => {
@@ -223,7 +217,6 @@ export default function initHomeHero(container) {
   };
   document.addEventListener("visibilitychange", handleVisibility);
 
-  // Cleanup
   return () => {
     clearTimeout(hoverTimeout);
     clearTimeout(preloadTimeout);
@@ -231,6 +224,7 @@ export default function initHomeHero(container) {
     listParent.removeEventListener("focusin", handleInteraction);
     listParent.removeEventListener("touchstart", handleInteraction);
     listParent.removeEventListener("click", handleInteraction);
+    listParent.removeEventListener("click", handleClick); // NEW
     document.removeEventListener("visibilitychange", handleVisibility);
     
     if (morphListener) {
@@ -242,6 +236,6 @@ export default function initHomeHero(container) {
     
     delete section.dataset.scriptInitialized;
     delete section.dataset.introComplete;
-    delete section.dataset.navigating; // Ensure flag is cleared
+    delete section.dataset.navigating;
   };
 }
