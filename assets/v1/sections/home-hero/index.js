@@ -1,4 +1,4 @@
-// index.js - Production version with autoplay sound signal
+// index.js - Production version with autoplay sound signal and awards fix
 import { createVideoManager } from "./video-manager.js";
 import { initCategoryFilter } from "./category-filter.js";
 
@@ -47,7 +47,11 @@ export default function initHomeHero(container) {
     }
     
     const firstVisible = items.find(item => item.style.display !== "none");
-    if (firstVisible) setActive(firstVisible, { useHandoff: true });
+    if (firstVisible) {
+      setActive(firstVisible, { useHandoff: true });
+      // ✅ FIX: Explicitly populate initial awards
+      updateAwards(firstVisible);
+    }
     section.dataset.introComplete = "true";
   }
 
@@ -65,10 +69,10 @@ export default function initHomeHero(container) {
     requestAnimationFrame(() => initializeHero());
   }
 
-  // ✨ SMOOTH AWARDS TRANSITION (UPDATED - ONLY CHANGE)
+  // ✅ FIX: Changed selector from .home-awards_list to .home-project_awards
   function updateAwards(item) {
     if (!awardsStrip) return;
-    const list = item.querySelector(".home-awards_list");
+    const list = item.querySelector(".home-project_awards");  // ✅ Correct class
     if (!list) return;
 
     const newHTML = list.innerHTML;
@@ -108,7 +112,7 @@ export default function initHomeHero(container) {
     }
   }
 
-  // PROJECT NAME HOVER - NO CHANGES (kept original)
+  // PROJECT NAME HOVER
   function setActive(item, opts = {}) {
     if (!item || item === activeItem) return;
     activeItem = item;
