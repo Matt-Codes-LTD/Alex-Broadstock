@@ -70,7 +70,7 @@ export default function initHomeHero(container) {
 
   function updateAwards(item) {
     if (!awardsStrip) return;
-    const list = item.querySelector(".home-project_awards");
+    const list = item.querySelector(".home-project_awards .w-dyn-items");
     if (!list) {
       console.warn("[HomeHero] No awards found for item:", item);
       return;
