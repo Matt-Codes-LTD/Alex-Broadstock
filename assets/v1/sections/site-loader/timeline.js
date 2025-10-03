@@ -194,6 +194,9 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     }
   }, null, "-=1.2")
   
+  // Phase 5.5: Pause before reveal
+  .to({}, { duration: 0.8 })
+  
   // Phase 6: UNIFIED HOME PAGE REVEAL using constants
   .set(loaderEl, { zIndex: 1 })
   .set([
@@ -347,12 +350,12 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     }
   })
   
-  // Final fade
+  // Final fade - more breathing room
   .to([ui.videoWrapper, loaderEl], { 
     opacity: 0, 
     duration: 0.6, 
     ease: "power2.inOut" 
-  }, "-=0.8")
+  }, "-=0.3")
   
   .call(() => { 
     window.dispatchEvent(new CustomEvent("siteLoaderComplete")); 
