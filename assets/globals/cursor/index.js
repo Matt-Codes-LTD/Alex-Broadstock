@@ -23,7 +23,7 @@ export default function initCursor() {
 
   // CRITICAL: Force blend mode via JS (ensures it applies)
   box.style.mixBlendMode = "difference";
-  box.style.isolation = "isolate";
+  // DON'T set isolation on the box - it prevents blending
 
   // Geometry
   const geom = initGeometry(overlay);
