@@ -67,7 +67,7 @@ export default function initHomeHero(container) {
 
   function updateAwards(item) {
     if (!awardsStrip) return;
-    const list = item.querySelector(".home-project_awards");
+    const list = item.querySelector(".home-awards_list");
     if (!list) return;
 
     const newHTML = list.innerHTML;
