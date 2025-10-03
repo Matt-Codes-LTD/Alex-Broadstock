@@ -1,4 +1,4 @@
-// index.js - Fixed with throttling and cleanup
+// index.js - Enhanced with hover, click, and blend mode
 import { initGeometry } from "./geometry.js";
 import { createFollowLoop } from "./follow-loop.js";
 
@@ -31,6 +31,10 @@ export default function initCursor() {
   // Follow loop
   const loop = createFollowLoop(box);
   loop.start();
+
+  // State for hover/click
+  let isHovering = false;
+  let isClicking = false;
 
   // Throttled pointer move (16ms = ~60fps)
   let moveRaf = null;
@@ -79,6 +83,73 @@ export default function initCursor() {
   const onVis = () => { document.hidden ? loop.stop() : loop.start(); };
   document.addEventListener("visibilitychange", onVis);
 
+  // ===== NEW: HOVER STATE =====
+  function updateHoverState(hovering) {
+    if (hovering === isHovering) return;
+    isHovering = hovering;
+    
+    if (window.gsap) {
+      gsap.to(box, {
+        scale: hovering ? 2.5 : 1,
+        duration: 0.4,
+        ease: "power2.out"
+      });
+    } else {
+      box.style.transform = `scale(${hovering ? 2.5 : 1})`;
+      box.style.transition = "transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)";
+    }
+  }
+
+  // Track hover over interactive elements
+  function onMouseOver(e) {
+    const target = e.target.closest('a, button, [role="button"], .home-hero_link, .nav_link, .home-category_text');
+    updateHoverState(!!target);
+  }
+
+  document.addEventListener("mouseover", onMouseOver, true);
+  document.addEventListener("mouseout", (e) => {
+    if (!e.relatedTarget) {
+      updateHoverState(false);
+    }
+  }, true);
+
+  // ===== NEW: CLICK STATE =====
+  function onPointerDown() {
+    if (isClicking) return;
+    isClicking = true;
+    
+    if (window.gsap) {
+      gsap.to(box, {
+        scale: 3.5,
+        duration: 0.15,
+        ease: "power2.out"
+      });
+    } else {
+      box.style.transform = "scale(3.5)";
+      box.style.transition = "transform 0.15s cubic-bezier(0.4, 0, 0.2, 1)";
+    }
+  }
+
+  function onPointerUp() {
+    if (!isClicking) return;
+    isClicking = false;
+    
+    if (window.gsap) {
+      gsap.to(box, {
+        scale: isHovering ? 2.5 : 1,
+        duration: 0.3,
+        ease: "power2.out"
+      });
+    } else {
+      box.style.transform = `scale(${isHovering ? 2.5 : 1})`;
+      box.style.transition = "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)";
+    }
+  }
+
+  document.addEventListener("pointerdown", onPointerDown);
+  document.addEventListener("pointerup", onPointerUp);
+  document.addEventListener("pointercancel", onPointerUp);
+
   // Cleanup if overlay removed
   const mo = new MutationObserver(() => {
     if (!document.body.contains(overlay)) {
@@ -97,6 +168,10 @@ export default function initCursor() {
     document.removeEventListener("mouseleave", onHardLeave, true);
     document.removeEventListener("mouseout", onHardLeave, true);
     document.removeEventListener("pointerout", onHardLeave, true);
+    document.removeEventListener("mouseover", onMouseOver, true);
+    document.removeEventListener("pointerdown", onPointerDown);
+    document.removeEventListener("pointerup", onPointerUp);
+    document.removeEventListener("pointercancel", onPointerUp);
     document.removeEventListener("visibilitychange", onVis);
     geom.disconnect();
     mo.disconnect();
