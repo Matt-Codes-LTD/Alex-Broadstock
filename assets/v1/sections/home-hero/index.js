@@ -28,6 +28,7 @@ export default function initHomeHero(container) {
   let preloadTimeout = null;
   let currentAwardsHTML = "";
   let cleanupFunctions = [];
+  let skipFirstAwardsAnimation = window.__initialPageLoad && !!document.querySelector(".site-loader_wrap"); // ✅ NEW FLAG
   
   const emitReadyOnce = () => {
     if (revealedOnce) return;
@@ -79,11 +80,22 @@ export default function initHomeHero(container) {
     const newHTML = list.innerHTML;
     if (newHTML === currentAwardsHTML) return;
     
-    console.log("[HomeHero] Updating awards, new HTML length:", newHTML.length);
     currentAwardsHTML = newHTML;
     
     // Check if awards strip has existing content
     const existingItems = awardsStrip.querySelectorAll(":scope > *");
+    
+    // ✅ If first load with site loader, just populate without animation
+    if (skipFirstAwardsAnimation) {
+      skipFirstAwardsAnimation = false;
+      awardsStrip.innerHTML = newHTML;
+      // Set to full opacity immediately - site loader already animated
+      if (window.gsap) {
+        const newItems = awardsStrip.querySelectorAll(":scope > *");
+        gsap.set(newItems, { opacity: 1, y: 0 });
+      }
+      return;
+    }
     
     if (window.gsap && existingItems.length > 0) {
       // Fade out existing awards
