@@ -150,11 +150,14 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     }
   })
   
-  // Phase 4: Fade UI elements while morphing
+  // Phase 4: Fade UI elements while morphing - UPDATED FOR SMOOTHER CORNERS
   .to([ui.corners], { 
-    opacity: 0, 
-    duration: 0.6, 
-    stagger: 0.02 
+    opacity: 0,
+    scale: 0.9,
+    y: -8,
+    duration: 0.85,
+    stagger: 0.08,
+    ease: "power3.out"
   }, "-=1.4")
   .to(ui.edgesBox, { 
     opacity: 0, 
