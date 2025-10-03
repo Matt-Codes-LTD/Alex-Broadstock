@@ -55,7 +55,7 @@ export function createRevealAnimation(container) {
     duration: 0.5,
     stagger: 0.12,
     ease: "power2.out"
-  }, "-=1.9") // Start almost simultaneously with roles
+  }, "-=0.45") // Start just slightly after roles begin
 
   // Awards label
   .to('.project-info_awards-label', {
