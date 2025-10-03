@@ -112,12 +112,26 @@ export function createHomeRevealAnimation(container) {
     });
   }, "-=0.2")
   
-  // Awards strip
-  .to(".home-awards_list", {
+  // ✨ AWARDS STRIP - SMOOTH ITEM STAGGER (UPDATED)
+  .set(".home-awards_list", {
+    opacity: 1,
+    visibility: "visible"
+  })
+  .fromTo(".home-awards_list > *", {
+    opacity: 0, 
+    y: ANIMATION.TRANSFORM.tagX, 
+    scale: ANIMATION.TRANSFORM.scaleLarge 
+  }, {
     opacity: 1, 
     y: 0, 
     scale: 1,
-    ...getAnimProps('awards'),
+    duration: 0.5,
+    ease: "power3.out",
+    stagger: {
+      amount: 0.3,
+      from: "start"
+    },
+    delay: 0.3,
     onComplete: () => {
       gsap.set([
         ".nav_wrap",
@@ -126,7 +140,8 @@ export function createHomeRevealAnimation(container) {
         ".home-category_text",
         ".home_hero_text",
         ".home-category_ref_text",
-        ".home-awards_list"
+        ".home-awards_list",
+        ".home-awards_list > *"
       ], {
         clearProps: "transform,filter"
       });

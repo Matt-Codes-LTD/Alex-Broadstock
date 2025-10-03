@@ -150,14 +150,11 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     }
   })
   
-  // Phase 4: Fade UI elements while morphing - UPDATED FOR SMOOTHER CORNERS
+  // Phase 4: Fade UI elements while morphing
   .to([ui.corners], { 
-    opacity: 0,
-    scale: 0.9,
-    y: -8,
-    duration: 0.85,
-    stagger: 0.08,
-    ease: "power3.out"
+    opacity: 0, 
+    duration: 0.6, 
+    stagger: 0.02 
   }, "-=1.4")
   .to(ui.edgesBox, { 
     opacity: 0, 
@@ -197,8 +194,8 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     }
   }, null, "-=1.2")
   
-  // Phase 5.5: Pause before reveal (extended for home page)
-  .to({}, { duration: 1.3 })
+  // Phase 5.5: Pause before reveal
+  .to({}, { duration: 0.8 })
   
   // Phase 6: UNIFIED HOME PAGE REVEAL using constants
   .set(loaderEl, { zIndex: 1 })
@@ -328,16 +325,26 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     }
   }, "-=0.1")
   
-  // Awards strip - using unified constants
-  .fromTo(".home-awards_list", {
+  // ✨ AWARDS STRIP - SMOOTH ITEM STAGGER (UPDATED)
+  .set(".home-awards_list", {
+    opacity: 1,
+    visibility: "visible"
+  })
+  .fromTo(".home-awards_list > *", {
     opacity: 0, 
-    y: ANIMATION.TRANSFORM.tagX, 
+    y: ANIMATION.TRANSFORM.tagX,
     scale: ANIMATION.TRANSFORM.scaleLarge
   }, {
     opacity: 1, 
     y: 0, 
     scale: 1,
-    ...getAnimProps('awards'),
+    duration: 0.5,
+    ease: "power3.out",
+    stagger: {
+      amount: 0.3,  // Total time to stagger all items
+      from: "start"
+    },
+    delay: 0.3,
     onComplete: () => {
       gsap.set([
         ".nav_wrap",
@@ -346,7 +353,8 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
         ".home-category_text",
         ".home_hero_text",
         ".home-category_ref_text",
-        ".home-awards_list"
+        ".home-awards_list",
+        ".home-awards_list > *"
       ], {
         clearProps: "transform,filter"
       });

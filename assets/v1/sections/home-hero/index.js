@@ -1,4 +1,4 @@
-// index.js - Production version with autoplay sound signal
+// index.js - Production version with autoplay sound signal and smooth transitions
 import { createVideoManager } from "./video-manager.js";
 import { initCategoryFilter } from "./category-filter.js";
 
@@ -65,21 +65,109 @@ export default function initHomeHero(container) {
     requestAnimationFrame(() => initializeHero());
   }
 
+  // ✨ SMOOTH AWARDS TRANSITION (UPDATED)
   function updateAwards(item) {
     if (!awardsStrip) return;
-    const list = item.querySelector(".home-project_awards");
+    const list = item.querySelector(".home-awards_list");
     if (!list) return;
 
     const newHTML = list.innerHTML;
     if (newHTML === currentAwardsHTML) return;
     
     currentAwardsHTML = newHTML;
-    awardsStrip.innerHTML = newHTML;
+    
+    // Smooth transition for awards
+    if (window.gsap) {
+      const items = awardsStrip.querySelectorAll(":scope > *");
+      
+      gsap.to(items, {
+        opacity: 0,
+        y: -10,
+        duration: 0.2,
+        ease: "power2.in",
+        stagger: 0.02,
+        onComplete: () => {
+          awardsStrip.innerHTML = newHTML;
+          const newItems = awardsStrip.querySelectorAll(":scope > *");
+          
+          gsap.fromTo(newItems, {
+            opacity: 0,
+            y: 10
+          }, {
+            opacity: 1,
+            y: 0,
+            duration: 0.3,
+            ease: "power2.out",
+            stagger: 0.03,
+            delay: 0.1
+          });
+        }
+      });
+    } else {
+      awardsStrip.innerHTML = newHTML;
+    }
   }
 
+  // ✨ SMOOTH TEXT TRANSITIONS (UPDATED)
   function setActive(item, opts = {}) {
     if (!item || item === activeItem) return;
+    
+    const previousItem = activeItem;
     activeItem = item;
+
+    // Animate text transitions
+    if (window.gsap && previousItem !== item) {
+      const prevText = previousItem?.querySelector(".home_hero_text");
+      const prevPills = previousItem?.querySelectorAll(".home-category_ref_text:not([hidden])");
+      
+      const nextText = item.querySelector(".home_hero_text");
+      const nextPills = item.querySelectorAll(".home-category_ref_text:not([hidden])");
+      
+      // Fade out previous (if exists)
+      if (prevText) {
+        gsap.to(prevText, {
+          opacity: 0,
+          x: -15,
+          duration: 0.25,
+          ease: "power2.in"
+        });
+      }
+      if (prevPills.length) {
+        gsap.to(prevPills, {
+          opacity: 0,
+          x: 10,
+          duration: 0.25,
+          ease: "power2.in",
+          stagger: 0.02
+        });
+      }
+      
+      // Fade in new
+      gsap.fromTo(nextText, {
+        opacity: 0,
+        x: -30,
+        filter: "blur(4px)"
+      }, {
+        opacity: 1,
+        x: 0,
+        filter: "blur(0px)",
+        duration: 0.4,
+        delay: 0.15,
+        ease: "power2.out"
+      });
+      
+      gsap.fromTo(nextPills, {
+        opacity: 0,
+        x: 20
+      }, {
+        opacity: 1,
+        x: 0,
+        duration: 0.35,
+        delay: 0.2,
+        ease: "power2.out",
+        stagger: 0.03
+      });
+    }
 
     requestAnimationFrame(() => {
       items.forEach((i) => {
@@ -87,16 +175,20 @@ export default function initHomeHero(container) {
         const text  = i.querySelector(".home_hero_text");
         const pills = i.querySelectorAll(".home-category_ref_text:not([hidden])");
         if (link) link.setAttribute("aria-current", "false");
-        text?.classList.add("u-color-faded");
-        pills.forEach(p => p.classList.add("u-color-faded"));
+        if (!window.gsap) {
+          text?.classList.add("u-color-faded");
+          pills.forEach(p => p.classList.add("u-color-faded"));
+        }
       });
 
       const activeLink  = item.querySelector(".home-hero_link");
       const activeText  = item.querySelector(".home_hero_text");
       const activePills = item.querySelectorAll(".home-category_ref_text:not([hidden])");
       if (activeLink) activeLink.setAttribute("aria-current", "true");
-      activeText?.classList.remove("u-color-faded");
-      activePills.forEach(p => p.classList.remove("u-color-faded"));
+      if (!window.gsap) {
+        activeText?.classList.remove("u-color-faded");
+        activePills.forEach(p => p.classList.remove("u-color-faded"));
+      }
 
       updateAwards(item);
     });

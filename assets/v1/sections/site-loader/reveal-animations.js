@@ -74,13 +74,22 @@ export function revealHeroContent(container) {
   // Project rows
   tl.add(() => revealProjectRows(container), "-=0.2");
   
-  // Awards
-  tl.fromTo(".home-awards_list", {
+  // ✨ AWARDS - SMOOTH ITEM STAGGER (UPDATED)
+  tl.set(".home-awards_list", {
+    opacity: 1,
+    visibility: "visible"
+  });
+  
+  tl.fromTo(".home-awards_list > *", {
     opacity: 0, y: 20, scale: 0.95
   }, {
     opacity: 1, y: 0, scale: 1,
-    duration: 0.6,
+    duration: 0.5,
     ease: "power3.out",
+    stagger: {
+      amount: 0.3,  // Total time to stagger all items
+      from: "start"
+    },
     delay: 0.3,
     onComplete: clearProps
   });
@@ -128,7 +137,8 @@ export function clearProps() {
     ".home-category_text",
     ".home_hero_text",
     ".home-category_ref_text",
-    ".home-awards_list"
+    ".home-awards_list",
+    ".home-awards_list > *"
   ], {
     clearProps: "transform,filter"
   });
