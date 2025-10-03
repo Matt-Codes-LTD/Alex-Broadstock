@@ -1,4 +1,4 @@
-// index.js - Production version with autoplay sound support
+// index.js - Fixed with forced audio verification
 import { createState } from "./state.js";
 import { initControls } from "./controls.js";
 import { initTimeline } from "./timeline.js";
@@ -97,17 +97,21 @@ export default function initProjectPlayer(container) {
   if (poster) video.poster = poster;
   if (!video.isConnected && host) host.appendChild(video);
 
-  // Check for autoplay sound signal from home page
+  // Check for autoplay sound signal
   const shouldAutoplaySound = sessionStorage.getItem("pp:autoplay-sound") === "1";
   sessionStorage.removeItem("pp:autoplay-sound");
   
   if (shouldAutoplaySound) {
-    // Start unmuted with stored volume
+    // Get stored volume, ensure it's not 0
+    const storedVol = Number(localStorage.getItem("pp:vol") || 0.8);
+    const volume = Math.max(0.5, Math.min(1, storedVol)); // Ensure 0.5-1.0 range
+    
     video.muted = false;
     video.removeAttribute("muted");
-    video.volume = Number(localStorage.getItem("pp:vol") || 1) || 1;
+    video.volume = volume;
+    
+    console.log("[ProjectPlayer] Autoplay with sound - volume set to:", volume);
   } else {
-    // Default muted behavior
     video.muted = true;
     video.setAttribute("muted", "");
     video.volume = 0;
@@ -116,13 +120,18 @@ export default function initProjectPlayer(container) {
   // Create state
   const state = createState(video, wrap, centerBtn);
 
-  // Init modules
+  // Init modules  
   const tl = wrap.querySelector('[data-role="timeline"]');
   const tlBuf = wrap.querySelector(".project-player_timeline-buffer");
   const tlHandle = wrap.querySelector(".project-player_timeline-handle");
   const btnPlay = wrap.querySelector('[data-role="play"]');
   const btnMute = wrap.querySelector('[data-role="mute"]');
   const muteLabel = wrap.querySelector('[data-role="mute-label"]');
+
+  // IMPORTANT: Switch to play mode BEFORE initializing controls
+  if (shouldAutoplaySound) {
+    switchCenterToPlayMode(centerBtn, video);
+  }
 
   const cleanupControls = initControls(video, wrap, centerBtn, state);
   const cleanupTimeline = initTimeline(video, tl, tlBuf, tlHandle, state);
@@ -138,21 +147,44 @@ export default function initProjectPlayer(container) {
       await ensureFirstFramePainted(video);
       
       if (shouldAutoplaySound) {
-        // Try to play with sound
+        console.log("[ProjectPlayer] Attempting autoplay with sound");
+        console.log("[ProjectPlayer] Before play - muted:", video.muted, "volume:", video.volume);
+        
         try {
           await video.play();
           
-          // Success! Mark sound restart as done and switch to play/pause mode
+          // CRITICAL: Verify audio state after play
+          console.log("[ProjectPlayer] After play - muted:", video.muted, "volume:", video.volume);
+          
+          // Double-check and force unmute if needed
+          if (video.muted) {
+            console.warn("[ProjectPlayer] Video was silently muted by browser, forcing unmute");
+            video.muted = false;
+            video.removeAttribute("muted");
+          }
+          
+          // Ensure volume is audible
+          if (video.volume < 0.3) {
+            console.warn("[ProjectPlayer] Volume too low, setting to 0.8");
+            video.volume = 0.8;
+            localStorage.setItem("pp:vol", "0.8");
+          }
+          
+          // Mark as sound restart done
           state.didFirstSoundRestart = true;
-          switchCenterToPlayMode(centerBtn, video);
+          
+          // Update UI
           setMuteUI(btnMute, muteLabel, false);
           setPlayUI(video, btnPlay, centerBtn, true);
           setPausedUI(wrap, false);
           
-        } catch (playErr) {
-          console.warn("[ProjectPlayer] Autoplay with sound blocked, falling back to muted:", playErr);
+          console.log("[ProjectPlayer] ✅ Autoplay with sound successful");
+          console.log("[ProjectPlayer] Final state - muted:", video.muted, "volume:", video.volume, "paused:", video.paused);
           
-          // Browser blocked - fall back to muted
+        } catch (playErr) {
+          console.warn("[ProjectPlayer] Autoplay with sound blocked:", playErr);
+          
+          // Fall back to muted
           video.muted = true;
           video.setAttribute("muted", "");
           video.volume = 0;
