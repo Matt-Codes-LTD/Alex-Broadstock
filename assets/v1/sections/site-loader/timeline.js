@@ -197,8 +197,8 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     }
   }, null, "-=1.2")
   
-  // Phase 5.5: Pause before reveal
-  .to({}, { duration: 0.8 })
+  // Phase 5.5: Pause before reveal (extended for home page)
+  .to({}, { duration: 1.3 })
   
   // Phase 6: UNIFIED HOME PAGE REVEAL using constants
   .set(loaderEl, { zIndex: 1 })
