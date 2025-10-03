@@ -1,4 +1,4 @@
-// index.js - Fixed with forced audio verification
+// index.js - Latest production version with autoplay sound support
 import { createState } from "./state.js";
 import { initControls } from "./controls.js";
 import { initTimeline } from "./timeline.js";
@@ -97,7 +97,7 @@ export default function initProjectPlayer(container) {
   if (poster) video.poster = poster;
   if (!video.isConnected && host) host.appendChild(video);
 
-  // Check for autoplay sound signal
+  // Check for autoplay sound signal from home page or navigation
   const shouldAutoplaySound = sessionStorage.getItem("pp:autoplay-sound") === "1";
   sessionStorage.removeItem("pp:autoplay-sound");
   
@@ -109,9 +109,8 @@ export default function initProjectPlayer(container) {
     video.muted = false;
     video.removeAttribute("muted");
     video.volume = volume;
-    
-    console.log("[ProjectPlayer] Autoplay with sound - volume set to:", volume);
   } else {
+    // Default muted behavior
     video.muted = true;
     video.setAttribute("muted", "");
     video.volume = 0;
@@ -128,7 +127,7 @@ export default function initProjectPlayer(container) {
   const btnMute = wrap.querySelector('[data-role="mute"]');
   const muteLabel = wrap.querySelector('[data-role="mute-label"]');
 
-  // IMPORTANT: Switch to play mode BEFORE initializing controls
+  // Switch to play mode before initializing controls if autoplay with sound
   if (shouldAutoplaySound) {
     switchCenterToPlayMode(centerBtn, video);
   }
@@ -147,25 +146,17 @@ export default function initProjectPlayer(container) {
       await ensureFirstFramePainted(video);
       
       if (shouldAutoplaySound) {
-        console.log("[ProjectPlayer] Attempting autoplay with sound");
-        console.log("[ProjectPlayer] Before play - muted:", video.muted, "volume:", video.volume);
-        
         try {
           await video.play();
           
-          // CRITICAL: Verify audio state after play
-          console.log("[ProjectPlayer] After play - muted:", video.muted, "volume:", video.volume);
-          
-          // Double-check and force unmute if needed
+          // Verify audio state after play and force unmute if needed
           if (video.muted) {
-            console.warn("[ProjectPlayer] Video was silently muted by browser, forcing unmute");
             video.muted = false;
             video.removeAttribute("muted");
           }
           
           // Ensure volume is audible
           if (video.volume < 0.3) {
-            console.warn("[ProjectPlayer] Volume too low, setting to 0.8");
             video.volume = 0.8;
             localStorage.setItem("pp:vol", "0.8");
           }
@@ -178,11 +169,8 @@ export default function initProjectPlayer(container) {
           setPlayUI(video, btnPlay, centerBtn, true);
           setPausedUI(wrap, false);
           
-          console.log("[ProjectPlayer] ✅ Autoplay with sound successful");
-          console.log("[ProjectPlayer] Final state - muted:", video.muted, "volume:", video.volume, "paused:", video.paused);
-          
         } catch (playErr) {
-          console.warn("[ProjectPlayer] Autoplay with sound blocked:", playErr);
+          console.warn("[ProjectPlayer] Autoplay with sound blocked, falling back to muted:", playErr);
           
           // Fall back to muted
           video.muted = true;

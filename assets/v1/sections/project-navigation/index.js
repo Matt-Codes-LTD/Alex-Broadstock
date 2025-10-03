@@ -73,6 +73,8 @@ export default function initProjectNavigation(container) {
   
   const onPrevClick = (e) => {
     e.preventDefault();
+    sessionStorage.setItem("pp:autoplay-sound", "1");
+    
     if (window.barba) {
       barba.go(prevProject.url);
     } else {
@@ -82,6 +84,8 @@ export default function initProjectNavigation(container) {
 
   const onNextClick = (e) => {
     e.preventDefault();
+    sessionStorage.setItem("pp:autoplay-sound", "1");
+    
     if (window.barba) {
       barba.go(nextProject.url);
     } else {
@@ -105,9 +109,11 @@ export default function initProjectNavigation(container) {
     
     if (e.key === 'ArrowLeft') {
       e.preventDefault();
+      sessionStorage.setItem("pp:autoplay-sound", "1");
       prevButton.click();
     } else if (e.key === 'ArrowRight') {
       e.preventDefault();
+      sessionStorage.setItem("pp:autoplay-sound", "1");
       nextButton.click();
     }
   };
