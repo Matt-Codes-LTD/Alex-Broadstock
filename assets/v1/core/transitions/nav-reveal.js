@@ -24,8 +24,7 @@ export function createHomeRevealAnimation(container) {
     ".nav_link",
     ".home-category_text",
     ".home_hero_text",
-    ".home-category_ref_text:not([hidden])",
-    ".home-awards_list"
+    ".home-category_ref_text:not([hidden])"
   ], {
     opacity: 0
   });
@@ -42,10 +41,6 @@ export function createHomeRevealAnimation(container) {
     filter: ANIMATION.FILTER.blur 
   });
   gsap.set(".home-category_ref_text:not([hidden])", { x: ANIMATION.TRANSFORM.tagX });
-  gsap.set(".home-awards_list", { 
-    y: ANIMATION.TRANSFORM.tagX, 
-    scale: ANIMATION.TRANSFORM.scaleLarge 
-  });
   
   const tl = gsap.timeline();
   
@@ -112,10 +107,10 @@ export function createHomeRevealAnimation(container) {
     });
   }, "-=0.2")
   
-  // ✨ AWARDS STRIP - SMOOTH ITEM STAGGER (UPDATED)
+  // ✨ AWARDS STRIP - SMOOTH ITEM STAGGER (FIXED)
   .set(".home-awards_list", {
-    opacity: 1,
-    visibility: "visible"
+    visibility: "visible",
+    opacity: 1
   })
   .fromTo(".home-awards_list > *", {
     opacity: 0, 

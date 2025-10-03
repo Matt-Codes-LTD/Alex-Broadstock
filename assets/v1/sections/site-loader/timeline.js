@@ -202,8 +202,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
   .set([
     ".nav_wrap",
     ".home_hero_categories", 
-    ".home-hero_menu",
-    ".home-awards_list"
+    ".home-hero_menu"
   ], {
     visibility: "visible",
     opacity: 1
@@ -217,8 +216,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
   })
   .set([
     ".home_hero_text",
-    ".home-category_ref_text:not([hidden])",
-    ".home-awards_list"
+    ".home-category_ref_text:not([hidden])"
   ], {
     opacity: 0
   })
@@ -325,15 +323,15 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     }
   }, "-=0.1")
   
-  // ✨ AWARDS STRIP - SMOOTH ITEM STAGGER (UPDATED)
+  // ✨ AWARDS STRIP - SMOOTH ITEM STAGGER (FIXED)
   .set(".home-awards_list", {
-    opacity: 1,
-    visibility: "visible"
+    visibility: "visible",
+    opacity: 1  // Parent visible
   })
   .fromTo(".home-awards_list > *", {
-    opacity: 0, 
-    y: ANIMATION.TRANSFORM.tagX,
-    scale: ANIMATION.TRANSFORM.scaleLarge
+    opacity: 0,
+    y: 20,
+    scale: 0.95
   }, {
     opacity: 1, 
     y: 0, 
@@ -341,7 +339,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     duration: 0.5,
     ease: "power3.out",
     stagger: {
-      amount: 0.3,  // Total time to stagger all items
+      amount: 0.3,
       from: "start"
     },
     delay: 0.3,

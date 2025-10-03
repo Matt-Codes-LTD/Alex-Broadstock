@@ -6,8 +6,7 @@ export function revealHeroContent(container) {
   gsap.set([
     ".nav_wrap",
     ".home_hero_categories",
-    ".home-hero_menu",
-    ".home-awards_list"
+    ".home-hero_menu"
   ], {
     visibility: "visible",
     opacity: 1
@@ -24,8 +23,7 @@ export function revealHeroContent(container) {
   // Keep project elements hidden
   gsap.set([
     ".home_hero_text",
-    ".home-category_ref_text:not([hidden])",
-    ".home-awards_list"
+    ".home-category_ref_text:not([hidden])"
   ], {
     opacity: 0
   });
@@ -74,20 +72,24 @@ export function revealHeroContent(container) {
   // Project rows
   tl.add(() => revealProjectRows(container), "-=0.2");
   
-  // ✨ AWARDS - SMOOTH ITEM STAGGER (UPDATED)
+  // ✨ AWARDS - SMOOTH ITEM STAGGER (FIXED)
   tl.set(".home-awards_list", {
-    opacity: 1,
-    visibility: "visible"
+    visibility: "visible",
+    opacity: 1
   });
   
   tl.fromTo(".home-awards_list > *", {
-    opacity: 0, y: 20, scale: 0.95
+    opacity: 0, 
+    y: 20, 
+    scale: 0.95
   }, {
-    opacity: 1, y: 0, scale: 1,
+    opacity: 1, 
+    y: 0, 
+    scale: 1,
     duration: 0.5,
     ease: "power3.out",
     stagger: {
-      amount: 0.3,  // Total time to stagger all items
+      amount: 0.3,
       from: "start"
     },
     delay: 0.3,
