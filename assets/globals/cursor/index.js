@@ -21,9 +21,7 @@ export default function initCursor() {
     overlay.appendChild(box);
   }
 
-  // CRITICAL: Force blend mode via JS (ensures it applies)
-  box.style.mixBlendMode = "difference";
-  // DON'T set isolation on the box - it prevents blending
+  // Blend mode is now handled in CSS on the wrapper
 
   // Geometry
   const geom = initGeometry(overlay);
