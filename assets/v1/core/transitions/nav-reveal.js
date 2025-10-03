@@ -24,7 +24,8 @@ export function createHomeRevealAnimation(container) {
     ".nav_link",
     ".home-category_text",
     ".home_hero_text",
-    ".home-category_ref_text:not([hidden])"
+    ".home-category_ref_text:not([hidden])",
+    ".home-awards_list"
   ], {
     opacity: 0
   });
@@ -41,6 +42,10 @@ export function createHomeRevealAnimation(container) {
     filter: ANIMATION.FILTER.blur 
   });
   gsap.set(".home-category_ref_text:not([hidden])", { x: ANIMATION.TRANSFORM.tagX });
+  gsap.set(".home-awards_list", { 
+    y: ANIMATION.TRANSFORM.tagX, 
+    scale: ANIMATION.TRANSFORM.scaleLarge 
+  });
   
   const tl = gsap.timeline();
   
@@ -107,19 +112,21 @@ export function createHomeRevealAnimation(container) {
     });
   }, "-=0.2")
   
-  // ✨ AWARDS STRIP - SMOOTH ITEM STAGGER (FIXED - Check if exists)
+  // ✨ AWARDS STRIP - SMOOTH ITEM STAGGER (FIXED - Fallback to parent)
   .add(() => {
     const awardsList = container.querySelector(".home-awards_list");
-    const awardsItems = awardsList ? awardsList.querySelectorAll(":scope > *") : [];
     
+    if (!awardsList) {
+      console.warn("[NavReveal] Awards list not found");
+      return;
+    }
+    
+    const awardsItems = awardsList.querySelectorAll(":scope > *");
+    
+    // If CMS items exist, animate them individually
     if (awardsItems.length > 0) {
-      // Set parent visible
-      gsap.set(awardsList, {
-        visibility: "visible",
-        opacity: 1
-      });
+      console.log("[NavReveal] Animating", awardsItems.length, "award items");
       
-      // Animate children
       gsap.fromTo(awardsItems, {
         opacity: 0, 
         y: ANIMATION.TRANSFORM.tagX, 
@@ -137,7 +144,17 @@ export function createHomeRevealAnimation(container) {
         delay: 0.3
       });
     } else {
-      console.warn("[NavReveal] No awards items found to animate");
+      // Fallback: animate parent container if CMS items not loaded yet
+      console.log("[NavReveal] No award items found, animating parent container");
+      
+      gsap.to(awardsList, {
+        opacity: 1, 
+        y: 0, 
+        scale: 1,
+        duration: 0.6,
+        ease: "power3.out",
+        delay: 0.3
+      });
     }
   }, "-=0.2")
   

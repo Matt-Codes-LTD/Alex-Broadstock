@@ -6,7 +6,8 @@ export function revealHeroContent(container) {
   gsap.set([
     ".nav_wrap",
     ".home_hero_categories",
-    ".home-hero_menu"
+    ".home-hero_menu",
+    ".home-awards_list"
   ], {
     visibility: "visible",
     opacity: 1
@@ -23,7 +24,8 @@ export function revealHeroContent(container) {
   // Keep project elements hidden
   gsap.set([
     ".home_hero_text",
-    ".home-category_ref_text:not([hidden])"
+    ".home-category_ref_text:not([hidden])",
+    ".home-awards_list"
   ], {
     opacity: 0
   });
@@ -72,19 +74,21 @@ export function revealHeroContent(container) {
   // Project rows
   tl.add(() => revealProjectRows(container), "-=0.2");
   
-  // ✨ AWARDS - SMOOTH ITEM STAGGER (FIXED - Check if exists)
+  // ✨ AWARDS - SMOOTH ITEM STAGGER (FIXED - Fallback to parent)
   tl.add(() => {
     const awardsList = container.querySelector(".home-awards_list");
-    const awardsItems = awardsList ? awardsList.querySelectorAll(":scope > *") : [];
     
+    if (!awardsList) {
+      console.warn("[RevealAnimations] Awards list not found");
+      return;
+    }
+    
+    const awardsItems = awardsList.querySelectorAll(":scope > *");
+    
+    // If CMS items exist, animate them individually
     if (awardsItems.length > 0) {
-      // Set parent visible
-      gsap.set(awardsList, {
-        visibility: "visible",
-        opacity: 1
-      });
+      console.log("[RevealAnimations] Animating", awardsItems.length, "award items");
       
-      // Animate children
       gsap.fromTo(awardsItems, {
         opacity: 0, 
         y: 20, 
@@ -103,7 +107,22 @@ export function revealHeroContent(container) {
         onComplete: clearProps
       });
     } else {
-      console.warn("[RevealAnimations] No awards items found to animate");
+      // Fallback: animate parent container if CMS items not loaded yet
+      console.log("[RevealAnimations] No award items found, animating parent container");
+      
+      gsap.fromTo(awardsList, {
+        opacity: 0,
+        y: 20,
+        scale: 0.95
+      }, {
+        opacity: 1, 
+        y: 0, 
+        scale: 1,
+        duration: 0.6,
+        ease: "power3.out",
+        delay: 0.3,
+        onComplete: clearProps
+      });
     }
   }, "-=0.2");
   
