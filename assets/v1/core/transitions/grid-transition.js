@@ -1,4 +1,4 @@
-// grid-transition.js - Accepts cleanup callback
+// grid-transition.js - Mutes current video on navigation
 import { calculateStaggerDelay, clearStaggerCache } from "./stagger-calc.js";
 
 let globalGrid = null;
@@ -43,7 +43,22 @@ export function createGridTransition(options = {}) {
         console.log("[Transition] Set navigating flag on leave");
       }
       
-      // NO cleanup here - video stays visible
+      // IMMEDIATE MUTE: Find all videos in current page and mute them
+      const allVideos = container.querySelectorAll('video');
+      allVideos.forEach(video => {
+        if (!video.paused) {
+          video.muted = true;
+          video.setAttribute("muted", "");
+          console.log("[Transition] Muted video on page leave:", video.src);
+        }
+      });
+      
+      // Also check for videos in home hero stage
+      const heroVideos = container.querySelectorAll('.home-hero_video video');
+      heroVideos.forEach(video => {
+        video.muted = true;
+        video.setAttribute("muted", "");
+      });
     },
     
     async enter(current, next, oldCleanup = null) {
