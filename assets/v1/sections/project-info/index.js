@@ -33,15 +33,23 @@ export default function initProjectInfo(container) {
   let isOpen = false;
   let revealTimeline = null;
   let originalBackHref = backLink.getAttribute('href');
+  let wasMutedBeforeOpen = false;
   const handlers = [];
 
   function open() {
     if (isOpen) return;
     isOpen = true;
 
-    // Pause video
-    if (video && !video.paused) {
-      video.pause();
+    // Store mute state and mute video (but keep playing)
+    if (video) {
+      wasMutedBeforeOpen = video.muted;
+      video.muted = true;
+      video.setAttribute('muted', '');
+      
+      // If video was paused, start playing
+      if (video.paused) {
+        video.play().catch(() => {});
+      }
     }
 
     // Show overlay
@@ -110,6 +118,12 @@ export default function initProjectInfo(container) {
           backLink.setAttribute('href', originalBackHref);
           backLink.style.cursor = '';
 
+          // Restore video mute state
+          if (video && !wasMutedBeforeOpen) {
+            video.muted = false;
+            video.removeAttribute('muted');
+          }
+
           // Show player controls again
           if (window.gsap) {
             gsap.to([playerControls, navigationOverlay, centerToggle], {
@@ -145,6 +159,12 @@ export default function initProjectInfo(container) {
       backLink.textContent = 'Back';
       backLink.setAttribute('href', originalBackHref);
       backLink.style.cursor = '';
+
+      // Restore video mute state
+      if (video && !wasMutedBeforeOpen) {
+        video.muted = false;
+        video.removeAttribute('muted');
+      }
 
       // Show player controls again
       if (playerControls) playerControls.style.opacity = '1';
