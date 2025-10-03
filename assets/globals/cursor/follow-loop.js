@@ -1,4 +1,4 @@
-// follow-loop.js
+// follow-loop.js - Updated to preserve scale
 export function createFollowLoop(box, ease = 0.18) {
   let useGsap = false, setX, setY;
   let targetX = 0, targetY = 0;
@@ -9,22 +9,37 @@ export function createFollowLoop(box, ease = 0.18) {
 
   function useFallback() {
     useGsap = false;
-    setX = (px) => { box.style.transform = `translate(${px}px, ${y}px)`; };
-    setY = (py) => { box.style.transform = `translate(${x}px, ${py}px)`; };
-    box.style.transform = `translate(${x}px, ${y}px)`;
+    // FIXED: Preserve scale in transform
+    setX = (px) => { 
+      const scale = box.style.getPropertyValue('--cursor-scale') || '1';
+      box.style.transform = `translate(${px}px, ${y}px) translate(-50%, -50%) scale(${scale})`;
+    };
+    setY = (py) => { 
+      const scale = box.style.getPropertyValue('--cursor-scale') || '1';
+      box.style.transform = `translate(${x}px, ${py}px) translate(-50%, -50%) scale(${scale})`;
+    };
+    const scale = box.style.getPropertyValue('--cursor-scale') || '1';
+    box.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%) scale(${scale})`;
   }
 
   function useGsapSetters() {
     useGsap = true;
     setX = gsap.quickSetter(box, "x", "px");
     setY = gsap.quickSetter(box, "y", "px");
-    setX(x); setY(y);
+    setX(x); 
+    setY(y);
+    // Set transform origin for centering
+    gsap.set(box, { 
+      xPercent: -50, 
+      yPercent: -50
+    });
   }
 
   function tick() {
     x += (targetX - x) * ease;
     y += (targetY - y) * ease;
-    setX(x); setY(y);
+    setX(x); 
+    setY(y);
   }
 
   function start() {

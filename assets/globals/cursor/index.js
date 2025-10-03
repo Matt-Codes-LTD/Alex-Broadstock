@@ -88,16 +88,8 @@ export default function initCursor() {
     if (hovering === isHovering) return;
     isHovering = hovering;
     
-    if (window.gsap) {
-      gsap.to(box, {
-        scale: hovering ? 2.5 : 1,
-        duration: 0.4,
-        ease: "power2.out"
-      });
-    } else {
-      box.style.transform = `scale(${hovering ? 2.5 : 1})`;
-      box.style.transition = "transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)";
-    }
+    // Set CSS custom property for scale
+    box.style.setProperty('--cursor-scale', hovering ? '2.5' : '1');
   }
 
   // Track hover over interactive elements
@@ -117,33 +109,13 @@ export default function initCursor() {
   function onPointerDown() {
     if (isClicking) return;
     isClicking = true;
-    
-    if (window.gsap) {
-      gsap.to(box, {
-        scale: 3.5,
-        duration: 0.15,
-        ease: "power2.out"
-      });
-    } else {
-      box.style.transform = "scale(3.5)";
-      box.style.transition = "transform 0.15s cubic-bezier(0.4, 0, 0.2, 1)";
-    }
+    box.style.setProperty('--cursor-scale', '3.5');
   }
 
   function onPointerUp() {
     if (!isClicking) return;
     isClicking = false;
-    
-    if (window.gsap) {
-      gsap.to(box, {
-        scale: isHovering ? 2.5 : 1,
-        duration: 0.3,
-        ease: "power2.out"
-      });
-    } else {
-      box.style.transform = `scale(${isHovering ? 2.5 : 1})`;
-      box.style.transition = "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)";
-    }
+    box.style.setProperty('--cursor-scale', isHovering ? '2.5' : '1');
   }
 
   document.addEventListener("pointerdown", onPointerDown);
