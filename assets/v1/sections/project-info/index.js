@@ -20,6 +20,7 @@ export default function initProjectInfo(container) {
   const playerControls = container.querySelector('.project-player_controls');
   const navigationOverlay = container.querySelector('.project-navigation_overlay');
   const centerToggle = container.querySelector('.project-player_center-toggle');
+  const pausefx = container.querySelector('.project-player_pausefx');
   
   if (!playerWrap || !infoOverlay || !infoButton || !backLink) {
     console.warn('[ProjectInfo] Missing required elements');
@@ -49,6 +50,15 @@ export default function initProjectInfo(container) {
       // If video was paused, start playing
       if (video.paused) {
         video.play().catch(() => {});
+      }
+    }
+
+    // Force pausefx overlay to show
+    if (pausefx) {
+      if (window.gsap) {
+        gsap.to(pausefx, { opacity: 1, duration: 0.3, ease: "power2.out" });
+      } else {
+        pausefx.style.opacity = '1';
       }
     }
 
@@ -118,6 +128,15 @@ export default function initProjectInfo(container) {
           backLink.setAttribute('href', originalBackHref);
           backLink.style.cursor = '';
 
+          // Hide pausefx overlay
+          if (pausefx) {
+            if (window.gsap) {
+              gsap.to(pausefx, { opacity: 0, duration: 0.3, ease: "power2.out" });
+            } else {
+              pausefx.style.opacity = '0';
+            }
+          }
+
           // Restore video mute state
           if (video && !wasMutedBeforeOpen) {
             video.muted = false;
@@ -159,6 +178,11 @@ export default function initProjectInfo(container) {
       backLink.textContent = 'Back';
       backLink.setAttribute('href', originalBackHref);
       backLink.style.cursor = '';
+
+      // Hide pausefx overlay
+      if (pausefx) {
+        pausefx.style.opacity = '0';
+      }
 
       // Restore video mute state
       if (video && !wasMutedBeforeOpen) {
