@@ -50,18 +50,19 @@ export default function initProjectInfo(container) {
 
     if (window.gsap && revealTimeline) {
       gsap.to([
-        '.project-info_description',
-        '.project-info_crew-label',
-        '.project-info_crew-role',
-        '.project-info_crew-name',
+        '.project-info_award-item',
         '.project-info_awards-label',
-        '.project-info_award-item'
+        '.project-info_crew-name',
+        '.project-info_crew-role',
+        '.project-info_crew-label',
+        '.project-info_description'
       ], {
         opacity: 0,
-        y: -10,
-        duration: 0.3,
-        stagger: 0.02,
-        ease: "power2.in",
+        y: -15,
+        filter: "blur(6px)",
+        duration: 0.4,
+        stagger: 0.03,
+        ease: "power2.inOut",
         onComplete: () => {
           infoOverlay.classList.add('u-display-none');
           gsap.set([

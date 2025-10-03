@@ -4,7 +4,7 @@ import { ANIMATION, getAnimProps } from "../../core/animation-constants.js";
 export function createRevealAnimation(container) {
   if (!window.gsap) return null;
 
-  // Set initial states using unified transform values
+  // Set initial states with subtle blur for depth
   gsap.set([
     '.project-info_description',
     '.project-info_crew-label',
@@ -14,47 +14,67 @@ export function createRevealAnimation(container) {
     '.project-info_award-item'
   ], {
     opacity: 0,
-    y: ANIMATION.TRANSFORM.textY
+    y: 20,
+    filter: "blur(8px)"
   });
 
   const tl = gsap.timeline();
 
-  // Description fades in first
+  // Description - slower, more elegant
   tl.to('.project-info_description', {
     opacity: 1,
     y: 0,
-    ...getAnimProps('text')
+    filter: "blur(0px)",
+    duration: 0.8,
+    ease: "power3.out"
   })
 
-  // Crew label
+  // Crew label - quick follow
   .to('.project-info_crew-label', {
     opacity: 1,
     y: 0,
-    ...getAnimProps('text')
-  }, `-=${ANIMATION.DELAY.sequential * 3}`)
+    filter: "blur(0px)",
+    duration: 0.6,
+    ease: "power2.out"
+  }, "-=0.5")
 
-  // Crew roles and names (staggered)
-  .to('.project-info_crew-role, .project-info_crew-name', {
+  // Crew items - tight cascade
+  .to('.project-info_crew-role', {
     opacity: 1,
     y: 0,
-    ...getAnimProps('tags')
-  }, `-=${ANIMATION.DELAY.sequential * 2}`)
+    filter: "blur(0px)",
+    duration: 0.5,
+    stagger: 0.12,
+    ease: "power2.out"
+  }, "-=0.35")
+  
+  .to('.project-info_crew-name', {
+    opacity: 1,
+    y: 0,
+    filter: "blur(0px)",
+    duration: 0.5,
+    stagger: 0.12,
+    ease: "power2.out"
+  }, "-=1.9") // Start almost simultaneously with roles
 
   // Awards label
   .to('.project-info_awards-label', {
     opacity: 1,
     y: 0,
-    ...getAnimProps('text')
-  }, `-=${ANIMATION.DELAY.sequential * 3}`)
+    filter: "blur(0px)",
+    duration: 0.6,
+    ease: "power2.out"
+  }, "-=0.4")
 
-  // Awards grid (staggered)
+  // Awards - playful bounce
   .to('.project-info_award-item', {
     opacity: 1,
     y: 0,
-    duration: ANIMATION.DURATION.controlsShort,
-    stagger: ANIMATION.STAGGER.controls,
-    ease: ANIMATION.EASE.controls
-  }, `-=${ANIMATION.DELAY.sequential * 2}`);
+    filter: "blur(0px)",
+    duration: 0.5,
+    stagger: 0.08,
+    ease: "back.out(1.4)"
+  }, "-=0.35");
 
   return tl;
 }
