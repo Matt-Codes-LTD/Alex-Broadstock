@@ -12,12 +12,13 @@ export function setupVideo(container, videoWrapper) {
   video.playsInline = true;
   video.preload = 'auto';
   video.crossOrigin = 'anonymous';
+  video.setAttribute('playsinline', ''); // Extra attribute for iOS
+  video.setAttribute('webkit-playsinline', ''); // Extra for older iOS
   
   if (videoUrl) {
     video.src = videoUrl;
     console.log("[SiteLoader] Using video:", videoUrl);
     video.load();
-    video.currentTime = 0.001;
   }
   
   videoWrapper.appendChild(video);
@@ -25,28 +26,34 @@ export function setupVideo(container, videoWrapper) {
 }
 
 export async function ensureVideoReady(video) {
-  if (!video || video.__frameReady) return;
+  if (!video) return;
   
+  // Wait for video to have enough data
   await new Promise(resolve => {
-    const checkFrame = () => {
-      if (video.readyState >= 3 && video.currentTime > 0) {
-        if ('requestVideoFrameCallback' in video) {
-          video.requestVideoFrameCallback(() => {
-            video.__frameReady = true;
-            resolve();
-          });
-        } else {
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              video.__frameReady = true;
-              resolve();
-            });
-          });
-        }
-      } else {
-        requestAnimationFrame(checkFrame);
-      }
+    if (video.readyState >= 3) {
+      resolve();
+      return;
+    }
+    
+    const onCanPlay = () => {
+      video.removeEventListener('canplay', onCanPlay);
+      video.removeEventListener('canplaythrough', onCanPlay);
+      resolve();
     };
-    checkFrame();
+    
+    video.addEventListener('canplay', onCanPlay, { once: true });
+    video.addEventListener('canplaythrough', onCanPlay, { once: true });
+    
+    // Timeout fallback
+    setTimeout(resolve, 3000);
   });
+  
+  // Ensure video is at start
+  try {
+    video.currentTime = 0;
+  } catch (err) {
+    console.warn("[SiteLoader] Could not set currentTime:", err);
+  }
+  
+  console.log("[SiteLoader] Video ready - readyState:", video.readyState);
 }

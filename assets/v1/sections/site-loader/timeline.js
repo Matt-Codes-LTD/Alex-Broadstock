@@ -74,8 +74,11 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
   // Main timeline - SIMPLIFIED
   const tl = gsap.timeline({ onComplete });
 
-  // Phase 1: Name reveal - IMMEDIATE
-  tl.to(nameChars, {
+  // Phase 0: Initial delay before anything appears
+  tl.to({}, { duration: 0.5 })
+  
+  // Phase 1: Name reveal
+  .to(nameChars, {
     opacity: 1,
     y: 0,
     duration: 0.6,
@@ -83,17 +86,20 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     ease: "power2.out"
   })
   
-  // Phase 2: Prepare video while name is visible
+  // Phase 2: Prepare video while name is visible - START EARLIER
   .call(async () => {
     try {
       await ensureVideoReady(video);
-      // Start video playing early
-      video.currentTime = 0.001;
-      video.play().catch(() => {});
+      // CRITICAL: Start video playing and ensure it's not muted
+      video.currentTime = 0;
+      video.muted = true; // Ensure muted for autoplay
+      video.loop = true;
+      await video.play();
+      console.log("[SiteLoader] Video playing:", video.paused === false);
     } catch (err) {
-      console.warn("[SiteLoader] Video ready failed:", err);
+      console.warn("[SiteLoader] Video play failed:", err);
     }
-  }, null, "+=0.5")
+  }, null, "+=0.3")
   
   // Phase 3: Begin video fade-in behind name
   .to(ui.videoWrapper, { 
@@ -124,8 +130,19 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     xPercent: 100, 
     duration: 1.6,
     ease: "custom2InOut",
+    onStart: () => {
+      // Ensure video is playing during curtain reveal
+      if (video.paused) {
+        video.play().catch(() => {});
+      }
+      console.log("[SiteLoader] Curtain revealing, video playing:", !video.paused);
+    },
     onComplete: () => {
       try {
+        // Ensure video continues playing before morph
+        if (video.paused) {
+          video.play().catch(() => {});
+        }
         morphToHeroStage(ui.videoWrapper, ui.heroVideoContainer, 1.4);
       } catch (err) {
         console.warn("[SiteLoader] Morph failed:", err);
