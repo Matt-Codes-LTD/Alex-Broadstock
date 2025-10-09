@@ -1,5 +1,4 @@
 // assets/v1/core/page-scripts.js
-import initCursor from "../../globals/cursor/index.js";
 import initHomeHero from "../sections/home-hero/index.js";
 import initProjectPlayer from "../sections/project-player/index.js";
 import initSiteLoader from "../sections/site-loader/index.js";
@@ -28,9 +27,6 @@ export function initPageScripts(container) {
 }
 
 export function initGlobal() {
-  try {
-    initCursor();
-  } catch (e) {
-    console.warn("[Cursor] init error", e);
-  }
+  // Global initialization can remain empty or be used for other global features
+  // Custom cursor initialization has been removed
 }

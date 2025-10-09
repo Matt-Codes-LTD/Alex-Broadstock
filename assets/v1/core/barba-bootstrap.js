@@ -111,10 +111,5 @@ document.addEventListener("DOMContentLoaded", () => {
     if (gridTransition.cleanup) {
       gridTransition.cleanup();
     }
-    
-    // Clean up global cursor if it has cleanup
-    if (window.__cursorCleanup) {
-      window.__cursorCleanup();
-    }
   });
 });

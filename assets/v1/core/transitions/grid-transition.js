@@ -85,7 +85,6 @@ export function createGridTransition(options = {}) {
       setupContainers(oldMain, newMain);
       
       // Enable grid interaction
-      document.body.style.cursor = 'none';
       grid.style.pointerEvents = 'all';
       
       // Force layout
@@ -273,7 +272,6 @@ function cleanupTransition(oldMain, newMain, grid) {
   
   // Reset page state
   window.scrollTo(0, 0);
-  document.body.style.cursor = '';
   grid.style.pointerEvents = 'none';
   document.body.classList.remove('barba-navigating');
 }
