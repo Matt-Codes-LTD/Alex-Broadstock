@@ -1,4 +1,4 @@
-// site-loader/video-setup.js - Video creation
+// assets/v1/sections/site-loader/video-setup.js - Video creation
 import { SELECTORS } from "./constants.js";
 
 export function setupVideo(container, videoWrapper) {

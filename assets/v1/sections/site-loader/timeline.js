@@ -1,7 +1,6 @@
 // assets/v1/sections/site-loader/timeline.js
 import { CONFIG, EASES } from "./constants.js";
 import { ANIMATION, getAnimProps } from "../../core/animation-constants.js";
-import { updateProgressUI, updateEdgesUI } from "./ui-elements.js";
 import { ensureVideoReady } from "./video-setup.js";
 import { morphToHeroStage } from "./morph.js";
 
@@ -37,7 +36,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
   );
   
   // Setup name element
-  const nameEl = loaderEl.querySelector('.site-loader_name_reveal');
+  const nameEl = ui.nameReveal;
   let nameChars = [];
   
   // Prevent FOUC - set initial state
@@ -72,56 +71,38 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
   state.heroReadyListener = onHeroReadyForReveal;
   window.addEventListener("homeHeroReadyForReveal", onHeroReadyForReveal, { once: true });
   
-  // Main timeline
+  // Main timeline - SIMPLIFIED
   const tl = gsap.timeline({ onComplete });
 
-  // Phase 1: Progress animation
-  tl.to(state.progress, {
-    value: 1, 
-    duration: 3, 
-    ease: "sine.inOut",
-    onUpdate: function() {
-      const pct = Math.round(state.progress.value * 100);
-      updateProgressUI(ui.progressText, pct);
-      updateEdgesUI(ui.edgesBox, state.progress.value);
-      
-      if (state.progress.value >= 0.8 && video && !video.__started) {
-        video.__started = true;
-        video.currentTime = 0.001;
-        video.play().catch(() => {});
-      }
-    }
-  })
-  
-  // Phase 2: Fade progress text
-  .to(ui.progressText, { opacity: 0, duration: 0.3 })
-  
-  // Phase 2a: Name reveal animation
-  .to(nameChars, {
+  // Phase 1: Name reveal - IMMEDIATE
+  tl.to(nameChars, {
     opacity: 1,
     y: 0,
     duration: 0.6,
-    stagger: 0.02,
+    stagger: 0.015,
     ease: "power2.out"
-  }, "-=0.1")
+  })
   
-  // Phase 2.5: Prepare video while name is visible
+  // Phase 2: Prepare video while name is visible
   .call(async () => {
     try {
       await ensureVideoReady(video);
+      // Start video playing early
+      video.currentTime = 0.001;
+      video.play().catch(() => {});
     } catch (err) {
       console.warn("[SiteLoader] Video ready failed:", err);
     }
-  }, null, "+=0.3")
+  }, null, "+=0.5")
   
   // Phase 3: Begin video fade-in behind name
   .to(ui.videoWrapper, { 
-    opacity: 0.5,
+    opacity: 0.6,
     duration: 0.4, 
     ease: "power2.in" 
   }, "+=0.2")
   
-  // Phase 2b: Name scales up and fades as video takes over
+  // Name scales up and fades as video takes over
   .to(nameChars, {
     opacity: 0,
     scale: 1.05,
@@ -137,31 +118,20 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     duration: 0.3, 
     ease: "power2.out" 
   }, "-=0.2")
+  
+  // Phase 4: Curtain reveal - KEEP DURATION AT 1.6s
   .to(ui.videoCurtain, { 
     xPercent: 100, 
-    duration: 1.6, 
+    duration: 1.6,
     ease: "custom2InOut",
     onComplete: () => {
       try {
-        morphToHeroStage(ui.videoWrapper, ui.heroVideoContainer, 1.8);
+        morphToHeroStage(ui.videoWrapper, ui.heroVideoContainer, 1.4);
       } catch (err) {
         console.warn("[SiteLoader] Morph failed:", err);
       }
     }
   })
-  
-  // Phase 4: Fade UI elements while morphing
-  .to([ui.corners], { 
-    opacity: 0, 
-    duration: 0.6, 
-    stagger: 0.02 
-  }, "-=1.4")
-  .to(ui.edgesBox, { 
-    opacity: 0, 
-    scale: 1.5, 
-    duration: 0.7, 
-    ease: "power3.inOut" 
-  }, "<0.024")
   
   // Phase 5: Handoff during morph
   .call(async () => {
@@ -183,7 +153,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     window.dispatchEvent(new CustomEvent("siteLoaderMorphBegin", { detail }));
     
     const timeoutPromise = new Promise(resolve => {
-      state.heroResumeTimeout = setTimeout(resolve, 1500);
+      state.heroResumeTimeout = setTimeout(resolve, 1200);
     });
     
     await Promise.race([heroReadyPromise, timeoutPromise]);
@@ -192,12 +162,12 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
       clearTimeout(state.heroResumeTimeout);
       state.heroResumeTimeout = null;
     }
-  }, null, "-=1.2")
+  }, null, "-=1.0")
   
-  // Phase 5.5: Pause before reveal
-  .to({}, { duration: 0.8 })
+  // Phase 6: Brief pause before reveal
+  .to({}, { duration: 0.5 })
   
-  // Phase 6: UNIFIED HOME PAGE REVEAL using constants
+  // Phase 7: UNIFIED HOME PAGE REVEAL
   .set(loaderEl, { zIndex: 1 })
   .set([
     ".nav_wrap",
@@ -223,7 +193,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     opacity: 0
   })
   
-  // Nav wrapper - using unified constants
+  // Nav wrapper
   .fromTo(".nav_wrap", {
     opacity: 0, 
     y: ANIMATION.TRANSFORM.navY
@@ -233,7 +203,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     ...getAnimProps('nav')
   })
   
-  // Brand logo - using unified constants
+  // Brand logo
   .fromTo(".brand_logo", {
     opacity: 0, 
     scale: ANIMATION.TRANSFORM.scaleSmall
@@ -243,7 +213,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     ...getAnimProps('brand')
   }, "-=0.5")
   
-  // Nav links - using unified constants
+  // Nav links
   .fromTo(".nav_link", {
     opacity: 0, 
     x: ANIMATION.TRANSFORM.tagX
@@ -253,7 +223,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     ...getAnimProps('navLinks')
   }, "-=0.4")
   
-  // Category filters - using unified constants
+  // Category filters
   .fromTo(".home-category_text", {
     opacity: 0, 
     y: ANIMATION.TRANSFORM.textY, 
@@ -265,7 +235,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     ...getAnimProps('categories')
   }, "-=0.5")
   
-  // Project rows - using unified constants
+  // Project rows
   .add(() => {
     const visibleRows = container.querySelectorAll(".home-hero_list:not([style*='display: none'])");
     const rowProps = getAnimProps('projectRows');
@@ -325,7 +295,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     }
   }, "-=0.1")
   
-  // ✨ AWARDS STRIP - SMOOTH ITEM STAGGER (FIXED - Fallback to parent)
+  // Awards strip
   .add(() => {
     const awardsList = container.querySelector(".home-awards_list");
     
@@ -336,10 +306,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     
     const awardsItems = awardsList.querySelectorAll(":scope > *");
     
-    // If CMS items exist, animate them individually
     if (awardsItems.length > 0) {
-      console.log("[SiteLoader] Animating", awardsItems.length, "award items");
-      
       gsap.fromTo(awardsItems, {
         opacity: 0,
         y: 20,
@@ -357,9 +324,6 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
         delay: 0.3
       });
     } else {
-      // Fallback: animate parent container if CMS items not loaded yet
-      console.log("[SiteLoader] No award items found, animating parent container");
-      
       gsap.fromTo(awardsList, {
         opacity: 0,
         y: 20,
@@ -391,12 +355,12 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     });
   })
   
-  // Final fade - more breathing room
+  // Final fade
   .to([ui.videoWrapper, loaderEl], { 
     opacity: 0, 
-    duration: 0.6, 
+    duration: 0.5, 
     ease: "power2.inOut" 
-  }, "-=0.3")
+  }, "-=0.25")
   
   .call(() => { 
     window.dispatchEvent(new CustomEvent("siteLoaderComplete")); 

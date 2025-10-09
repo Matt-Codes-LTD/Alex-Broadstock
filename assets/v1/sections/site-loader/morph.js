@@ -1,7 +1,6 @@
-// site-loader/morph.js - FLIP morphing animation
-import { CONFIG } from "./constants.js";
+// assets/v1/sections/site-loader/morph.js - FLIP morphing animation
 
-export function morphToHeroStage(videoWrapper, heroContainer, duration = CONFIG.ANIMATION.morphDuration) {
+export function morphToHeroStage(videoWrapper, heroContainer, duration = 1.4) {
   if (!heroContainer || !videoWrapper) return null;
   
   const from = videoWrapper.getBoundingClientRect();

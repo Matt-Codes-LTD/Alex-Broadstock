@@ -1,11 +1,9 @@
-// site-loader/ui-elements.js - UI creation
+// assets/v1/sections/site-loader/ui-elements.js - UI creation
 import { SELECTORS } from "./constants.js";
 
 export function createUIElements(loaderEl, container) {
   const elements = {
-    progressText: loaderEl.querySelector(SELECTORS.progressText),
-    edgesBox: loaderEl.querySelector(SELECTORS.edgesBox),
-    corners: loaderEl.querySelectorAll(SELECTORS.corners),
+    nameReveal: loaderEl.querySelector(SELECTORS.nameReveal),
     loaderContainer: loaderEl.querySelector(SELECTORS.container),
     heroVideoContainer: container.querySelector(SELECTORS.heroVideo)
   };
@@ -14,11 +12,9 @@ export function createUIElements(loaderEl, container) {
   const { videoWrapper, videoCurtain } = createVideoElements();
   
   // Insert into DOM
-  const edgesBoxEl = loaderEl.querySelector(SELECTORS.edgesBox);
-  if (edgesBoxEl) {
-    edgesBoxEl.parentNode.insertBefore(videoWrapper, edgesBoxEl);
-  } else {
-    elements.loaderContainer.appendChild(videoWrapper);
+  const loaderContainer = elements.loaderContainer;
+  if (loaderContainer) {
+    loaderContainer.appendChild(videoWrapper);
   }
   
   return {
@@ -90,17 +86,4 @@ export function unlockScroll(lockElement) {
   if (lockElement?.parentNode) {
     lockElement.remove();
   }
-}
-
-export function updateProgressUI(progressText, value) {
-  if (progressText) {
-    progressText.textContent = value.toString().padStart(2, '0');
-  }
-}
-
-export function updateEdgesUI(edgesBox, progress) {
-  if (!edgesBox) return;
-  const width = Math.round(67 + (371 - 67) * progress);
-  const height = Math.round(67 + (220 - 67) * progress);
-  gsap.set(edgesBox, { '--sl-width': width, '--sl-height': height });
 }

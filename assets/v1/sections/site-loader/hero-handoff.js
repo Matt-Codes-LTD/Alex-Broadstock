@@ -1,4 +1,4 @@
-// site-loader/hero-handoff.js - Communication with hero section
+// assets/v1/sections/site-loader/hero-handoff.js - Communication with hero section
 import { SELECTORS } from "./constants.js";
 
 export function hideHeroContent(container) {

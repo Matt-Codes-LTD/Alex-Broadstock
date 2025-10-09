@@ -1,4 +1,4 @@
-// index.js - Fixed with immediate start and proper state management
+// assets/v1/sections/site-loader/index.js - Fixed with immediate start and proper state management
 import { createState } from "./state.js";
 import { createUIElements, lockScroll } from "./ui-elements.js";
 import { setupVideo } from "./video-setup.js";
@@ -44,16 +44,14 @@ export default function initSiteLoader(container) {
   // Initial states
   if (window.gsap) {
     gsap.set(loaderEl, { display: "flex", opacity: 1, zIndex: 10000 });
-    gsap.set(ui.progressText, { opacity: 1 });
-    gsap.set(ui.edgesBox, { "--sl-width": 67, "--sl-height": 67 });
+    gsap.set(ui.nameReveal, { opacity: 1, visibility: "visible" });
   } else {
     loaderEl.style.display = "flex";
     loaderEl.style.opacity = "1";
     loaderEl.style.zIndex = "10000";
-    if (ui.progressText) ui.progressText.style.opacity = "1";
-    if (ui.edgesBox) {
-      ui.edgesBox.style.setProperty("--sl-width", "67");
-      ui.edgesBox.style.setProperty("--sl-height", "67");
+    if (ui.nameReveal) {
+      ui.nameReveal.style.opacity = "1";
+      ui.nameReveal.style.visibility = "visible";
     }
   }
   

@@ -1,8 +1,8 @@
-// site-loader/state.js - State management
+// assets/v1/sections/site-loader/state.js - State management
 export function createState() {
   return {
-    progress: { value: 0 },
     heroResumeTimeout: null,
-    heroReadyListener: null
+    heroReadyListener: null,
+    visibilityListener: null
   };
 }
