@@ -172,8 +172,11 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     }
   })
   
-  // Phase 5: Handoff during morph
+  // Phase 5: Handoff AFTER morph completes
   .call(async () => {
+    // Wait for morph to complete before handoff
+    await new Promise(resolve => setTimeout(resolve, 400));
+    
     // Ensure video is still playing before handoff
     if (video.paused) {
       console.log("[SiteLoader] Video paused before handoff, restarting");
@@ -208,7 +211,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
       clearTimeout(state.heroResumeTimeout);
       state.heroResumeTimeout = null;
     }
-  }, null, "-=1.0")
+  }, null, "-=0.6") // Adjusted timing - happens later
   
   // Phase 6: Brief pause before reveal
   .to({}, { duration: 0.5 })

@@ -1,4 +1,4 @@
-// video-manager.js - Enhanced with smooth loader handoff
+// video-manager.js - Simplified with reliable crossfade approach
 export function createVideoManager(stage) {
   const MAX_VIDEOS = 8;
   const videoBySrc = new Map();
@@ -9,8 +9,6 @@ export function createVideoManager(stage) {
   let activeVideo = null;
   let activeLink = null;
   let transitionInProgress = false;
-  let pendingTransition = null;
-  let loaderVideo = null; // Track the loader's video element
 
   function cleanupOldestVideo() {
     let oldest = null;
@@ -32,109 +30,7 @@ export function createVideoManager(stage) {
     }
   }
 
-  // NEW: Reuse loader video element for seamless handoff
-  function adoptLoaderVideo(video, wrapper, src) {
-    if (!video || !src) return null;
-    
-    console.log("[VideoManager] Adopting loader video for seamless transition");
-    
-    // Store reference
-    loaderVideo = video;
-    
-    // Store playback state before DOM move
-    const wasPlaying = !video.paused;
-    const currentTime = video.currentTime;
-    
-    // Move the actual video element to our stage (not a clone!)
-    video.className = "home-hero_video_el";
-    video.__lastUsed = Date.now();
-    video.__keepAlive = true;
-    video.__warmed = true;
-    video.__isHandoff = true;
-    
-    // Get current positions
-    const wrapperRect = wrapper.getBoundingClientRect();
-    const stageRect = stage.getBoundingClientRect();
-    
-    // Calculate offset from stage
-    const offsetX = wrapperRect.left - stageRect.left;
-    const offsetY = wrapperRect.top - stageRect.top;
-    
-    // Move video to our stage, maintaining visual position
-    stage.appendChild(video);
-    videoBySrc.set(src, video);
-    
-    // CRITICAL: Force video to keep playing after DOM move
-    if (wasPlaying) {
-      video.currentTime = currentTime; // Restore playback position
-      const playPromise = video.play();
-      if (playPromise) {
-        playPromise.catch(err => {
-          console.warn("[VideoManager] Play after move failed, retrying:", err);
-          // Retry with a small delay
-          setTimeout(() => {
-            video.play().catch(() => {});
-          }, 10);
-        });
-      }
-    }
-    
-    if (window.gsap) {
-      // Position video to match where it was in the loader
-      gsap.set(video, {
-        position: 'absolute',
-        width: wrapperRect.width,
-        height: wrapperRect.height,
-        left: offsetX,
-        top: offsetY,
-        opacity: 1,
-        transformOrigin: "50% 50%"
-      });
-      
-      // Smoothly animate to fill the stage
-      gsap.to(video, {
-        width: '100%',
-        height: '100%',
-        left: 0,
-        top: 0,
-        duration: 0.8,
-        ease: 'power3.inOut',
-        delay: 0.1, // Small delay to sync with morph
-        onUpdate: () => {
-          // Keep trying to play during animation if it stops
-          if (wasPlaying && video.paused) {
-            video.play().catch(() => {});
-          }
-        },
-        onComplete: () => {
-          video.__isHandoff = false;
-          // Ensure video is playing after animation
-          if (wasPlaying && video.paused) {
-            video.play().catch(() => {});
-          }
-          // Fade out the now-empty loader wrapper
-          if (wrapper) {
-            gsap.to(wrapper, {
-              opacity: 0,
-              duration: 0.3,
-              ease: 'power2.out'
-            });
-          }
-        }
-      });
-    } else {
-      video.style.width = "100%";
-      video.style.height = "100%";
-      video.style.opacity = "1";
-    }
-    
-    // Mark as active
-    video.classList.add("is-active");
-    
-    return video;
-  }
-
-  function createVideo(src) {
+  function createVideo(src, syncTime = 0) {
     let v = videoBySrc.get(src);
     if (v) {
       v.__lastUsed = Date.now();
@@ -153,17 +49,51 @@ export function createVideoManager(stage) {
     v.playsInline = true;
     v.preload = "auto";
     v.crossOrigin = "anonymous";
+    v.autoplay = true; // Add autoplay attribute
     v.__lastUsed = Date.now();
     
+    // Set initial time if syncing with loader
+    if (syncTime > 0) {
+      v.currentTime = syncTime;
+    }
+    
     if (window.gsap) {
-      gsap.set(v, { opacity: 0, transformOrigin: "50% 50%" });
+      gsap.set(v, { 
+        opacity: 0, 
+        transformOrigin: "50% 50%",
+        position: 'absolute',
+        width: '100%',
+        height: '100%',
+        left: 0,
+        top: 0,
+        objectFit: 'cover'
+      });
     } else {
       v.style.opacity = "0";
-      v.style.transformOrigin = "50% 50%";
+      v.style.width = "100%";
+      v.style.height = "100%";
+      v.style.objectFit = "cover";
     }
     
     stage.appendChild(v);
     videoBySrc.set(src, v);
+    
+    // Force play with multiple attempts
+    const attemptPlay = (attempts = 0) => {
+      if (attempts > 5) return;
+      
+      v.play().then(() => {
+        console.log("[VideoManager] Video started playing successfully");
+        v.__playing = true;
+      }).catch(err => {
+        console.warn(`[VideoManager] Play attempt ${attempts + 1} failed:`, err);
+        setTimeout(() => attemptPlay(attempts + 1), 100 * (attempts + 1));
+      });
+    };
+    
+    // Start playing immediately
+    attemptPlay();
+    
     return v;
   }
   
@@ -225,41 +155,63 @@ export function createVideoManager(stage) {
   function setActive(src, linkEl, opts = {}) {
     if (transitionInProgress) return;
 
-    // Special handling for loader handoff
+    // Handle loader handoff - create fresh video synced to loader time
     if (opts.useHandoff && opts.handoff) {
-      const { loaderVideo, loaderWrapper } = opts.handoff;
+      const { loaderVideo, loaderWrapper, currentTime } = opts.handoff;
       
-      if (loaderVideo && loaderWrapper) {
-        console.log("[VideoManager] Processing loader handoff");
+      console.log("[VideoManager] Handoff from loader, creating synced video");
+      
+      // Create a new video starting at the loader's current time
+      let next = videoBySrc.get(src);
+      if (!next) {
+        const syncTime = currentTime || loaderVideo?.currentTime || 0;
+        next = createVideo(src, syncTime);
+      }
+      
+      if (next) {
+        activeVideo = next;
+        next.__keepAlive = true;
+        next.__lastUsed = Date.now();
+        next.classList.add("is-active");
         
-        // Check if we need to adopt the loader video
-        let next = videoBySrc.get(src);
-        if (!next) {
-          // Adopt the actual loader video element (move it to our stage)
-          next = adoptLoaderVideo(loaderVideo, loaderWrapper, src);
-        }
-        
-        if (next) {
-          activeVideo = next;
-          next.__keepAlive = true;
-          next.__lastUsed = Date.now();
+        // Fade in the new video while loader fades out
+        if (window.gsap) {
+          gsap.to(next, {
+            opacity: 1,
+            duration: 0.8,
+            ease: "power2.inOut",
+            delay: 0.2, // Small delay to let video start
+            onStart: () => {
+              // Ensure it's playing
+              if (next.paused) {
+                next.play().catch(() => {});
+              }
+            }
+          });
           
-          // Ensure video is playing after handoff
-          if (next.paused) {
-            console.log("[VideoManager] Video paused after handoff, restarting");
-            next.play().catch(err => {
-              console.warn("[VideoManager] Failed to restart after handoff:", err);
+          // Fade out loader wrapper if provided
+          if (loaderWrapper) {
+            gsap.to(loaderWrapper, {
+              opacity: 0,
+              duration: 0.8,
+              delay: 0.4,
+              ease: "power2.out"
             });
           }
-          
-          if (linkEl && linkEl !== activeLink) {
-            updateLinkState(activeLink, linkEl);
-            activeLink = linkEl;
+        } else {
+          next.style.opacity = "1";
+          if (loaderWrapper) {
+            loaderWrapper.style.opacity = "0";
           }
-          
-          opts.onVisible?.();
-          return;
         }
+        
+        if (linkEl && linkEl !== activeLink) {
+          updateLinkState(activeLink, linkEl);
+          activeLink = linkEl;
+        }
+        
+        opts.onVisible?.();
+        return;
       }
     }
 
@@ -287,12 +239,10 @@ export function createVideoManager(stage) {
     const previousVideo = activeVideo;
     activeVideo = next;
 
-    // Smoother transition with subtle crossfade
+    // Hide old video
     if (previousVideo) {
       previousVideo.classList.remove("is-active");
-      
       if (window.gsap) {
-        // Fade out old video
         gsap.to(previousVideo, {
           opacity: 0,
           duration: 0.3,
@@ -311,29 +261,25 @@ export function createVideoManager(stage) {
       }
     }
     
-    // Fade in new video
+    // Show new video
     next.classList.add("is-active");
     
-    if (window.gsap && !next.__isHandoff) {
+    // Ensure video starts playing
+    if (next.paused) {
+      next.play().catch(() => {});
+    }
+    
+    if (window.gsap) {
       gsap.to(next, {
         opacity: 1,
         duration: 0.3,
-        ease: "power2.out",
-        onStart: () => {
-          if (next.paused || next.currentTime === 0) {
-            restart(next);
-          }
-        }
+        ease: "power2.out"
       });
-    } else if (!next.__isHandoff) {
+    } else {
       next.style.opacity = "1";
-      if (next.paused || next.currentTime === 0) {
-        restart(next);
-      }
     }
     
     opts.onVisible?.();
-    
     transitionInProgress = false;
 
     if (linkEl && linkEl !== activeLink) {
@@ -372,8 +318,6 @@ export function createVideoManager(stage) {
     
     activeVideo = null;
     activeLink = null;
-    pendingTransition = null;
-    loaderVideo = null;
   }
 
   return {

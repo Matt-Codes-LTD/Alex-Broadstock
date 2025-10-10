@@ -1,4 +1,4 @@
-// index.js - Enhanced with smoother loader handoff
+// index.js - Simplified with better handoff timing
 import { createVideoManager } from "./video-manager.js";
 import { initCategoryFilter } from "./category-filter.js";
 
@@ -37,20 +37,10 @@ export default function initHomeHero(container) {
 
   function initializeHero() {
     hideMetaTags();
-    preloadVideos();
     
-    // Smooth initial opacity
+    // Set hero stage ready for video
     if (window.gsap) {
-      // Start with stage hidden
-      gsap.set(videoStage, { opacity: 0, zIndex: 0 });
-      
-      // Fade in after a brief delay to ensure handoff is ready
-      gsap.to(videoStage, { 
-        opacity: 1, 
-        duration: 0.5,
-        delay: 0.1,
-        ease: "power2.out"
-      });
+      gsap.set(videoStage, { opacity: 1, zIndex: 0 });
     } else {
       videoStage.style.opacity = "1";
       videoStage.style.zIndex = "0";
@@ -58,40 +48,36 @@ export default function initHomeHero(container) {
     
     const firstVisible = items.find(item => item.style.display !== "none");
     if (firstVisible) {
+      // Pass handoff data including current time for sync
+      const enhancedHandoff = handoff ? {
+        ...handoff,
+        currentTime: handoff.loaderVideo?.currentTime || handoff.currentTime || 0
+      } : null;
+      
       setActive(firstVisible, { 
-        useHandoff: true, 
-        handoff: handoff // Pass the full handoff object
+        useHandoff: !!enhancedHandoff,
+        handoff: enhancedHandoff
       });
       updateAwards(firstVisible);
       
-      // CRITICAL: Ensure the handed-off video keeps playing
-      if (handoff?.loaderVideo && !handoff.loaderVideo.paused) {
-        console.log("[HomeHero] Ensuring handed-off video keeps playing");
-        const checkInterval = setInterval(() => {
-          const video = videoManager.activeVideo;
-          if (video && video.paused) {
-            console.log("[HomeHero] Video paused after handoff, restarting");
-            video.play().catch(() => {});
-          }
-        }, 100);
-        
-        // Stop checking after 2 seconds
-        setTimeout(() => clearInterval(checkInterval), 2000);
-      }
+      // Emit ready immediately after setting active
+      emitReadyOnce();
     }
+    
     section.dataset.introComplete = "true";
+    
+    // Preload other videos after initial setup
+    setTimeout(() => preloadVideos(), 500);
   }
 
   const hasSiteLoader = document.querySelector(".site-loader_wrap");
   let morphListener = null;
   
   if (hasSiteLoader && window.__initialPageLoad) {
-    morphListener = async (e) => {
+    morphListener = (e) => {
       handoff = e?.detail || null;
       console.log("[HomeHero] Received handoff:", handoff);
-      
-      // Small delay to ensure morph is in progress
-      await new Promise(resolve => setTimeout(resolve, 50));
+      // Initialize immediately on handoff
       initializeHero();
     };
     window.addEventListener("siteLoaderMorphBegin", morphListener, { once: true });
@@ -190,22 +176,10 @@ export default function initHomeHero(container) {
     const activeLink = item.querySelector(".home-hero_link");
     
     if (videoSrc) {
-      // Enhanced handoff check
-      const useHandoff = !!opts.useHandoff && 
-                        handoff?.src && 
-                        handoff.src === videoSrc &&
-                        handoff.loaderVideo &&
-                        handoff.loaderWrapper;
-      
-      if (useHandoff) {
-        console.log("[HomeHero] Using loader handoff for seamless transition");
-      }
-      
       videoManager.setActive(videoSrc, activeLink, {
-        mode: useHandoff ? "handoff" : "tween",
-        useHandoff: useHandoff,
-        handoff: useHandoff ? handoff : null,
-        onVisible: emitReadyOnce
+        useHandoff: opts.useHandoff,
+        handoff: opts.handoff,
+        onVisible: opts.onVisible
       });
     }
   }
@@ -220,7 +194,7 @@ export default function initHomeHero(container) {
       if (count >= MAX_EAGER) return;
       const projectEl = item.querySelector(".home-hero_item");
       const videoSrc  = projectEl?.dataset.video;
-      if (videoSrc) {
+      if (videoSrc && !videoManager.getVideo(videoSrc)) {
         const video = videoManager.createVideo(videoSrc);
         if (video) {
           videoManager.warmVideo(video);
