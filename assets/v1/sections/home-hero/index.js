@@ -1,4 +1,4 @@
-// index.js - Production version with autoplay sound signal and awards fix
+// index.js - Enhanced with smoother loader handoff
 import { createVideoManager } from "./video-manager.js";
 import { initCategoryFilter } from "./category-filter.js";
 
@@ -39,8 +39,18 @@ export default function initHomeHero(container) {
     hideMetaTags();
     preloadVideos();
     
+    // Smooth initial opacity
     if (window.gsap) {
-      gsap.set(videoStage, { opacity: 1, zIndex: 0 });
+      // Start with stage hidden
+      gsap.set(videoStage, { opacity: 0, zIndex: 0 });
+      
+      // Fade in after a brief delay to ensure handoff is ready
+      gsap.to(videoStage, { 
+        opacity: 1, 
+        duration: 0.5,
+        delay: 0.1,
+        ease: "power2.out"
+      });
     } else {
       videoStage.style.opacity = "1";
       videoStage.style.zIndex = "0";
@@ -48,7 +58,10 @@ export default function initHomeHero(container) {
     
     const firstVisible = items.find(item => item.style.display !== "none");
     if (firstVisible) {
-      setActive(firstVisible, { useHandoff: true });
+      setActive(firstVisible, { 
+        useHandoff: true, 
+        handoff: handoff // Pass the full handoff object
+      });
       updateAwards(firstVisible);
     }
     section.dataset.introComplete = "true";
@@ -60,7 +73,10 @@ export default function initHomeHero(container) {
   if (hasSiteLoader && window.__initialPageLoad) {
     morphListener = async (e) => {
       handoff = e?.detail || null;
-      await new Promise(resolve => setTimeout(resolve, 100));
+      console.log("[HomeHero] Received handoff:", handoff);
+      
+      // Small delay to ensure morph is in progress
+      await new Promise(resolve => setTimeout(resolve, 50));
       initializeHero();
     };
     window.addEventListener("siteLoaderMorphBegin", morphListener, { once: true });
@@ -81,11 +97,9 @@ export default function initHomeHero(container) {
     
     currentAwardsHTML = newHTML;
     
-    // Check if awards strip has existing content
     const existingItems = awardsStrip.querySelectorAll(":scope > *");
     
     if (window.gsap && existingItems.length > 0) {
-      // Fade out existing awards
       gsap.to(existingItems, {
         opacity: 0,
         y: -10,
@@ -112,7 +126,6 @@ export default function initHomeHero(container) {
         }
       });
     } else {
-      // No existing items - populate and animate in
       awardsStrip.innerHTML = newHTML;
       
       if (window.gsap) {
@@ -133,7 +146,6 @@ export default function initHomeHero(container) {
     }
   }
 
-  // PROJECT NAME HOVER
   function setActive(item, opts = {}) {
     if (!item || item === activeItem) return;
     activeItem = item;
@@ -163,10 +175,21 @@ export default function initHomeHero(container) {
     const activeLink = item.querySelector(".home-hero_link");
     
     if (videoSrc) {
-      const useHandoff = !!opts.useHandoff && handoff?.src && handoff.src === videoSrc;
+      // Enhanced handoff check
+      const useHandoff = !!opts.useHandoff && 
+                        handoff?.src && 
+                        handoff.src === videoSrc &&
+                        handoff.loaderVideo &&
+                        handoff.loaderWrapper;
+      
+      if (useHandoff) {
+        console.log("[HomeHero] Using loader handoff for seamless transition");
+      }
       
       videoManager.setActive(videoSrc, activeLink, {
-        mode: useHandoff ? "instant" : "tween",
+        mode: useHandoff ? "handoff" : "tween",
+        useHandoff: useHandoff,
+        handoff: useHandoff ? handoff : null,
         onVisible: emitReadyOnce
       });
     }
@@ -231,7 +254,6 @@ export default function initHomeHero(container) {
     hoverTimeout = setTimeout(() => setActive(item), 120);
   }
 
-  // Signal autoplay sound intent on click
   function handleClick(e) {
     const link = e.target.closest(".home-hero_url");
     

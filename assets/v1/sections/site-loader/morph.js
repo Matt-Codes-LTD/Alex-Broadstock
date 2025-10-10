@@ -1,4 +1,4 @@
-// assets/v1/sections/site-loader/morph.js - FLIP morphing animation
+// morph.js - Enhanced FLIP morphing with overlay fade
 
 export function morphToHeroStage(videoWrapper, heroContainer, duration = 1.4) {
   if (!heroContainer || !videoWrapper) return null;
@@ -23,19 +23,29 @@ export function morphToHeroStage(videoWrapper, heroContainer, duration = 1.4) {
   // GPU acceleration
   gsap.set(videoWrapper, {
     willChange: 'transform',
-    force3D: true
+    force3D: true,
+    zIndex: 10 // Keep above hero during morph
   });
   
-  return gsap.to(videoWrapper, {
-    x: dx,
-    y: dy,
-    scaleX: scale,
-    scaleY: scale,
-    duration,
-    ease: 'power3.inOut',
-    force3D: true,
-    onComplete: () => {
-      gsap.set(videoWrapper, { willChange: 'auto' });
-    }
-  });
+  // Create a smooth morph with easing adjustments
+  return gsap.timeline()
+    .to(videoWrapper, {
+      x: dx,
+      y: dy,
+      scaleX: scale,
+      scaleY: scale,
+      duration,
+      ease: 'power3.inOut',
+      force3D: true
+    })
+    // Fade wrapper slightly as hero takes over
+    .to(videoWrapper, {
+      opacity: 0.7,
+      duration: 0.3,
+      ease: 'none'
+    }, "-=0.3")
+    .set(videoWrapper, { 
+      willChange: 'auto',
+      zIndex: 1 // Lower z-index after morph
+    });
 }

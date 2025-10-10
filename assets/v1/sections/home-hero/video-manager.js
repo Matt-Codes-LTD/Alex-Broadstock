@@ -1,4 +1,4 @@
-// video-manager.js - Instant video switching with no transitions
+// video-manager.js - Enhanced with smooth loader handoff
 export function createVideoManager(stage) {
   const MAX_VIDEOS = 8;
   const videoBySrc = new Map();
@@ -10,6 +10,7 @@ export function createVideoManager(stage) {
   let activeLink = null;
   let transitionInProgress = false;
   let pendingTransition = null;
+  let loaderVideo = null; // Track the loader's video element
 
   function cleanupOldestVideo() {
     let oldest = null;
@@ -31,20 +32,79 @@ export function createVideoManager(stage) {
     }
   }
 
-  function adoptVideo(videoEl, src) {
-    if (!videoEl || !src) return null;
+  // NEW: Reuse loader video element for seamless handoff
+  function adoptLoaderVideo(video, wrapper, src) {
+    if (!video || !src) return null;
     
-    // DON'T move the video - it needs to stay in wrapper for morph animation
-    // Just store the reference and metadata
-    videoEl.__keepAlive = true;
-    videoEl.__warmed = true;
-    videoEl.__lastUsed = Date.now();
-    videoEl.__isAdopted = true;
+    console.log("[VideoManager] Adopting loader video for seamless transition");
     
-    videoBySrc.set(src, videoEl);
+    // Store reference
+    loaderVideo = video;
     
-    console.log("[VideoManager] Adopted video reference (stays in loader):", src);
-    return videoEl;
+    // Move the actual video element to our stage (not a clone!)
+    video.className = "home-hero_video_el";
+    video.__lastUsed = Date.now();
+    video.__keepAlive = true;
+    video.__warmed = true;
+    video.__isHandoff = true;
+    
+    // Get current positions
+    const wrapperRect = wrapper.getBoundingClientRect();
+    const stageRect = stage.getBoundingClientRect();
+    
+    // Calculate offset from stage
+    const offsetX = wrapperRect.left - stageRect.left;
+    const offsetY = wrapperRect.top - stageRect.top;
+    
+    // Move video to our stage, maintaining visual position
+    stage.appendChild(video);
+    videoBySrc.set(src, video);
+    
+    if (window.gsap) {
+      // Position video to match where it was in the loader
+      gsap.set(video, {
+        position: 'absolute',
+        width: wrapperRect.width,
+        height: wrapperRect.height,
+        left: offsetX,
+        top: offsetY,
+        opacity: 1,
+        transformOrigin: "50% 50%"
+      });
+      
+      // Smoothly animate to fill the stage
+      gsap.to(video, {
+        width: '100%',
+        height: '100%',
+        left: 0,
+        top: 0,
+        duration: 0.8,
+        ease: 'power3.inOut',
+        delay: 0.1, // Small delay to sync with morph
+        onComplete: () => {
+          video.__isHandoff = false;
+          // Fade out the now-empty loader wrapper
+          if (wrapper) {
+            gsap.to(wrapper, {
+              opacity: 0,
+              duration: 0.3,
+              ease: 'power2.out'
+            });
+          }
+        }
+      });
+    } else {
+      video.style.width = "100%";
+      video.style.height = "100%";
+      video.style.opacity = "1";
+    }
+    
+    // Continue playing
+    if (video.paused) {
+      video.play().catch(() => {});
+    }
+    
+    return video;
   }
 
   function createVideo(src) {
@@ -90,12 +150,11 @@ export function createVideoManager(stage) {
     
     const start = () => {
       v.play().then(() => {
-        // Keep video playing longer so it's ready
         const timeout = setTimeout(() => { 
           if (!v.__keepAlive) {
             v.pause();
           }
-        }, 2000); // Increased from 250ms - keeps video buffering
+        }, 2000);
         cleanupTimeouts.add(timeout);
       }).catch(() => {});
     };
@@ -136,73 +195,40 @@ export function createVideoManager(stage) {
     }
   }
 
-  const whenReady = (v) => new Promise((res, rej) => {
-    if (v.readyState >= 2) return res();
-    
-    const timeout = setTimeout(() => {
-      rej(new Error("Video ready timeout"));
-    }, 3000);
-    
-    const on = () => { 
-      clearTimeout(timeout);
-      v.removeEventListener("loadeddata", on);
-      v.removeEventListener("canplay", on);
-      res();
-    };
-    v.addEventListener("loadeddata", on, { once: true });
-    v.addEventListener("canplay", on, { once: true });
-  });
-
-  async function seekTo(v, t) {
-    await new Promise((res, rej) => {
-      if (v.readyState >= 1) return res();
-      
-      const timeout = setTimeout(() => {
-        rej(new Error("Seek ready timeout"));
-      }, 1000);
-      
-      v.addEventListener("loadedmetadata", () => {
-        clearTimeout(timeout);
-        res();
-      }, { once: true });
-    });
-    
-    try {
-      const dur = v.duration || 0;
-      let target = Math.max(0, Math.min(Number.isFinite(dur) && dur > 0 ? dur - 0.05 : t, t));
-      v.currentTime = target;
-    } catch (err) {
-      console.warn("[VideoManager] Seek failed:", err);
-    }
-    return v;
-  }
-
-  function waitForFrameRendered(v) {
-    return new Promise((resolve) => {
-      if ("requestVideoFrameCallback" in v) {
-        v.requestVideoFrameCallback(() => {
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => resolve());
-          });
-        });
-      } else {
-        const handler = () => {
-          v.removeEventListener("timeupdate", handler);
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => resolve());
-          });
-        };
-        v.addEventListener("timeupdate", handler, { once: true });
-        
-        const timeout = setTimeout(resolve, 200);
-        cleanupTimeouts.add(timeout);
-      }
-    });
-  }
-
   function setActive(src, linkEl, opts = {}) {
     if (transitionInProgress) return;
 
+    // Special handling for loader handoff
+    if (opts.useHandoff && opts.handoff) {
+      const { loaderVideo, loaderWrapper } = opts.handoff;
+      
+      if (loaderVideo && loaderWrapper) {
+        console.log("[VideoManager] Processing loader handoff");
+        
+        // Check if we need to adopt the loader video
+        let next = videoBySrc.get(src);
+        if (!next) {
+          // Adopt the actual loader video element (move it to our stage)
+          next = adoptLoaderVideo(loaderVideo, loaderWrapper, src);
+        }
+        
+        if (next) {
+          activeVideo = next;
+          next.__keepAlive = true;
+          next.__lastUsed = Date.now();
+          
+          if (linkEl && linkEl !== activeLink) {
+            updateLinkState(activeLink, linkEl);
+            activeLink = linkEl;
+          }
+          
+          opts.onVisible?.();
+          return;
+        }
+      }
+    }
+
+    // Normal video switching logic
     const next = videoBySrc.get(src) || createVideo(src);
     if (!next) return;
 
@@ -226,36 +252,51 @@ export function createVideoManager(stage) {
     const previousVideo = activeVideo;
     activeVideo = next;
 
-    // INSTANT SWITCH - No fade, no transition, just swap
-    
-    // Hide old video immediately
+    // Smoother transition with subtle crossfade
     if (previousVideo) {
       previousVideo.classList.remove("is-active");
+      
       if (window.gsap) {
-        gsap.set(previousVideo, { opacity: 0 });
+        // Fade out old video
+        gsap.to(previousVideo, {
+          opacity: 0,
+          duration: 0.3,
+          ease: "power2.inOut",
+          onComplete: () => {
+            if (!previousVideo.__keepAlive) {
+              previousVideo.pause();
+            }
+          }
+        });
       } else {
         previousVideo.style.opacity = "0";
-      }
-      // Pause old video immediately
-      if (!previousVideo.__keepAlive) {
-        previousVideo.pause();
+        if (!previousVideo.__keepAlive) {
+          previousVideo.pause();
+        }
       }
     }
     
-    // Show new video IMMEDIATELY
+    // Fade in new video
     next.classList.add("is-active");
-    if (window.gsap) {
-      gsap.set(next, { opacity: 1, transformOrigin: "50% 50%" });
-    } else {
+    
+    if (window.gsap && !next.__isHandoff) {
+      gsap.to(next, {
+        opacity: 1,
+        duration: 0.3,
+        ease: "power2.out",
+        onStart: () => {
+          if (next.paused || next.currentTime === 0) {
+            restart(next);
+          }
+        }
+      });
+    } else if (!next.__isHandoff) {
       next.style.opacity = "1";
+      if (next.paused || next.currentTime === 0) {
+        restart(next);
+      }
     }
     
-    // Only start playing if not already playing from preload
-    if (next.paused || next.currentTime === 0) {
-      restart(next);
-    }
-    
-    // Signal ready immediately
     opts.onVisible?.();
     
     transitionInProgress = false;
@@ -297,12 +338,12 @@ export function createVideoManager(stage) {
     activeVideo = null;
     activeLink = null;
     pendingTransition = null;
+    loaderVideo = null;
   }
 
   return {
     createVideo,
     warmVideo,
-    adoptVideo,
     getVideo,
     setActive: (src, linkEl, opts) => {
       setActive(src, linkEl, opts);
