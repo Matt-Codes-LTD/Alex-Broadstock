@@ -1,4 +1,4 @@
-// timeline.js - Fixed with proper fade timing after morph completes
+// timeline.js - Fixed with perfect crossfade timing for smooth handoff
 import { CONFIG, EASES } from "./constants.js";
 import { ANIMATION, getAnimProps } from "../../core/animation-constants.js";
 import { ensureVideoReady } from "./video-setup.js";
@@ -222,16 +222,16 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     }
   }, null, "-=1.2") // Happens early during morph
   
-  // Phase 6: Fade loader wrapper AFTER morph completes
+  // Phase 6: Fade loader wrapper - START SLIGHTLY EARLIER for crossfade
   .call(() => {
-    // Wait for morph to complete (1.4s total from when it started)
-    // Since we're at -1.2 from morph start, we need to wait 1.2s more
-    gsap.delayedCall(1.2, () => {
+    // Start fade slightly before morph completes for smoother crossfade
+    // Morph is 1.4s, we're at -1.2, so wait 1.0s (starts at 1.2s, overlaps last 0.2s of morph)
+    gsap.delayedCall(1.0, () => {
       console.log("[SiteLoader] Starting loader wrapper fade");
       gsap.to(ui.videoWrapper, {
         opacity: 0,
-        duration: 0.5,
-        ease: "power2.out",
+        duration: 0.4, // Shorter fade for tighter crossfade
+        ease: "power2.in", // Changed to 'in' for smoother transition
         onComplete: () => {
           console.log("[SiteLoader] Loader wrapper fade complete");
           // Clean up the wrapper element

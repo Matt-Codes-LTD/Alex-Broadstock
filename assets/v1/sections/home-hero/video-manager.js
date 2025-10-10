@@ -1,4 +1,4 @@
-// video-manager.js - Simplified without loader wrapper fade handling
+// video-manager.js - Enhanced with better sync and smoother crossfade
 export function createVideoManager(stage) {
   const MAX_VIDEOS = 8;
   const videoBySrc = new Map();
@@ -34,6 +34,12 @@ export function createVideoManager(stage) {
     let v = videoBySrc.get(src);
     if (v) {
       v.__lastUsed = Date.now();
+      // If syncing, update time even for existing video
+      if (syncTime > 0) {
+        try {
+          v.currentTime = syncTime;
+        } catch {}
+      }
       return v;
     }
 
@@ -52,9 +58,17 @@ export function createVideoManager(stage) {
     v.autoplay = true; // Add autoplay attribute
     v.__lastUsed = Date.now();
     
-    // Set initial time if syncing with loader
+    // Better sync handling
     if (syncTime > 0) {
+      // Set time before adding to DOM for smoother start
       v.currentTime = syncTime;
+      
+      // Also listen for loadedmetadata to re-sync if needed
+      v.addEventListener('loadedmetadata', () => {
+        if (Math.abs(v.currentTime - syncTime) > 0.1) {
+          v.currentTime = syncTime;
+        }
+      }, { once: true });
     }
     
     if (window.gsap) {
@@ -158,7 +172,6 @@ export function createVideoManager(stage) {
     // Handle loader handoff - create fresh video synced to loader time
     if (opts.useHandoff && opts.handoff) {
       const { loaderVideo, currentTime } = opts.handoff;
-      // Note: We no longer receive loaderWrapper here
       
       console.log("[VideoManager] Handoff from loader, creating synced video");
       
@@ -175,17 +188,24 @@ export function createVideoManager(stage) {
         next.__lastUsed = Date.now();
         next.classList.add("is-active");
         
-        // Fade in the new video immediately
+        // Adjusted timing for perfect crossfade
         if (window.gsap) {
+          // Start slightly later and fade faster for tighter transition
           gsap.to(next, {
             opacity: 1,
-            duration: 0.6,
-            ease: "power2.inOut",
-            delay: 0.6, // Start fading in halfway through morph
+            duration: 0.4, // Reduced from 0.6 for tighter crossfade
+            ease: "power2.out", // Smoother ease out
+            delay: 0.8, // Start later (was 0.6) - begins at 0.8s into morph
             onStart: () => {
-              // Ensure it's playing
+              // Ensure it's playing and perfectly synced
               if (next.paused) {
                 next.play().catch(() => {});
+              }
+              // Double-check time sync
+              if (loaderVideo && !loaderVideo.paused) {
+                try {
+                  next.currentTime = loaderVideo.currentTime;
+                } catch {}
               }
             }
           });
