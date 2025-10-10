@@ -1,4 +1,4 @@
-// timeline.js - Fixed to ensure video keeps playing during handoff
+// timeline.js - Fixed with proper fade timing after morph completes
 import { CONFIG, EASES } from "./constants.js";
 import { ANIMATION, getAnimProps } from "../../core/animation-constants.js";
 import { ensureVideoReady } from "./video-setup.js";
@@ -70,6 +70,9 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
   
   state.heroReadyListener = onHeroReadyForReveal;
   window.addEventListener("homeHeroReadyForReveal", onHeroReadyForReveal, { once: true });
+  
+  // Track morph completion
+  let morphComplete = false;
   
   // Main timeline - SIMPLIFIED
   const tl = gsap.timeline({ onComplete });
@@ -155,8 +158,11 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
         // Keep wrapper fully visible during morph
         gsap.set(ui.videoWrapper, { opacity: 1, zIndex: 10 });
         
-        // Start the morph animation
-        morphToHeroStage(ui.videoWrapper, ui.heroVideoContainer, 1.4);
+        // Start the morph animation with callback
+        morphToHeroStage(ui.videoWrapper, ui.heroVideoContainer, 1.4, () => {
+          morphComplete = true;
+          console.log("[SiteLoader] Morph complete");
+        });
         
         // IMPORTANT: Keep checking video stays playing during morph
         const checkPlayback = setInterval(() => {
@@ -198,7 +204,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
       currentTime: video?.currentTime || 0,
       duration: video?.duration || 0,
       loaderVideo: video,
-      loaderWrapper: ui.videoWrapper
+      // Don't pass loaderWrapper - we'll handle fade here
     };
     
     console.log("[SiteLoader] Dispatching handoff event, video playing:", !video.paused);
@@ -216,10 +222,31 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     }
   }, null, "-=1.2") // Happens early during morph
   
-  // Phase 6: Brief pause before reveal
+  // Phase 6: Fade loader wrapper AFTER morph completes
+  .call(() => {
+    // Wait for morph to complete (1.4s total from when it started)
+    // Since we're at -1.2 from morph start, we need to wait 1.2s more
+    gsap.delayedCall(1.2, () => {
+      console.log("[SiteLoader] Starting loader wrapper fade");
+      gsap.to(ui.videoWrapper, {
+        opacity: 0,
+        duration: 0.5,
+        ease: "power2.out",
+        onComplete: () => {
+          console.log("[SiteLoader] Loader wrapper fade complete");
+          // Clean up the wrapper element
+          if (ui.videoWrapper?.parentNode) {
+            ui.videoWrapper.remove();
+          }
+        }
+      });
+    });
+  })
+  
+  // Phase 7: Brief pause before reveal
   .to({}, { duration: 0.5 })
   
-  // Phase 7: UNIFIED HOME PAGE REVEAL
+  // Phase 8: UNIFIED HOME PAGE REVEAL
   .set(loaderEl, { zIndex: 1 })
   .set([
     ".nav_wrap",
@@ -407,8 +434,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     });
   })
   
-  // Final fade - Only fade the loader element, not the video wrapper
-  // (video wrapper fade is handled by video-manager.js)
+  // Final fade - Only fade the loader element
   .to(loaderEl, { 
     opacity: 0, 
     duration: 0.5, 

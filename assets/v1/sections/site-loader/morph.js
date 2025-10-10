@@ -1,6 +1,6 @@
-// morph.js - Enhanced FLIP morphing that stays visible throughout
+// morph.js - Enhanced FLIP morphing with completion callback
 
-export function morphToHeroStage(videoWrapper, heroContainer, duration = 1.4) {
+export function morphToHeroStage(videoWrapper, heroContainer, duration = 1.4, onComplete) {
   if (!heroContainer || !videoWrapper) return null;
   
   const from = videoWrapper.getBoundingClientRect();
@@ -51,6 +51,10 @@ export function morphToHeroStage(videoWrapper, heroContainer, duration = 1.4) {
       },
       onComplete: () => {
         console.log("[Morph] Animation complete");
+        // Call the completion callback if provided
+        if (onComplete) {
+          onComplete();
+        }
       }
     })
     .set(videoWrapper, { 

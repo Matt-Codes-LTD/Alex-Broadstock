@@ -1,4 +1,4 @@
-// video-manager.js - Simplified with reliable crossfade approach
+// video-manager.js - Simplified without loader wrapper fade handling
 export function createVideoManager(stage) {
   const MAX_VIDEOS = 8;
   const videoBySrc = new Map();
@@ -157,7 +157,8 @@ export function createVideoManager(stage) {
 
     // Handle loader handoff - create fresh video synced to loader time
     if (opts.useHandoff && opts.handoff) {
-      const { loaderVideo, loaderWrapper, currentTime } = opts.handoff;
+      const { loaderVideo, currentTime } = opts.handoff;
+      // Note: We no longer receive loaderWrapper here
       
       console.log("[VideoManager] Handoff from loader, creating synced video");
       
@@ -174,7 +175,7 @@ export function createVideoManager(stage) {
         next.__lastUsed = Date.now();
         next.classList.add("is-active");
         
-        // Fade in the new video during the second half of morph
+        // Fade in the new video immediately
         if (window.gsap) {
           gsap.to(next, {
             opacity: 1,
@@ -188,27 +189,11 @@ export function createVideoManager(stage) {
               }
             }
           });
-          
-          // Fade out loader wrapper ONLY after morph fully completes (morph is 1.4s)
-          if (loaderWrapper) {
-            gsap.to(loaderWrapper, {
-              opacity: 0,
-              duration: 0.4,
-              delay: 1.5, // Start after 1.4s morph completes
-              ease: "power2.out",
-              onComplete: () => {
-                console.log("[VideoManager] Loader wrapper fade complete");
-              }
-            });
-          }
         } else {
           next.style.opacity = "1";
-          if (loaderWrapper) {
-            setTimeout(() => {
-              loaderWrapper.style.opacity = "0";
-            }, 1500);
-          }
         }
+        
+        // Note: Loader wrapper fade is now handled in timeline.js
         
         if (linkEl && linkEl !== activeLink) {
           updateLinkState(activeLink, linkEl);
