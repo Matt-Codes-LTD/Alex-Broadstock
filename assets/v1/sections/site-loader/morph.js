@@ -1,4 +1,4 @@
-// morph.js - Enhanced FLIP morphing with better video preservation
+// morph.js - Enhanced FLIP morphing that stays visible throughout
 
 export function morphToHeroStage(videoWrapper, heroContainer, duration = 1.4) {
   if (!heroContainer || !videoWrapper) return null;
@@ -33,7 +33,7 @@ export function morphToHeroStage(videoWrapper, heroContainer, duration = 1.4) {
     zIndex: 10 // Keep above hero during morph
   });
   
-  // Create a smooth morph without aggressive opacity changes
+  // Create morph WITHOUT opacity fade - keep video fully visible
   return gsap.timeline()
     .to(videoWrapper, {
       x: dx,
@@ -48,16 +48,13 @@ export function morphToHeroStage(videoWrapper, heroContainer, duration = 1.4) {
         if (video && video.paused) {
           video.play().catch(() => {});
         }
+      },
+      onComplete: () => {
+        console.log("[Morph] Animation complete");
       }
     })
-    // Very subtle fade - don't go too low as it might affect video
-    .to(videoWrapper, {
-      opacity: 0.9, // Changed from 0.7 to maintain better visibility
-      duration: 0.2, // Shorter duration
-      ease: 'none'
-    }, "-=0.2")
     .set(videoWrapper, { 
       willChange: 'auto',
-      zIndex: 1 // Lower z-index after morph
+      zIndex: 5 // Keep relatively high even after morph
     });
 }

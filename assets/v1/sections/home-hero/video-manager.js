@@ -174,13 +174,13 @@ export function createVideoManager(stage) {
         next.__lastUsed = Date.now();
         next.classList.add("is-active");
         
-        // Fade in the new video while loader fades out
+        // Fade in the new video during the second half of morph
         if (window.gsap) {
           gsap.to(next, {
             opacity: 1,
-            duration: 0.8,
+            duration: 0.6,
             ease: "power2.inOut",
-            delay: 0.2, // Small delay to let video start
+            delay: 0.6, // Start fading in halfway through morph
             onStart: () => {
               // Ensure it's playing
               if (next.paused) {
@@ -189,19 +189,24 @@ export function createVideoManager(stage) {
             }
           });
           
-          // Fade out loader wrapper if provided
+          // Fade out loader wrapper ONLY after morph fully completes (morph is 1.4s)
           if (loaderWrapper) {
             gsap.to(loaderWrapper, {
               opacity: 0,
-              duration: 0.8,
-              delay: 0.4,
-              ease: "power2.out"
+              duration: 0.4,
+              delay: 1.5, // Start after 1.4s morph completes
+              ease: "power2.out",
+              onComplete: () => {
+                console.log("[VideoManager] Loader wrapper fade complete");
+              }
             });
           }
         } else {
           next.style.opacity = "1";
           if (loaderWrapper) {
-            loaderWrapper.style.opacity = "0";
+            setTimeout(() => {
+              loaderWrapper.style.opacity = "0";
+            }, 1500);
           }
         }
         

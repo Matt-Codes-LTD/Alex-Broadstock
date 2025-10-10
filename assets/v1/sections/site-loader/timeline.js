@@ -152,6 +152,9 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
           video.play().catch(() => {});
         }
         
+        // Keep wrapper fully visible during morph
+        gsap.set(ui.videoWrapper, { opacity: 1, zIndex: 10 });
+        
         // Start the morph animation
         morphToHeroStage(ui.videoWrapper, ui.heroVideoContainer, 1.4);
         
@@ -172,10 +175,10 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     }
   })
   
-  // Phase 5: Handoff AFTER morph completes
+  // Phase 5: Handoff during morph (not after)
   .call(async () => {
-    // Wait for morph to complete before handoff
-    await new Promise(resolve => setTimeout(resolve, 400));
+    // Small delay to let morph start
+    await new Promise(resolve => setTimeout(resolve, 200));
     
     // Ensure video is still playing before handoff
     if (video.paused) {
@@ -211,7 +214,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
       clearTimeout(state.heroResumeTimeout);
       state.heroResumeTimeout = null;
     }
-  }, null, "-=0.6") // Adjusted timing - happens later
+  }, null, "-=1.2") // Happens early during morph
   
   // Phase 6: Brief pause before reveal
   .to({}, { duration: 0.5 })
@@ -404,8 +407,9 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     });
   })
   
-  // Final fade
-  .to([ui.videoWrapper, loaderEl], { 
+  // Final fade - Only fade the loader element, not the video wrapper
+  // (video wrapper fade is handled by video-manager.js)
+  .to(loaderEl, { 
     opacity: 0, 
     duration: 0.5, 
     ease: "power2.inOut" 
