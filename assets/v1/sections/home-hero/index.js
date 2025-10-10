@@ -63,6 +63,21 @@ export default function initHomeHero(container) {
         handoff: handoff // Pass the full handoff object
       });
       updateAwards(firstVisible);
+      
+      // CRITICAL: Ensure the handed-off video keeps playing
+      if (handoff?.loaderVideo && !handoff.loaderVideo.paused) {
+        console.log("[HomeHero] Ensuring handed-off video keeps playing");
+        const checkInterval = setInterval(() => {
+          const video = videoManager.activeVideo;
+          if (video && video.paused) {
+            console.log("[HomeHero] Video paused after handoff, restarting");
+            video.play().catch(() => {});
+          }
+        }, 100);
+        
+        // Stop checking after 2 seconds
+        setTimeout(() => clearInterval(checkInterval), 2000);
+      }
     }
     section.dataset.introComplete = "true";
   }

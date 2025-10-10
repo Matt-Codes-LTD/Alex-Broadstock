@@ -1,4 +1,4 @@
-// assets/v1/sections/site-loader/timeline.js
+// timeline.js - Fixed to ensure video keeps playing during handoff
 import { CONFIG, EASES } from "./constants.js";
 import { ANIMATION, getAnimProps } from "../../core/animation-constants.js";
 import { ensureVideoReady } from "./video-setup.js";
@@ -133,17 +133,39 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     onStart: () => {
       // Ensure video is playing during curtain reveal
       if (video.paused) {
+        console.log("[SiteLoader] Video paused at curtain reveal, restarting");
         video.play().catch(() => {});
       }
       console.log("[SiteLoader] Curtain revealing, video playing:", !video.paused);
+    },
+    onUpdate: () => {
+      // Keep checking video is playing during curtain animation
+      if (video.paused) {
+        video.play().catch(() => {});
+      }
     },
     onComplete: () => {
       try {
         // Ensure video continues playing before morph
         if (video.paused) {
+          console.log("[SiteLoader] Video paused after curtain, restarting");
           video.play().catch(() => {});
         }
+        
+        // Start the morph animation
         morphToHeroStage(ui.videoWrapper, ui.heroVideoContainer, 1.4);
+        
+        // IMPORTANT: Keep checking video stays playing during morph
+        const checkPlayback = setInterval(() => {
+          if (video.paused) {
+            console.log("[SiteLoader] Video paused during morph, restarting");
+            video.play().catch(() => {});
+          }
+        }, 100);
+        
+        // Stop checking after morph completes
+        setTimeout(() => clearInterval(checkPlayback), 1500);
+        
       } catch (err) {
         console.warn("[SiteLoader] Morph failed:", err);
       }
@@ -152,6 +174,12 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
   
   // Phase 5: Handoff during morph
   .call(async () => {
+    // Ensure video is still playing before handoff
+    if (video.paused) {
+      console.log("[SiteLoader] Video paused before handoff, restarting");
+      video.play().catch(() => {});
+    }
+    
     if (ui.heroVideoContainer) {
       gsap.set(ui.heroVideoContainer, { opacity: 1, zIndex: 0 });
     }
@@ -167,6 +195,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
       loaderWrapper: ui.videoWrapper
     };
     
+    console.log("[SiteLoader] Dispatching handoff event, video playing:", !video.paused);
     window.dispatchEvent(new CustomEvent("siteLoaderMorphBegin", { detail }));
     
     const timeoutPromise = new Promise(resolve => {

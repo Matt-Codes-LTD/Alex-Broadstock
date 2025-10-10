@@ -1,4 +1,4 @@
-// morph.js - Enhanced FLIP morphing with overlay fade
+// morph.js - Enhanced FLIP morphing with better video preservation
 
 export function morphToHeroStage(videoWrapper, heroContainer, duration = 1.4) {
   if (!heroContainer || !videoWrapper) return null;
@@ -20,6 +20,12 @@ export function morphToHeroStage(videoWrapper, heroContainer, duration = 1.4) {
     to.height / from.height
   );
   
+  // Find the video element inside wrapper and ensure it keeps playing
+  const video = videoWrapper.querySelector('video');
+  if (video && !video.paused) {
+    console.log("[Morph] Ensuring video keeps playing during morph");
+  }
+  
   // GPU acceleration
   gsap.set(videoWrapper, {
     willChange: 'transform',
@@ -27,7 +33,7 @@ export function morphToHeroStage(videoWrapper, heroContainer, duration = 1.4) {
     zIndex: 10 // Keep above hero during morph
   });
   
-  // Create a smooth morph with easing adjustments
+  // Create a smooth morph without aggressive opacity changes
   return gsap.timeline()
     .to(videoWrapper, {
       x: dx,
@@ -36,14 +42,20 @@ export function morphToHeroStage(videoWrapper, heroContainer, duration = 1.4) {
       scaleY: scale,
       duration,
       ease: 'power3.inOut',
-      force3D: true
+      force3D: true,
+      onUpdate: () => {
+        // Keep video playing during morph
+        if (video && video.paused) {
+          video.play().catch(() => {});
+        }
+      }
     })
-    // Fade wrapper slightly as hero takes over
+    // Very subtle fade - don't go too low as it might affect video
     .to(videoWrapper, {
-      opacity: 0.7,
-      duration: 0.3,
+      opacity: 0.9, // Changed from 0.7 to maintain better visibility
+      duration: 0.2, // Shorter duration
       ease: 'none'
-    }, "-=0.3")
+    }, "-=0.2")
     .set(videoWrapper, { 
       willChange: 'auto',
       zIndex: 1 // Lower z-index after morph

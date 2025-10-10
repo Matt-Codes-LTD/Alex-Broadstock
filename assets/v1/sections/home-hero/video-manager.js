@@ -41,6 +41,10 @@ export function createVideoManager(stage) {
     // Store reference
     loaderVideo = video;
     
+    // Store playback state before DOM move
+    const wasPlaying = !video.paused;
+    const currentTime = video.currentTime;
+    
     // Move the actual video element to our stage (not a clone!)
     video.className = "home-hero_video_el";
     video.__lastUsed = Date.now();
@@ -59,6 +63,21 @@ export function createVideoManager(stage) {
     // Move video to our stage, maintaining visual position
     stage.appendChild(video);
     videoBySrc.set(src, video);
+    
+    // CRITICAL: Force video to keep playing after DOM move
+    if (wasPlaying) {
+      video.currentTime = currentTime; // Restore playback position
+      const playPromise = video.play();
+      if (playPromise) {
+        playPromise.catch(err => {
+          console.warn("[VideoManager] Play after move failed, retrying:", err);
+          // Retry with a small delay
+          setTimeout(() => {
+            video.play().catch(() => {});
+          }, 10);
+        });
+      }
+    }
     
     if (window.gsap) {
       // Position video to match where it was in the loader
@@ -81,8 +100,18 @@ export function createVideoManager(stage) {
         duration: 0.8,
         ease: 'power3.inOut',
         delay: 0.1, // Small delay to sync with morph
+        onUpdate: () => {
+          // Keep trying to play during animation if it stops
+          if (wasPlaying && video.paused) {
+            video.play().catch(() => {});
+          }
+        },
         onComplete: () => {
           video.__isHandoff = false;
+          // Ensure video is playing after animation
+          if (wasPlaying && video.paused) {
+            video.play().catch(() => {});
+          }
           // Fade out the now-empty loader wrapper
           if (wrapper) {
             gsap.to(wrapper, {
@@ -99,10 +128,8 @@ export function createVideoManager(stage) {
       video.style.opacity = "1";
     }
     
-    // Continue playing
-    if (video.paused) {
-      video.play().catch(() => {});
-    }
+    // Mark as active
+    video.classList.add("is-active");
     
     return video;
   }
@@ -216,6 +243,14 @@ export function createVideoManager(stage) {
           activeVideo = next;
           next.__keepAlive = true;
           next.__lastUsed = Date.now();
+          
+          // Ensure video is playing after handoff
+          if (next.paused) {
+            console.log("[VideoManager] Video paused after handoff, restarting");
+            next.play().catch(err => {
+              console.warn("[VideoManager] Failed to restart after handoff:", err);
+            });
+          }
           
           if (linkEl && linkEl !== activeLink) {
             updateLinkState(activeLink, linkEl);
