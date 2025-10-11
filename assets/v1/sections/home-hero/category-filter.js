@@ -1,4 +1,4 @@
-// category-filter.js - Fixed to preserve existing data-cats attributes
+// category-filter.js - Fixed to reset opacity on text elements when showing items
 import { getGhostLayer, makeGhost } from "./ghost-layer.js";
 
 export function initCategoryFilter(section, videoManager, setActiveCallback) {
@@ -60,6 +60,22 @@ export function initCategoryFilter(section, videoManager, setActiveCallback) {
           if (item.style.removeProperty) {
             item.style.removeProperty("display");
           }
+          
+          // Reset opacity on text elements
+          const text = item.querySelector(".home_hero_text");
+          const pills = item.querySelectorAll(".home-category_ref_text:not([hidden])");
+          
+          if (text) {
+            text.style.opacity = "1";
+            text.style.filter = "blur(0px)";
+            text.style.transform = "translate(0px, 0px)";
+          }
+          
+          pills.forEach(pill => {
+            pill.style.opacity = "1";
+            pill.style.transform = "translate(0px, 0px)";
+          });
+          
           visibleCount++;
           if (!firstVisible) {
             firstVisible = item;
@@ -251,6 +267,22 @@ function filterItems(section, listParent, btn, setActiveCallback) {
         if (item.style.removeProperty) {
           item.style.removeProperty("display");
         }
+        
+        // CRITICAL: Force text elements to be visible
+        const text = item.querySelector(".home_hero_text");
+        const pills = item.querySelectorAll(".home-category_ref_text:not([hidden])");
+        
+        if (text) {
+          text.style.opacity = "1";
+          text.style.filter = "blur(0px)";
+          text.style.transform = "translate(0px, 0px)";
+        }
+        
+        pills.forEach(pill => {
+          pill.style.opacity = "1";
+          pill.style.transform = "translate(0px, 0px)";
+        });
+        
         console.log("[CategoryFilter] SHOWING:", projectName);
       } else {
         // Hide
@@ -305,6 +337,17 @@ function filterItems(section, listParent, btn, setActiveCallback) {
       if (!before) {
         // Item is entering (wasn't visible before)
         if (ENTER_DUR) {
+          // Make sure text is visible before animation
+          const text = el.querySelector(".home_hero_text");
+          const pills = el.querySelectorAll(".home-category_ref_text:not([hidden])");
+          
+          if (text) {
+            text.style.opacity = "1";
+          }
+          pills.forEach(pill => {
+            pill.style.opacity = "1";
+          });
+          
           anims.push(
             el.animate(
               [
@@ -375,11 +418,18 @@ function filterItems(section, listParent, btn, setActiveCallback) {
         el.style.transform = "";
         el.style.backfaceVisibility = "";
         
-        // Ensure visible items start with proper fade state
+        // Ensure visible items start with proper fade state (but keep them visible!)
         const text = el.querySelector(".home_hero_text");
         const pills = el.querySelectorAll(".home-category_ref_text:not([hidden])");
+        
+        // Add faded class but ensure opacity is 1
         text?.classList.add("u-color-faded");
-        pills.forEach(p => p.classList.add("u-color-faded"));
+        if (text) text.style.opacity = "1";
+        
+        pills.forEach(p => {
+          p.classList.add("u-color-faded");
+          p.style.opacity = "1";
+        });
       });
       listParent.style.pointerEvents = "";
 
