@@ -37,16 +37,22 @@ export function initCategoryFilter(section, videoManager, setActiveCallback) {
       
       console.log("[CategoryFilter] Filtering", allItems.length, "items for category:", cat);
       
+      // Debug: log all items and their categories
+      allItems.forEach(item => {
+        console.log("[CategoryFilter] Item cats:", item.dataset.cats);
+      });
+      
       // Apply the filter with the same logic as filterItems
       let visibleCount = 0;
       let firstVisible = null;
       
       allItems.forEach((item) => {
         const cats = item.dataset.cats || "";
-        const catArray = cats.split("|").filter(c => c.trim());
+        // CRITICAL: Map to trim THEN filter to remove empty
+        const catArray = cats.split("|").map(c => c.trim()).filter(c => c);
         const matches = catArray.includes(cat);
         
-        console.log("[CategoryFilter] Item with cats:", cats, "checking for:", cat, "matches:", matches);
+        console.log("[CategoryFilter] Item with cats:", cats, "array:", catArray, "checking for:", cat, "matches:", matches);
         
         if (matches) {
           // Make visible - clear any display styles completely
@@ -58,9 +64,11 @@ export function initCategoryFilter(section, videoManager, setActiveCallback) {
           if (!firstVisible) {
             firstVisible = item;
           }
+          console.log("[CategoryFilter] SHOWING item with cats:", cats);
         } else {
           // Hide
           item.style.display = "none";
+          console.log("[CategoryFilter] HIDING item with cats:", cats);
         }
       });
       
@@ -205,10 +213,10 @@ function filterItems(section, listParent, btn, setActiveCallback) {
   // Matcher function - check if item has the category
   const matcher = (item) => {
     const cats = item.dataset.cats || "";
-    // Split and filter out empty strings
-    const catArray = cats.split("|").filter(c => c.trim());
+    // CRITICAL: Map to trim THEN filter to remove empty
+    const catArray = cats.split("|").map(c => c.trim()).filter(c => c);
     const matches = catArray.includes(cat);
-    console.log("[CategoryFilter] Checking item:", cats, "for category:", cat, "matches:", matches);
+    console.log("[CategoryFilter] Checking item:", cats, "array:", catArray, "for category:", cat, "matches:", matches);
     return matches;
   };
 
@@ -241,11 +249,11 @@ function filterItems(section, listParent, btn, setActiveCallback) {
         if (item.style.removeProperty) {
           item.style.removeProperty("display");
         }
-        console.log("[CategoryFilter] Showing item:", item.dataset.cats);
+        console.log("[CategoryFilter] SHOWING item:", item.dataset.cats);
       } else {
         // Hide
         item.style.display = "none";
-        console.log("[CategoryFilter] Hiding item:", item.dataset.cats);
+        console.log("[CategoryFilter] HIDING item:", item.dataset.cats);
       }
     });
 
@@ -398,8 +406,9 @@ function cacheCats(section) {
         cats.add(t);
       }
     });
+    // Join the categories with | separator
     it.dataset.cats = Array.from(cats).join("|");
-    console.log("[CategoryFilter] Item categories:", it.dataset.cats);
+    console.log("[CategoryFilter] Item categories cached:", it.dataset.cats);
   }
 }
 
