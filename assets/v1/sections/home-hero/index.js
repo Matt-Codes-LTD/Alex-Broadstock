@@ -1,4 +1,4 @@
-// index.js - Simplified with better handoff timing
+// index.js - Simplified with better handoff timing - ALL BUTTON REMOVED
 import { createVideoManager } from "./video-manager.js";
 import { initCategoryFilter } from "./category-filter.js";
 
@@ -46,7 +46,24 @@ export default function initHomeHero(container) {
       videoStage.style.zIndex = "0";
     }
     
-    const firstVisible = items.find(item => item.style.display !== "none");
+    // Get the first active category (excluding "All")
+    const activeCategory = getActiveCategory();
+    let firstVisible = null;
+    
+    if (activeCategory) {
+      // Filter items based on active category
+      firstVisible = items.find(item => {
+        const cats = item.dataset.cats || "";
+        const catList = cats.split("|");
+        return catList.includes(activeCategory) && item.style.display !== "none";
+      });
+    }
+    
+    // Fallback to first visible item if no category match
+    if (!firstVisible) {
+      firstVisible = items.find(item => item.style.display !== "none");
+    }
+    
     if (firstVisible) {
       // Pass handoff data including current time for sync
       const enhancedHandoff = handoff ? {
@@ -68,6 +85,32 @@ export default function initHomeHero(container) {
     
     // Preload other videos after initial setup
     setTimeout(() => preloadVideos(), 500);
+  }
+
+  // Get the active category from the UI (excluding "All")
+  function getActiveCategory() {
+    const catWrap = document.querySelector(".home_hero_categories");
+    if (!catWrap) return null;
+    
+    const activeBtn = catWrap.querySelector('[aria-current="true"]');
+    if (!activeBtn) return null;
+    
+    const categoryText = (activeBtn.textContent || "").trim().toLowerCase();
+    
+    // Skip if it's "all" (shouldn't happen, but safety check)
+    if (categoryText === "all") {
+      // Find the first non-"All" category
+      const buttons = catWrap.querySelectorAll(".home-category_text");
+      for (const btn of buttons) {
+        const text = (btn.textContent || "").trim().toLowerCase();
+        if (text !== "all") {
+          return text;
+        }
+      }
+      return null;
+    }
+    
+    return categoryText;
   }
 
   const hasSiteLoader = document.querySelector(".site-loader_wrap");

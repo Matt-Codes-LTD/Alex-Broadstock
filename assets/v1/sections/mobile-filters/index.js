@@ -1,4 +1,4 @@
-// index.js - Fixed with better visibility logic and cleanup
+// index.js - Fixed with better visibility logic and cleanup - ALL BUTTON REMOVED
 export default function initMobileFilters(container) {
   const wrap = container.querySelector('.home-hero_wrap');
   if (!wrap || wrap.dataset.mobileFiltersInit) return () => {};
@@ -36,6 +36,20 @@ export default function initMobileFilters(container) {
   
   const clone = categories.cloneNode(true);
   clone.classList.add('mobile-categories-list');
+  
+  // Remove any "All" buttons from the clone
+  const allButtons = clone.querySelectorAll('.home-category_text');
+  allButtons.forEach(btn => {
+    if (btn.textContent.trim().toLowerCase() === 'all') {
+      const listItem = btn.closest('[role="listitem"]');
+      if (listItem) {
+        listItem.remove();
+      } else {
+        btn.remove();
+      }
+    }
+  });
+  
   panel.querySelector('.mobile-filters-content').appendChild(clone);
   
   let isOpen = false;
@@ -106,13 +120,45 @@ export default function initMobileFilters(container) {
     button.setAttribute('aria-expanded', 'false');
   }
   
-  // Sync active states between desktop and mobile
+  // Sync active states between desktop and mobile (excluding "All")
   function syncActiveStates() {
     const activeDesktop = categories?.querySelector('.home-category_text[aria-current="true"]');
-    const activeLabel = activeDesktop?.textContent?.trim() || 'All';
+    let activeLabel = activeDesktop?.textContent?.trim() || '';
+    
+    // Skip "All" and find the first real category if needed
+    if (activeLabel.toLowerCase() === 'all' || !activeLabel) {
+      const firstValidCategory = categories?.querySelector('.home-category_text:not([aria-current="false"])');
+      if (firstValidCategory) {
+        const text = firstValidCategory.textContent?.trim();
+        if (text && text.toLowerCase() !== 'all') {
+          activeLabel = text;
+        }
+      }
+    }
+    
+    // If still no valid label, use the first non-"All" category
+    if (!activeLabel || activeLabel.toLowerCase() === 'all') {
+      const allCats = categories?.querySelectorAll('.home-category_text') || [];
+      for (const cat of allCats) {
+        const text = cat.textContent?.trim();
+        if (text && text.toLowerCase() !== 'all') {
+          activeLabel = text;
+          break;
+        }
+      }
+    }
     
     panel.querySelectorAll('.home-category_text').forEach(btn => {
-      const isActive = btn.textContent.trim() === activeLabel;
+      const btnText = btn.textContent.trim();
+      
+      // Skip "All" buttons
+      if (btnText.toLowerCase() === 'all') {
+        btn.setAttribute('aria-current', 'false');
+        btn.classList.add('u-color-faded');
+        return;
+      }
+      
+      const isActive = btnText === activeLabel;
       btn.setAttribute('aria-current', isActive ? 'true' : 'false');
       btn.classList.toggle('u-color-faded', !isActive);
     });
@@ -145,6 +191,10 @@ export default function initMobileFilters(container) {
     e.preventDefault();
     
     const label = catBtn.textContent.trim();
+    
+    // Skip "All" buttons
+    if (label.toLowerCase() === 'all') return;
+    
     const match = Array.from(categories?.querySelectorAll('.home-category_text') || [])
       .find(el => el.textContent.trim() === label && !panel.contains(el));
     
@@ -153,7 +203,16 @@ export default function initMobileFilters(container) {
       
       // Update mobile active states immediately
       panel.querySelectorAll('.home-category_text').forEach(btn => {
-        const isActive = btn.textContent.trim() === label;
+        const btnText = btn.textContent.trim();
+        
+        // Skip "All" buttons
+        if (btnText.toLowerCase() === 'all') {
+          btn.setAttribute('aria-current', 'false');
+          btn.classList.add('u-color-faded');
+          return;
+        }
+        
+        const isActive = btnText === label;
         btn.setAttribute('aria-current', isActive ? 'true' : 'false');
         btn.classList.toggle('u-color-faded', !isActive);
       });

@@ -1,4 +1,4 @@
-// category-filter.js - Fixed with correct ghost positioning
+// category-filter.js - Fixed with correct ghost positioning - ALL BUTTON REMOVED
 import { getGhostLayer, makeGhost } from "./ghost-layer.js";
 
 export function initCategoryFilter(section, videoManager, setActiveCallback) {
@@ -18,19 +18,23 @@ export function initCategoryFilter(section, videoManager, setActiveCallback) {
   delete section.dataset.navigating;
 
   cacheCats(section);
-  const allBtn = ensureAllButton(catWrap);
-  if (!allBtn) {
-    console.warn("[CategoryFilter] Failed to create All button");
-    return () => {};
-  }
-
-  // Initialize category button states on load
+  
+  // Remove any existing "All" button if it exists in the DOM
+  removeAllButton(catWrap);
+  
+  // Initialize category button states on load - set first category as active
   initializeCategoryStates(catWrap);
 
   const handleClick = (e) => {
     const btn = e.target.closest(".home-category_text");
     if (!btn) {
       console.log("[CategoryFilter] Click not on a category button");
+      return;
+    }
+    
+    // Skip if it's an "All" button (safety check)
+    if (normalize(btn.textContent) === "all") {
+      console.log("[CategoryFilter] Ignoring click on All button");
       return;
     }
     
@@ -74,12 +78,28 @@ export function initCategoryFilter(section, videoManager, setActiveCallback) {
   };
 }
 
-// Initialize all category button states on load
+// Initialize all category button states on load - set first non-All category as active
 function initializeCategoryStates(catWrap) {
   const buttons = Array.from(catWrap.querySelectorAll(".home-category_text"));
   console.log("[CategoryFilter] Found", buttons.length, "category buttons");
   
+  // Find first non-"All" button to set as active
+  let firstValidButton = null;
+  
   buttons.forEach(btn => {
+    const text = normalize(btn.textContent);
+    
+    // Skip "All" buttons
+    if (text === "all") {
+      btn.setAttribute("aria-current", "false");
+      btn.classList.add("u-color-faded");
+      return;
+    }
+    
+    if (!firstValidButton) {
+      firstValidButton = btn;
+    }
+    
     const isActive = btn.getAttribute("aria-current") === "true";
     
     if (isActive) {
@@ -88,6 +108,17 @@ function initializeCategoryStates(catWrap) {
       btn.classList.add("u-color-faded");
     }
   });
+  
+  // If no button is active and we have a valid first button, activate it
+  const hasActiveButton = buttons.some(btn => 
+    btn.getAttribute("aria-current") === "true" && normalize(btn.textContent) !== "all"
+  );
+  
+  if (!hasActiveButton && firstValidButton) {
+    firstValidButton.setAttribute("aria-current", "true");
+    firstValidButton.classList.remove("u-color-faded");
+    console.log("[CategoryFilter] Set first category as active:", firstValidButton.textContent.trim());
+  }
 }
 
 // Update category button states when switching
@@ -113,12 +144,11 @@ function filterItems(section, listParent, btn, setActiveCallback) {
   console.log("[CategoryFilter] Filtering for category:", cat);
   console.log("[CategoryFilter] Total items:", allItems.length);
 
-  const matcher = cat === "all" 
-    ? () => true 
-    : (item) => {
-        const cats = item.dataset.cats || "";
-        return cats.split("|").includes(cat);
-      };
+  // No special case for "all" - just filter by the selected category
+  const matcher = (item) => {
+    const cats = item.dataset.cats || "";
+    return cats.split("|").includes(cat);
+  };
 
   // Determine which items will be visible after filter
   const visibleAfter = allItems.filter(matcher);
@@ -287,32 +317,21 @@ function cacheCats(section) {
   }
 }
 
-function ensureAllButton(catWrap) {
-  const BTN_SEL = ".home-category_text";
-  const buttons = Array.from(catWrap.querySelectorAll(BTN_SEL));
-  let allBtn = buttons.find((b) => normalize(b.textContent) === "all") || null;
+// Remove any "All" button if it exists
+function removeAllButton(catWrap) {
+  const buttons = Array.from(catWrap.querySelectorAll(".home-category_text"));
+  const allBtn = buttons.find((b) => normalize(b.textContent) === "all");
   
-  if (!allBtn) {
-    console.log("[CategoryFilter] Creating 'All' button");
-    
-    const item = document.createElement("div");
-    item.setAttribute("role", "listitem");
-    item.className = "home-hero_category u-text-style-main w-dyn-item";
-
-    const a = document.createElement("a");
-    a.href = "#";
-    a.className = "home-category_text u-text-style-main";
-    a.textContent = "All";
-    a.setAttribute("aria-current", "true");
-
-    item.appendChild(a);
-    catWrap.insertBefore(item, catWrap.firstChild);
-    allBtn = a;
-  } else {
-    console.log("[CategoryFilter] 'All' button already exists");
+  if (allBtn) {
+    console.log("[CategoryFilter] Removing 'All' button");
+    // Find the parent listitem and remove it entirely
+    const listItem = allBtn.closest('[role="listitem"]');
+    if (listItem) {
+      listItem.remove();
+    } else {
+      allBtn.remove();
+    }
   }
-  
-  return allBtn;
 }
 
 function normalize(str) {
