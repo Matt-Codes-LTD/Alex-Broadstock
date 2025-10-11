@@ -25,25 +25,31 @@ export function initCategoryFilter(section, videoManager, setActiveCallback) {
   // Initialize category button states on load - set first category as active
   initializeCategoryStates(catWrap);
   
-  // Trigger initial filtering based on the active category - with a small delay to ensure DOM is ready
+  // Trigger initial filtering based on the active category
   requestAnimationFrame(() => {
     const activeBtn = Array.from(catWrap.querySelectorAll('[aria-current="true"]'))
       .find(btn => normalize(btn.textContent) !== "all");
     
     if (activeBtn) {
       console.log("[CategoryFilter] Applying initial filter for:", activeBtn.textContent.trim());
-      // Apply initial filtering without animation
       const cat = normalize(activeBtn.textContent);
       const allItems = Array.from(section.querySelectorAll(".home-hero_list"));
       
       console.log("[CategoryFilter] Filtering", allItems.length, "items for category:", cat);
       
-      // Hide/show items based on the initial category
+      // Clear any existing display styles first
+      allItems.forEach(item => {
+        item.style.removeProperty("display");
+      });
+      
+      // Then apply the filter
       let visibleCount = 0;
       allItems.forEach((item) => {
         const cats = item.dataset.cats || "";
-        const catList = cats.split("|").filter(c => c); // Filter out empty strings
+        const catList = cats.split("|").map(c => c.trim()).filter(c => c);
         const matches = catList.includes(cat);
+        
+        console.log("[CategoryFilter] Item cats:", cats, "matches:", matches);
         
         if (matches) {
           item.style.display = "";
@@ -188,16 +194,22 @@ function filterItems(section, listParent, btn, setActiveCallback) {
   console.log("[CategoryFilter] Filtering for category:", cat);
   console.log("[CategoryFilter] Total items:", allItems.length);
 
-  // No special case for "all" - just filter by the selected category
+  // Fixed matcher function - properly check all categories with trimming
   const matcher = (item) => {
     const cats = item.dataset.cats || "";
-    return cats.split("|").includes(cat);
+    const catArray = cats.split("|").map(c => c.trim()).filter(c => c);
+    return catArray.includes(cat);
   };
 
   // Determine which items will be visible after filter
   const visibleAfter = allItems.filter(matcher);
   
-  console.log("[CategoryFilter] Visible after filter:", visibleAfter.length);
+  console.log("[CategoryFilter] Items that match:", visibleAfter.length);
+  
+  // Debug log to see what's matching
+  visibleAfter.forEach(item => {
+    console.log("[CategoryFilter] Matched item with cats:", item.dataset.cats);
+  });
   
   if (visibleAfter.length === 0) {
     console.warn("[CategoryFilter] No items match filter:", cat);
@@ -210,10 +222,14 @@ function filterItems(section, listParent, btn, setActiveCallback) {
   const rectBefore = new Map(visibleBefore.map((el) => [el, el.getBoundingClientRect()]));
 
   requestAnimationFrame(() => {
-    // Update visibility
+    // Update visibility - ensure we're properly showing/hiding
     allItems.forEach((item) => {
-      if (matcher(item)) {
+      const shouldShow = matcher(item);
+      console.log("[CategoryFilter] Item", item.dataset.cats, "should show:", shouldShow);
+      
+      if (shouldShow) {
         item.style.display = "";
+        item.style.removeProperty("display"); // Ensure display is fully cleared
       } else {
         item.style.display = "none";
       }
