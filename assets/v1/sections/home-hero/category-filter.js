@@ -337,7 +337,17 @@ function filterItems(section, listParent, btn, setActiveCallback) {
       });
       listParent.style.pointerEvents = "";
 
-      // Call the setActive callback from home-hero/index.js
+      // IMPORTANT: First unfade ALL visible items
+      visibleAfter.forEach((el) => {
+        const text = el.querySelector(".home_hero_text");
+        text?.classList.remove("u-color-faded");
+        
+        // Also unfade the category pills for visible items
+        const pills = el.querySelectorAll(".home-category_ref_text:not([hidden])");
+        pills.forEach(p => p.classList.remove("u-color-faded"));
+      });
+
+      // Then call setActive which will fade non-active items but keep them visible
       if (setActiveCallback && firstVisibleItem) {
         setActiveCallback(firstVisibleItem);
       }
