@@ -1,4 +1,4 @@
-// video-manager.js - Enhanced with better sync and smoother crossfade
+// video-manager.js - Enhanced with aspect ratio control from CMS
 export function createVideoManager(stage) {
   const MAX_VIDEOS = 8;
   const videoBySrc = new Map();
@@ -47,6 +47,10 @@ export function createVideoManager(stage) {
       cleanupOldestVideo();
     }
 
+    // Find the item element with this video src to get the ratio setting
+    const item = document.querySelector(`[data-video="${src}"]`);
+    const ratio = item?.dataset.ratio || 'cover'; // Default to 'cover' if not specified
+
     v = document.createElement("video");
     v.className = "home-hero_video_el";
     v.src = src;
@@ -80,13 +84,16 @@ export function createVideoManager(stage) {
         height: '100%',
         left: 0,
         top: 0,
-        objectFit: 'cover'
+        objectFit: ratio.toLowerCase() // Apply the aspect ratio from CMS
       });
     } else {
       v.style.opacity = "0";
       v.style.width = "100%";
       v.style.height = "100%";
-      v.style.objectFit = "cover";
+      v.style.objectFit = ratio.toLowerCase(); // Apply the aspect ratio from CMS
+      v.style.position = "absolute";
+      v.style.left = "0";
+      v.style.top = "0";
     }
     
     stage.appendChild(v);
@@ -188,6 +195,11 @@ export function createVideoManager(stage) {
         next.__lastUsed = Date.now();
         next.classList.add("is-active");
         
+        // Check if this video needs different aspect ratio
+        const item = document.querySelector(`[data-video="${src}"]`);
+        const ratio = item?.dataset.ratio || 'cover';
+        next.style.objectFit = ratio.toLowerCase();
+        
         // Adjusted timing for perfect crossfade
         if (window.gsap) {
           // Start slightly later and fade faster for tighter transition
@@ -228,6 +240,11 @@ export function createVideoManager(stage) {
     // Normal video switching logic
     const next = videoBySrc.get(src) || createVideo(src);
     if (!next) return;
+
+    // Update aspect ratio for active video in case it changed
+    const item = document.querySelector(`[data-video="${src}"]`);
+    const ratio = item?.dataset.ratio || 'cover';
+    next.style.objectFit = ratio.toLowerCase();
 
     next.__keepAlive = true;
     next.__lastUsed = Date.now();
