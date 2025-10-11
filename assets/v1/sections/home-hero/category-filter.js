@@ -25,6 +25,13 @@ export function initCategoryFilter(section, videoManager, setActiveCallback) {
   // Initialize category button states on load - set first category as active
   initializeCategoryStates(catWrap);
   
+  // CRITICAL: Clear all display styles before initial filtering
+  const allItems = Array.from(section.querySelectorAll(".home-hero_list"));
+  allItems.forEach(item => {
+    item.style.display = "";
+    item.style.removeProperty("display");
+  });
+  
   // Trigger initial filtering based on the active category
   requestAnimationFrame(() => {
     const activeBtn = Array.from(catWrap.querySelectorAll('[aria-current="true"]'))
@@ -33,16 +40,10 @@ export function initCategoryFilter(section, videoManager, setActiveCallback) {
     if (activeBtn) {
       console.log("[CategoryFilter] Applying initial filter for:", activeBtn.textContent.trim());
       const cat = normalize(activeBtn.textContent);
-      const allItems = Array.from(section.querySelectorAll(".home-hero_list"));
       
       console.log("[CategoryFilter] Filtering", allItems.length, "items for category:", cat);
       
-      // Clear any existing display styles first
-      allItems.forEach(item => {
-        item.style.removeProperty("display");
-      });
-      
-      // Then apply the filter
+      // Apply the filter
       let visibleCount = 0;
       allItems.forEach((item) => {
         const cats = item.dataset.cats || "";
@@ -53,16 +54,21 @@ export function initCategoryFilter(section, videoManager, setActiveCallback) {
         
         if (matches) {
           item.style.display = "";
+          item.style.removeProperty("display");
           visibleCount++;
         } else {
           item.style.display = "none";
         }
       });
       
-      console.log("[CategoryFilter] After filtering:", visibleCount, "items visible");
+      console.log("[CategoryFilter] After initial filtering:", visibleCount, "items visible");
       
       // Find first visible item and set it as active
-      const firstVisible = allItems.find(item => item.style.display !== "none");
+      const firstVisible = allItems.find(item => {
+        const style = window.getComputedStyle(item);
+        return style.display !== "none";
+      });
+      
       if (firstVisible && setActiveCallback) {
         console.log("[CategoryFilter] Setting first visible item as active");
         // Use requestAnimationFrame to ensure DOM updates are complete
@@ -72,6 +78,11 @@ export function initCategoryFilter(section, videoManager, setActiveCallback) {
       }
     } else {
       console.warn("[CategoryFilter] No active category button found on init");
+      // If no active category, show all items
+      allItems.forEach(item => {
+        item.style.display = "";
+        item.style.removeProperty("display");
+      });
     }
   });
 
@@ -189,27 +200,28 @@ function updateCategoryStates(catWrap, prevActive, newActive) {
 function filterItems(section, listParent, btn, setActiveCallback) {
   const cat = normalize(btn.textContent);
   const allItems = Array.from(section.querySelectorAll(".home-hero_list"));
-  const visibleBefore = allItems.filter((it) => it.offsetParent);
+  const visibleBefore = allItems.filter((it) => {
+    const style = window.getComputedStyle(it);
+    return style.display !== "none";
+  });
 
   console.log("[CategoryFilter] Filtering for category:", cat);
   console.log("[CategoryFilter] Total items:", allItems.length);
+  console.log("[CategoryFilter] Currently visible:", visibleBefore.length);
 
   // Fixed matcher function - properly check all categories with trimming
   const matcher = (item) => {
     const cats = item.dataset.cats || "";
     const catArray = cats.split("|").map(c => c.trim()).filter(c => c);
-    return catArray.includes(cat);
+    const matches = catArray.includes(cat);
+    console.log("[CategoryFilter] Checking item:", cats, "for category:", cat, "matches:", matches);
+    return matches;
   };
 
   // Determine which items will be visible after filter
   const visibleAfter = allItems.filter(matcher);
   
-  console.log("[CategoryFilter] Items that match:", visibleAfter.length);
-  
-  // Debug log to see what's matching
-  visibleAfter.forEach(item => {
-    console.log("[CategoryFilter] Matched item with cats:", item.dataset.cats);
-  });
+  console.log("[CategoryFilter] Items that will be visible:", visibleAfter.length);
   
   if (visibleAfter.length === 0) {
     console.warn("[CategoryFilter] No items match filter:", cat);
@@ -225,15 +237,20 @@ function filterItems(section, listParent, btn, setActiveCallback) {
     // Update visibility - ensure we're properly showing/hiding
     allItems.forEach((item) => {
       const shouldShow = matcher(item);
-      console.log("[CategoryFilter] Item", item.dataset.cats, "should show:", shouldShow);
       
       if (shouldShow) {
+        // Fully clear display property
         item.style.display = "";
-        item.style.removeProperty("display"); // Ensure display is fully cleared
+        item.style.removeProperty("display");
+        console.log("[CategoryFilter] Showing item:", item.dataset.cats);
       } else {
         item.style.display = "none";
+        console.log("[CategoryFilter] Hiding item:", item.dataset.cats);
       }
     });
+
+    // Force a reflow to ensure styles are applied
+    void listParent.offsetHeight;
 
     // Create ghosts for items that are disappearing
     const ghosts = [];
