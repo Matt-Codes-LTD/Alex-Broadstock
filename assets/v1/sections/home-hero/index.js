@@ -28,6 +28,7 @@ export default function initHomeHero(container) {
   let preloadTimeout = null;
   let currentAwardsHTML = "";
   let cleanupFunctions = [];
+  let initialSetupDone = false;
   
   const emitReadyOnce = () => {
     if (revealedOnce) return;
@@ -46,71 +47,34 @@ export default function initHomeHero(container) {
       videoStage.style.zIndex = "0";
     }
     
-    // Get the first active category (excluding "All")
-    const activeCategory = getActiveCategory();
-    let firstVisible = null;
+    // Initialize category filter - it will handle initial filtering and call setActive
+    const cleanupFilter = initCategoryFilter(section, videoManager, (firstItem) => {
+      // On initial setup, use handoff if available
+      if (!initialSetupDone && firstItem) {
+        initialSetupDone = true;
+        
+        const enhancedHandoff = handoff ? {
+          ...handoff,
+          currentTime: handoff.loaderVideo?.currentTime || handoff.currentTime || 0
+        } : null;
+        
+        setActive(firstItem, { 
+          useHandoff: !!enhancedHandoff,
+          handoff: enhancedHandoff
+        });
+      } else {
+        setActive(firstItem);
+      }
+    });
+    cleanupFunctions.push(cleanupFilter);
     
-    if (activeCategory) {
-      // Filter items based on active category
-      firstVisible = items.find(item => {
-        const cats = item.dataset.cats || "";
-        const catList = cats.split("|");
-        return catList.includes(activeCategory) && item.style.display !== "none";
-      });
-    }
-    
-    // Fallback to first visible item if no category match
-    if (!firstVisible) {
-      firstVisible = items.find(item => item.style.display !== "none");
-    }
-    
-    if (firstVisible) {
-      // Pass handoff data including current time for sync
-      const enhancedHandoff = handoff ? {
-        ...handoff,
-        currentTime: handoff.loaderVideo?.currentTime || handoff.currentTime || 0
-      } : null;
-      
-      setActive(firstVisible, { 
-        useHandoff: !!enhancedHandoff,
-        handoff: enhancedHandoff
-      });
-      updateAwards(firstVisible);
-      
-      // Emit ready immediately after setting active
-      emitReadyOnce();
-    }
+    // Emit ready for site loader
+    emitReadyOnce();
     
     section.dataset.introComplete = "true";
     
     // Preload other videos after initial setup
     setTimeout(() => preloadVideos(), 500);
-  }
-
-  // Get the active category from the UI (excluding "All")
-  function getActiveCategory() {
-    const catWrap = document.querySelector(".home_hero_categories");
-    if (!catWrap) return null;
-    
-    const activeBtn = catWrap.querySelector('[aria-current="true"]');
-    if (!activeBtn) return null;
-    
-    const categoryText = (activeBtn.textContent || "").trim().toLowerCase();
-    
-    // Skip if it's "all" (shouldn't happen, but safety check)
-    if (categoryText === "all") {
-      // Find the first non-"All" category
-      const buttons = catWrap.querySelectorAll(".home-category_text");
-      for (const btn of buttons) {
-        const text = (btn.textContent || "").trim().toLowerCase();
-        if (text !== "all") {
-          return text;
-        }
-      }
-      return null;
-    }
-    
-    return categoryText;
   }
 
   const hasSiteLoader = document.querySelector(".site-loader_wrap");
@@ -233,8 +197,11 @@ export default function initHomeHero(container) {
     const MAX_EAGER = 3;
     let count = 0;
     
+    // Only preload videos from visible items
     items.forEach(item => {
       if (count >= MAX_EAGER) return;
+      if (item.style.display === "none") return; // Skip hidden items
+      
       const projectEl = item.querySelector(".home-hero_item");
       const videoSrc  = projectEl?.dataset.video;
       if (videoSrc && !videoManager.getVideo(videoSrc)) {
@@ -293,11 +260,6 @@ export default function initHomeHero(container) {
       sessionStorage.setItem("pp:autoplay-sound", "1");
     }
   }
-
-  const cleanupFilter = initCategoryFilter(section, videoManager, (firstItem) => {
-    setActive(firstItem);
-  });
-  cleanupFunctions.push(cleanupFilter);
 
   listParent.addEventListener("mouseenter", handleInteraction, true);
   listParent.addEventListener("focusin", handleInteraction);

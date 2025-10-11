@@ -24,6 +24,50 @@ export function initCategoryFilter(section, videoManager, setActiveCallback) {
   
   // Initialize category button states on load - set first category as active
   initializeCategoryStates(catWrap);
+  
+  // Trigger initial filtering based on the active category - with a small delay to ensure DOM is ready
+  requestAnimationFrame(() => {
+    const activeBtn = Array.from(catWrap.querySelectorAll('[aria-current="true"]'))
+      .find(btn => normalize(btn.textContent) !== "all");
+    
+    if (activeBtn) {
+      console.log("[CategoryFilter] Applying initial filter for:", activeBtn.textContent.trim());
+      // Apply initial filtering without animation
+      const cat = normalize(activeBtn.textContent);
+      const allItems = Array.from(section.querySelectorAll(".home-hero_list"));
+      
+      console.log("[CategoryFilter] Filtering", allItems.length, "items for category:", cat);
+      
+      // Hide/show items based on the initial category
+      let visibleCount = 0;
+      allItems.forEach((item) => {
+        const cats = item.dataset.cats || "";
+        const catList = cats.split("|").filter(c => c); // Filter out empty strings
+        const matches = catList.includes(cat);
+        
+        if (matches) {
+          item.style.display = "";
+          visibleCount++;
+        } else {
+          item.style.display = "none";
+        }
+      });
+      
+      console.log("[CategoryFilter] After filtering:", visibleCount, "items visible");
+      
+      // Find first visible item and set it as active
+      const firstVisible = allItems.find(item => item.style.display !== "none");
+      if (firstVisible && setActiveCallback) {
+        console.log("[CategoryFilter] Setting first visible item as active");
+        // Use requestAnimationFrame to ensure DOM updates are complete
+        requestAnimationFrame(() => {
+          setActiveCallback(firstVisible);
+        });
+      }
+    } else {
+      console.warn("[CategoryFilter] No active category button found on init");
+    }
+  });
 
   const handleClick = (e) => {
     const btn = e.target.closest(".home-category_text");
@@ -310,10 +354,17 @@ function cacheCats(section) {
     const cats = new Set();
     it.querySelectorAll(".home-category_ref_text").forEach((n) => {
       const t = normalize(n.textContent);
-      if (t === "selected") n.setAttribute("hidden", "");
-      if (t) cats.add(t);
+      // Hide the "selected" meta tag but still add it to categories
+      // This is because "Selected" is both a category AND a meta tag
+      if (t === "selected") {
+        n.setAttribute("hidden", "");
+        cats.add(t); // Still add "selected" to the categories!
+      } else if (t) {
+        cats.add(t);
+      }
     });
     it.dataset.cats = Array.from(cats).join("|");
+    console.log("[CategoryFilter] Item categories:", it.dataset.cats);
   }
 }
 
