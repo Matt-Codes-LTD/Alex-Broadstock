@@ -1,4 +1,4 @@
-// category-filter.js - Fixed to treat "Selected" as a normal category filter
+// category-filter.js - Fixed to preserve existing data-cats attributes
 import { getGhostLayer, makeGhost } from "./ghost-layer.js";
 
 export function initCategoryFilter(section, videoManager, setActiveCallback) {
@@ -36,6 +36,12 @@ export function initCategoryFilter(section, videoManager, setActiveCallback) {
       
       console.log("[CategoryFilter] Filtering", allItems.length, "items for category:", cat);
       
+      // Debug: log all items and their categories
+      allItems.forEach(item => {
+        const projectName = item.querySelector(".home_hero_text")?.textContent;
+        console.log("[CategoryFilter] Item:", projectName, "cats:", item.dataset.cats);
+      });
+      
       // Apply the filter
       let visibleCount = 0;
       let firstVisible = null;
@@ -45,7 +51,8 @@ export function initCategoryFilter(section, videoManager, setActiveCallback) {
         const catArray = cats.split("|").map(c => c.trim()).filter(c => c);
         const matches = catArray.includes(cat);
         
-        console.log("[CategoryFilter] Item with cats:", cats, "checking for:", cat, "matches:", matches);
+        const projectName = item.querySelector(".home_hero_text")?.textContent;
+        console.log("[CategoryFilter] Checking:", projectName, "cats:", cats, "for:", cat, "matches:", matches);
         
         if (matches) {
           // Make visible
@@ -57,11 +64,11 @@ export function initCategoryFilter(section, videoManager, setActiveCallback) {
           if (!firstVisible) {
             firstVisible = item;
           }
-          console.log("[CategoryFilter] SHOWING item with cats:", cats);
+          console.log("[CategoryFilter] SHOWING:", projectName);
         } else {
           // Hide
           item.style.display = "none";
-          console.log("[CategoryFilter] HIDING item with cats:", cats);
+          console.log("[CategoryFilter] HIDING:", projectName);
         }
       });
       
@@ -208,7 +215,8 @@ function filterItems(section, listParent, btn, setActiveCallback) {
     const cats = item.dataset.cats || "";
     const catArray = cats.split("|").map(c => c.trim()).filter(c => c);
     const matches = catArray.includes(cat);
-    console.log("[CategoryFilter] Checking item:", cats, "for category:", cat, "matches:", matches);
+    const projectName = item.querySelector(".home_hero_text")?.textContent;
+    console.log("[CategoryFilter] Checking:", projectName, "cats:", cats, "for:", cat, "matches:", matches);
     return matches;
   };
 
@@ -217,7 +225,8 @@ function filterItems(section, listParent, btn, setActiveCallback) {
   
   console.log("[CategoryFilter] Items that will be visible:", visibleAfter.length);
   visibleAfter.forEach(item => {
-    console.log("[CategoryFilter] Will show item with cats:", item.dataset.cats);
+    const projectName = item.querySelector(".home_hero_text")?.textContent;
+    console.log("[CategoryFilter] Will show:", projectName, "cats:", item.dataset.cats);
   });
   
   if (visibleAfter.length === 0) {
@@ -234,6 +243,7 @@ function filterItems(section, listParent, btn, setActiveCallback) {
     // Update visibility
     allItems.forEach((item) => {
       const shouldShow = matcher(item);
+      const projectName = item.querySelector(".home_hero_text")?.textContent;
       
       if (shouldShow) {
         // Make visible
@@ -241,11 +251,11 @@ function filterItems(section, listParent, btn, setActiveCallback) {
         if (item.style.removeProperty) {
           item.style.removeProperty("display");
         }
-        console.log("[CategoryFilter] SHOWING item:", item.dataset.cats);
+        console.log("[CategoryFilter] SHOWING:", projectName);
       } else {
         // Hide
         item.style.display = "none";
-        console.log("[CategoryFilter] HIDING item:", item.dataset.cats);
+        console.log("[CategoryFilter] HIDING:", projectName);
       }
     });
 
@@ -387,10 +397,25 @@ function cacheCats(section) {
   console.log("[CategoryFilter] Caching categories for", items.length, "items");
   
   for (const it of items) {
+    // If data-cats already exists, preserve it
+    if (it.dataset.cats) {
+      console.log("[CategoryFilter] Keeping existing cats:", it.dataset.cats);
+      const projectName = it.querySelector(".home_hero_text")?.textContent;
+      console.log("[CategoryFilter] Project:", projectName, "has cats:", it.dataset.cats);
+      
+      // Still hide "selected" pills if they exist
+      it.querySelectorAll(".home-category_ref_text").forEach((n) => {
+        if (normalize(n.textContent) === "selected") {
+          n.setAttribute("hidden", "");
+        }
+      });
+      continue;
+    }
+    
+    // Only build from children if no data-cats exists
     const cats = new Set();
     it.querySelectorAll(".home-category_ref_text").forEach((n) => {
       const t = normalize(n.textContent);
-      // Hide the "selected" tag visually but still add it to categories for filtering
       if (t === "selected") {
         n.setAttribute("hidden", "");
         cats.add(t); // Add "selected" to the filter categories
@@ -398,9 +423,11 @@ function cacheCats(section) {
         cats.add(t);
       }
     });
+    
     // Join the categories with | separator
     it.dataset.cats = Array.from(cats).join("|");
-    console.log("[CategoryFilter] Item categories cached:", it.dataset.cats);
+    const projectName = it.querySelector(".home_hero_text")?.textContent;
+    console.log("[CategoryFilter] Built cats from children for:", projectName, "result:", it.dataset.cats);
   }
 }
 
