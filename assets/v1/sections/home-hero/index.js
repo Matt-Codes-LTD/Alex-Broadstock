@@ -159,28 +159,29 @@ export default function initHomeHero(container) {
     activeItem = item;
 
     requestAnimationFrame(() => {
-      // First, unfade ALL visible items
+      // Fade all items first
       items.forEach((i) => {
+        const link  = i.querySelector(".home-hero_link");
+        const text  = i.querySelector(".home_hero_text");
+        const pills = i.querySelectorAll(".home-category_ref_text:not([hidden])");
+        
+        if (link) link.setAttribute("aria-current", "false");
+        
+        // Only fade items that are visible
         if (i.style.display !== "none") {
-          // Item is visible, so unfade its text
-          const text = i.querySelector(".home_hero_text");
-          const pills = i.querySelectorAll(".home-category_ref_text:not([hidden])");
-          text?.classList.remove("u-color-faded");
-          pills.forEach(p => p.classList.remove("u-color-faded"));
+          text?.classList.add("u-color-faded");
+          pills.forEach(p => p.classList.add("u-color-faded"));
         }
       });
 
-      // Then set the active state for the selected item
-      const activeLink = item.querySelector(".home-hero_link");
+      // Then unfade only the active item
+      const activeLink  = item.querySelector(".home-hero_link");
+      const activeText  = item.querySelector(".home_hero_text");
+      const activePills = item.querySelectorAll(".home-category_ref_text:not([hidden])");
+      
       if (activeLink) activeLink.setAttribute("aria-current", "true");
-
-      // Set all other items as non-active
-      items.forEach((i) => {
-        if (i !== item) {
-          const link = i.querySelector(".home-hero_link");
-          if (link) link.setAttribute("aria-current", "false");
-        }
-      });
+      activeText?.classList.remove("u-color-faded");
+      activePills.forEach(p => p.classList.remove("u-color-faded"));
 
       updateAwards(item);
     });

@@ -334,20 +334,17 @@ function filterItems(section, listParent, btn, setActiveCallback) {
         el.style.opacity = "";
         el.style.transform = "";
         el.style.backfaceVisibility = "";
+        
+        // Ensure visible items start with proper fade state
+        // (they'll be properly set when setActive is called)
+        const text = el.querySelector(".home_hero_text");
+        const pills = el.querySelectorAll(".home-category_ref_text:not([hidden])");
+        text?.classList.add("u-color-faded");
+        pills.forEach(p => p.classList.add("u-color-faded"));
       });
       listParent.style.pointerEvents = "";
 
-      // IMPORTANT: First unfade ALL visible items
-      visibleAfter.forEach((el) => {
-        const text = el.querySelector(".home_hero_text");
-        text?.classList.remove("u-color-faded");
-        
-        // Also unfade the category pills for visible items
-        const pills = el.querySelectorAll(".home-category_ref_text:not([hidden])");
-        pills.forEach(p => p.classList.remove("u-color-faded"));
-      });
-
-      // Then call setActive which will fade non-active items but keep them visible
+      // Call the setActive callback which will unfade the first item only
       if (setActiveCallback && firstVisibleItem) {
         setActiveCallback(firstVisibleItem);
       }
