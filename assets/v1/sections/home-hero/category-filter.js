@@ -25,66 +25,58 @@ export function initCategoryFilter(section, videoManager, setActiveCallback) {
   // Initialize category button states on load - set first category as active
   initializeCategoryStates(catWrap);
   
-  // CRITICAL: Clear all display styles before initial filtering
-  const allItems = Array.from(section.querySelectorAll(".home-hero_list"));
-  allItems.forEach(item => {
-    item.style.display = "";
-    item.style.removeProperty("display");
-  });
-  
   // Trigger initial filtering based on the active category
-  requestAnimationFrame(() => {
+  setTimeout(() => {
     const activeBtn = Array.from(catWrap.querySelectorAll('[aria-current="true"]'))
       .find(btn => normalize(btn.textContent) !== "all");
     
     if (activeBtn) {
       console.log("[CategoryFilter] Applying initial filter for:", activeBtn.textContent.trim());
       const cat = normalize(activeBtn.textContent);
+      const allItems = Array.from(section.querySelectorAll(".home-hero_list"));
       
       console.log("[CategoryFilter] Filtering", allItems.length, "items for category:", cat);
       
-      // Apply the filter
+      // Apply the filter with the same logic as filterItems
       let visibleCount = 0;
+      let firstVisible = null;
+      
       allItems.forEach((item) => {
         const cats = item.dataset.cats || "";
-        const catList = cats.split("|").map(c => c.trim()).filter(c => c);
-        const matches = catList.includes(cat);
+        const catArray = cats.split("|").filter(c => c.trim());
+        const matches = catArray.includes(cat);
         
-        console.log("[CategoryFilter] Item cats:", cats, "matches:", matches);
+        console.log("[CategoryFilter] Item with cats:", cats, "checking for:", cat, "matches:", matches);
         
         if (matches) {
+          // Make visible - clear any display styles completely
           item.style.display = "";
-          item.style.removeProperty("display");
+          if (item.style.removeProperty) {
+            item.style.removeProperty("display");
+          }
           visibleCount++;
+          if (!firstVisible) {
+            firstVisible = item;
+          }
         } else {
+          // Hide
           item.style.display = "none";
         }
       });
       
       console.log("[CategoryFilter] After initial filtering:", visibleCount, "items visible");
       
-      // Find first visible item and set it as active
-      const firstVisible = allItems.find(item => {
-        const style = window.getComputedStyle(item);
-        return style.display !== "none";
-      });
-      
+      // Set first visible item as active
       if (firstVisible && setActiveCallback) {
         console.log("[CategoryFilter] Setting first visible item as active");
-        // Use requestAnimationFrame to ensure DOM updates are complete
-        requestAnimationFrame(() => {
+        setTimeout(() => {
           setActiveCallback(firstVisible);
-        });
+        }, 100);
       }
     } else {
       console.warn("[CategoryFilter] No active category button found on init");
-      // If no active category, show all items
-      allItems.forEach(item => {
-        item.style.display = "";
-        item.style.removeProperty("display");
-      });
     }
-  });
+  }, 100);
 
   const handleClick = (e) => {
     const btn = e.target.closest(".home-category_text");
@@ -200,19 +192,21 @@ function updateCategoryStates(catWrap, prevActive, newActive) {
 function filterItems(section, listParent, btn, setActiveCallback) {
   const cat = normalize(btn.textContent);
   const allItems = Array.from(section.querySelectorAll(".home-hero_list"));
+  
+  // Get currently visible items - check actual display style
   const visibleBefore = allItems.filter((it) => {
-    const style = window.getComputedStyle(it);
-    return style.display !== "none";
+    return it.style.display !== "none";
   });
 
   console.log("[CategoryFilter] Filtering for category:", cat);
   console.log("[CategoryFilter] Total items:", allItems.length);
   console.log("[CategoryFilter] Currently visible:", visibleBefore.length);
 
-  // Fixed matcher function - properly check all categories with trimming
+  // Matcher function - check if item has the category
   const matcher = (item) => {
     const cats = item.dataset.cats || "";
-    const catArray = cats.split("|").map(c => c.trim()).filter(c => c);
+    // Split and filter out empty strings
+    const catArray = cats.split("|").filter(c => c.trim());
     const matches = catArray.includes(cat);
     console.log("[CategoryFilter] Checking item:", cats, "for category:", cat, "matches:", matches);
     return matches;
@@ -222,6 +216,9 @@ function filterItems(section, listParent, btn, setActiveCallback) {
   const visibleAfter = allItems.filter(matcher);
   
   console.log("[CategoryFilter] Items that will be visible:", visibleAfter.length);
+  visibleAfter.forEach(item => {
+    console.log("[CategoryFilter] Will show item with cats:", item.dataset.cats);
+  });
   
   if (visibleAfter.length === 0) {
     console.warn("[CategoryFilter] No items match filter:", cat);
@@ -234,22 +231,25 @@ function filterItems(section, listParent, btn, setActiveCallback) {
   const rectBefore = new Map(visibleBefore.map((el) => [el, el.getBoundingClientRect()]));
 
   requestAnimationFrame(() => {
-    // Update visibility - ensure we're properly showing/hiding
+    // Update visibility
     allItems.forEach((item) => {
       const shouldShow = matcher(item);
       
       if (shouldShow) {
-        // Fully clear display property
+        // Make visible - clear display completely
         item.style.display = "";
-        item.style.removeProperty("display");
+        if (item.style.removeProperty) {
+          item.style.removeProperty("display");
+        }
         console.log("[CategoryFilter] Showing item:", item.dataset.cats);
       } else {
+        // Hide
         item.style.display = "none";
         console.log("[CategoryFilter] Hiding item:", item.dataset.cats);
       }
     });
 
-    // Force a reflow to ensure styles are applied
+    // Force browser to apply styles
     void listParent.offsetHeight;
 
     // Create ghosts for items that are disappearing
@@ -265,9 +265,6 @@ function filterItems(section, listParent, btn, setActiveCallback) {
 
     // Capture new positions AFTER DOM changes
     const rectAfter = new Map(visibleAfter.map((el) => [el, el.getBoundingClientRect()]));
-
-    // Force layout
-    listParent.offsetHeight;
 
     // Lock pointer events during animation
     listParent.style.pointerEvents = "none";
@@ -369,7 +366,6 @@ function filterItems(section, listParent, btn, setActiveCallback) {
         el.style.backfaceVisibility = "";
         
         // Ensure visible items start with proper fade state
-        // (they'll be properly set when setActive is called)
         const text = el.querySelector(".home_hero_text");
         const pills = el.querySelectorAll(".home-category_ref_text:not([hidden])");
         text?.classList.add("u-color-faded");
@@ -395,7 +391,6 @@ function cacheCats(section) {
     it.querySelectorAll(".home-category_ref_text").forEach((n) => {
       const t = normalize(n.textContent);
       // Hide the "selected" meta tag but still add it to categories
-      // This is because "Selected" is both a category AND a meta tag
       if (t === "selected") {
         n.setAttribute("hidden", "");
         cats.add(t); // Still add "selected" to the categories!
@@ -415,7 +410,6 @@ function removeAllButton(catWrap) {
   
   if (allBtn) {
     console.log("[CategoryFilter] Removing 'All' button");
-    // Find the parent listitem and remove it entirely
     const listItem = allBtn.closest('[role="listitem"]');
     if (listItem) {
       listItem.remove();
