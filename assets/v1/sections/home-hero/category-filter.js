@@ -1,4 +1,4 @@
-// category-filter.js - Fixed with correct ghost positioning - ALL BUTTON REMOVED
+// category-filter.js - Fixed to treat "Selected" as a normal category filter
 import { getGhostLayer, makeGhost } from "./ghost-layer.js";
 
 export function initCategoryFilter(section, videoManager, setActiveCallback) {
@@ -22,13 +22,12 @@ export function initCategoryFilter(section, videoManager, setActiveCallback) {
   // Remove any existing "All" button if it exists in the DOM
   removeAllButton(catWrap);
   
-  // Initialize category button states on load - set first category as active
+  // Initialize category button states on load
   initializeCategoryStates(catWrap);
   
   // Trigger initial filtering based on the active category
   setTimeout(() => {
-    const activeBtn = Array.from(catWrap.querySelectorAll('[aria-current="true"]'))
-      .find(btn => normalize(btn.textContent) !== "all");
+    const activeBtn = catWrap.querySelector('[aria-current="true"]');
     
     if (activeBtn) {
       console.log("[CategoryFilter] Applying initial filter for:", activeBtn.textContent.trim());
@@ -37,25 +36,19 @@ export function initCategoryFilter(section, videoManager, setActiveCallback) {
       
       console.log("[CategoryFilter] Filtering", allItems.length, "items for category:", cat);
       
-      // Debug: log all items and their categories
-      allItems.forEach(item => {
-        console.log("[CategoryFilter] Item cats:", item.dataset.cats);
-      });
-      
-      // Apply the filter with the same logic as filterItems
+      // Apply the filter
       let visibleCount = 0;
       let firstVisible = null;
       
       allItems.forEach((item) => {
         const cats = item.dataset.cats || "";
-        // CRITICAL: Map to trim THEN filter to remove empty
         const catArray = cats.split("|").map(c => c.trim()).filter(c => c);
         const matches = catArray.includes(cat);
         
-        console.log("[CategoryFilter] Item with cats:", cats, "array:", catArray, "checking for:", cat, "matches:", matches);
+        console.log("[CategoryFilter] Item with cats:", cats, "checking for:", cat, "matches:", matches);
         
         if (matches) {
-          // Make visible - clear any display styles completely
+          // Make visible
           item.style.display = "";
           if (item.style.removeProperty) {
             item.style.removeProperty("display");
@@ -139,31 +132,35 @@ export function initCategoryFilter(section, videoManager, setActiveCallback) {
   };
 }
 
-// Initialize all category button states on load - set first non-All category as active
+// Initialize all category button states on load
 function initializeCategoryStates(catWrap) {
   const buttons = Array.from(catWrap.querySelectorAll(".home-category_text"));
   console.log("[CategoryFilter] Found", buttons.length, "category buttons");
   
-  // Find first non-"All" button to set as active
+  // Find the active button or set first valid one as active
+  let hasActiveButton = false;
   let firstValidButton = null;
   
   buttons.forEach(btn => {
     const text = normalize(btn.textContent);
     
-    // Skip "All" buttons
+    // Only skip "All" buttons
     if (text === "all") {
       btn.setAttribute("aria-current", "false");
       btn.classList.add("u-color-faded");
       return;
     }
     
+    // Track first valid button (including "selected")
     if (!firstValidButton) {
       firstValidButton = btn;
     }
     
+    // Check if this button is already marked as active
     const isActive = btn.getAttribute("aria-current") === "true";
     
     if (isActive) {
+      hasActiveButton = true;
       btn.classList.remove("u-color-faded");
     } else {
       btn.classList.add("u-color-faded");
@@ -171,10 +168,6 @@ function initializeCategoryStates(catWrap) {
   });
   
   // If no button is active and we have a valid first button, activate it
-  const hasActiveButton = buttons.some(btn => 
-    btn.getAttribute("aria-current") === "true" && normalize(btn.textContent) !== "all"
-  );
-  
   if (!hasActiveButton && firstValidButton) {
     firstValidButton.setAttribute("aria-current", "true");
     firstValidButton.classList.remove("u-color-faded");
@@ -201,7 +194,7 @@ function filterItems(section, listParent, btn, setActiveCallback) {
   const cat = normalize(btn.textContent);
   const allItems = Array.from(section.querySelectorAll(".home-hero_list"));
   
-  // Get currently visible items - check actual display style
+  // Get currently visible items
   const visibleBefore = allItems.filter((it) => {
     return it.style.display !== "none";
   });
@@ -213,10 +206,9 @@ function filterItems(section, listParent, btn, setActiveCallback) {
   // Matcher function - check if item has the category
   const matcher = (item) => {
     const cats = item.dataset.cats || "";
-    // CRITICAL: Map to trim THEN filter to remove empty
     const catArray = cats.split("|").map(c => c.trim()).filter(c => c);
     const matches = catArray.includes(cat);
-    console.log("[CategoryFilter] Checking item:", cats, "array:", catArray, "for category:", cat, "matches:", matches);
+    console.log("[CategoryFilter] Checking item:", cats, "for category:", cat, "matches:", matches);
     return matches;
   };
 
@@ -244,7 +236,7 @@ function filterItems(section, listParent, btn, setActiveCallback) {
       const shouldShow = matcher(item);
       
       if (shouldShow) {
-        // Make visible - clear display completely
+        // Make visible
         item.style.display = "";
         if (item.style.removeProperty) {
           item.style.removeProperty("display");
@@ -398,10 +390,10 @@ function cacheCats(section) {
     const cats = new Set();
     it.querySelectorAll(".home-category_ref_text").forEach((n) => {
       const t = normalize(n.textContent);
-      // Hide the "selected" meta tag but still add it to categories
+      // Hide the "selected" tag visually but still add it to categories for filtering
       if (t === "selected") {
         n.setAttribute("hidden", "");
-        cats.add(t); // Still add "selected" to the categories!
+        cats.add(t); // Add "selected" to the filter categories
       } else if (t) {
         cats.add(t);
       }
