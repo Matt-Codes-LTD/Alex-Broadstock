@@ -1,4 +1,4 @@
-// grid-transition.js - Mutes current video on navigation
+// grid-transition.js - Fixed FOUC on home page return
 import { calculateStaggerDelay, clearStaggerCache } from "./stagger-calc.js";
 
 let globalGrid = null;
@@ -67,18 +67,47 @@ export function createGridTransition(options = {}) {
       
       // CRITICAL: Hide home content IMMEDIATELY before it becomes visible
       if (newMain.dataset.barbaNamespace === "home") {
-        gsap.set([
+        // First, use direct element queries for immediate effect
+        const elementsToHide = newMain.querySelectorAll([
           ".nav_wrap",
           ".brand_logo",
           ".nav_link",
           ".home-category_text",
           ".home_hero_text",
           ".home-category_ref_text:not([hidden])",
-          ".home-awards_list"
-        ], {
+          ".home-awards_list",
+          ".home-awards_list > *"
+        ].join(","));
+        
+        // Set via GSAP
+        gsap.set(elementsToHide, {
           opacity: 0,
           visibility: "visible"
         });
+        
+        // ALSO set via inline styles as immediate backup
+        newMain.querySelectorAll(".home_hero_text").forEach(el => {
+          el.style.opacity = "0";
+          el.style.visibility = "visible";
+        });
+        
+        newMain.querySelectorAll(".home-category_ref_text:not([hidden])").forEach(el => {
+          el.style.opacity = "0";
+          el.style.visibility = "visible";
+        });
+        
+        // Hide awards items
+        const awardsItems = newMain.querySelectorAll(".home-awards_list > *");
+        awardsItems.forEach(el => {
+          el.style.opacity = "0";
+        });
+        
+        // Ensure menu wrapper starts hidden
+        const menuWrapper = newMain.querySelector(".home-hero_menu");
+        if (menuWrapper) {
+          menuWrapper.style.opacity = "1";
+          menuWrapper.style.visibility = "visible";
+        }
       }
       
       // Position containers
@@ -177,6 +206,14 @@ function setupContainers(oldMain, newMain) {
   newMain.style.inset = '0';
   newMain.style.zIndex = '0';
   newMain.style.opacity = '0';
+  
+  // Extra insurance for home page elements
+  if (newMain.dataset.barbaNamespace === "home") {
+    // Make absolutely sure project names are hidden
+    newMain.querySelectorAll(".home_hero_text, .home-category_ref_text:not([hidden])").forEach(el => {
+      el.style.opacity = "0";
+    });
+  }
 }
 
 function animateTransition({ oldMain, newMain, grid, divs, cols, rows, oldCleanup, onNavReveal, onComplete }) {
@@ -213,6 +250,15 @@ function animateTransition({ oldMain, newMain, grid, divs, cols, rows, oldCleanu
         
         // Force paint
         newMain.offsetHeight;
+        
+        // One more check to ensure home elements are hidden
+        if (newMain.dataset.barbaNamespace === "home") {
+          newMain.querySelectorAll(".home_hero_text").forEach(el => {
+            if (!el.style.opacity || el.style.opacity === "1") {
+              el.style.opacity = "0";
+            }
+          });
+        }
         
         // Phase 2: Grid scales down to reveal new page
         phase2Timeline = gsap.timeline({
