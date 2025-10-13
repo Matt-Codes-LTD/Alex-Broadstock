@@ -1,5 +1,5 @@
 // assets/v1/core/transitions/nav-reveal.js
-// Navigation reveal animations - Simplified without grid dependencies
+// FIXED: Project navigation overlay now hidden initially to prevent FOUC
 import { ANIMATION, getAnimProps } from "../animation-constants.js";
 
 /**
@@ -197,12 +197,14 @@ export function createProjectNavAnimation(container) {
   
   // Only animate project-specific elements on project pages
   if (namespace === "project") {
+    // FIXED: Set initial hidden states to prevent FOUC
     gsap.set([
       ".project_name",
       ".project-player_center-toggle",
       ".project-player_controls",
       ".project-navigation_overlay"
     ], {
+      opacity: 0,
       visibility: "visible"
     });
     
@@ -253,7 +255,7 @@ export function createProjectNavAnimation(container) {
       ...getAnimProps('playerButtons')
     }, "-=0.4")
     
-    // Navigation overlay
+    // Navigation overlay (Previous/Next buttons)
     .fromTo(".project-navigation_overlay", {
       opacity: 0
     }, {
