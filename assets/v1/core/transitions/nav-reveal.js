@@ -199,6 +199,17 @@ export function createProjectNavAnimation(container) {
   if (namespace === "project") {
     console.log("[NavReveal] Setting up project page animations");
     
+    // CRITICAL: Hide navigation overlay IMMEDIATELY before any animations
+    // This prevents it from being visible while other elements animate
+    const navOverlay = container.querySelector(".project-navigation_overlay");
+    if (navOverlay) {
+      gsap.set(navOverlay, {
+        opacity: 0,
+        visibility: "visible"
+      });
+      console.log("[NavReveal] Navigation overlay hidden initially");
+    }
+    
     // Set initial hidden states - DON'T hide parent containers, only children
     gsap.set([
       ".project_name",
@@ -257,40 +268,19 @@ export function createProjectNavAnimation(container) {
       opacity: 1,
       y: 0,
       ...getAnimProps('playerButtons')
-    }, "-=0.4")
+    }, "-=0.4");
     
-    // Wait for navigation overlay to exist, then animate it
-    .add(() => {
-      // Use a small delay to ensure project-navigation script has initialized
-      const checkAndAnimateNav = () => {
-        const navOverlay = container.querySelector(".project-navigation_overlay");
-        
-        if (navOverlay) {
-          console.log("[NavReveal] Found navigation overlay, animating...");
-          
-          // Set initial state
-          gsap.set(navOverlay, {
-            opacity: 0,
-            visibility: "visible"
-          });
-          
-          // Animate in
-          gsap.to(navOverlay, {
-            opacity: 1,
-            duration: ANIMATION.DURATION.fade,
-            ease: ANIMATION.EASE.fade,
-            onComplete: () => {
-              console.log("[NavReveal] Navigation overlay visible");
-            }
-          });
-        } else {
-          console.warn("[NavReveal] Navigation overlay not found in DOM");
+    // Animate navigation overlay last (if it exists)
+    if (navOverlay) {
+      tl.to(navOverlay, {
+        opacity: 1,
+        duration: ANIMATION.DURATION.fade,
+        ease: ANIMATION.EASE.fade,
+        onComplete: () => {
+          console.log("[NavReveal] Navigation overlay visible");
         }
-      };
-      
-      // Small delay to let project-navigation script initialize
-      setTimeout(checkAndAnimateNav, 100);
-    }, "-=0.5");
+      }, "-=0.5");
+    }
     
     return tl;
   }
