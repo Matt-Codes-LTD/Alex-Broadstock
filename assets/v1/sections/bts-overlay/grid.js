@@ -19,6 +19,17 @@ export function populateGrid(overlay, imageElements) {
 
   console.log('[BTSGrid] Found', validImages.length, 'valid images');
 
+  // Calculate how many images per row based on screen size
+  const imagesPerRow = getImagesPerRow();
+  
+  // Ensure we have enough images to fill at least one complete row
+  // If not enough, duplicate the images cyclically
+  const minImagesNeeded = imagesPerRow;
+  const filledImages = fillToMinimum(validImages, minImagesNeeded);
+  
+  console.log('[BTSGrid] Images per row:', imagesPerRow);
+  console.log('[BTSGrid] Using', filledImages.length, 'images (duplicated if needed)');
+
   // Create 4 duplicate rows for seamless wrapping
   for (let row = 0; row < 4; row++) {
     const contentRow = document.createElement('div');
@@ -28,7 +39,7 @@ export function populateGrid(overlay, imageElements) {
     }
 
     // Add images to this row
-    validImages.forEach(imageSrc => {
+    filledImages.forEach(imageSrc => {
       const mediaDiv = document.createElement('div');
       mediaDiv.className = 'bts-grid_media';
 
@@ -45,7 +56,43 @@ export function populateGrid(overlay, imageElements) {
     container.appendChild(contentRow);
   }
 
-  console.log('[BTSGrid] Grid populated with 4 rows');
+  console.log('[BTSGrid] Grid populated with 4 complete rows');
+}
+
+/**
+ * Determine how many images per row based on viewport
+ */
+function getImagesPerRow() {
+  const width = window.innerWidth;
+  
+  if (width <= 767) {
+    return 3; // Mobile: 3 items per row
+  } else if (width <= 991) {
+    return 4; // Tablet: 4 items per row
+  } else {
+    return 5; // Desktop: 5 items per row
+  }
+}
+
+/**
+ * Fill images array to minimum needed by duplicating cyclically
+ * Ensures complete rows with no gaps
+ */
+function fillToMinimum(images, minNeeded) {
+  if (images.length >= minNeeded) {
+    return images;
+  }
+  
+  // Duplicate images cyclically until we have enough
+  const filled = [...images];
+  let index = 0;
+  
+  while (filled.length < minNeeded) {
+    filled.push(images[index % images.length]);
+    index++;
+  }
+  
+  return filled;
 }
 
 export function cleanupGrid(overlay) {
