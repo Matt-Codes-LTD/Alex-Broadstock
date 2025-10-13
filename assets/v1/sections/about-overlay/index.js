@@ -1,7 +1,6 @@
 // assets/v1/sections/about-overlay/index.js
 import { createRevealAnimation } from "./animations.js";
 
-// Overlay coordination events
 const OVERLAY_EVENTS = {
   REQUEST_OPEN: 'overlay:request-open',
   CLOSING: 'overlay:closing',
@@ -10,7 +9,6 @@ const OVERLAY_EVENTS = {
 };
 
 export default function initAboutOverlay(container) {
-  // Only run on pages with navigation
   const navWrap = container.querySelector('.nav_wrap');
   if (!navWrap) return () => {};
   
@@ -20,42 +18,47 @@ export default function initAboutOverlay(container) {
     return () => {};
   }
   
-  // Find the About button and Back link in nav
+  // Find the About button (required)
   const navLinks = container.querySelectorAll('.nav_link');
   const aboutButton = Array.from(navLinks).find(link => 
     link.textContent.trim() === 'About'
   );
+  
+  if (!aboutButton) {
+    console.warn('[AboutOverlay] About button not found');
+    return () => {};
+  }
+  
+  // Find Back link (optional - only on project pages)
   const backLink = Array.from(navLinks).find(link => 
     link.textContent.trim() === 'Back'
   );
   
-  // Find player elements to hide (if on project page)
+  // Check if we're on home or project page
+  const isHomePage = container.dataset.barbaNamespace === "home";
+  const isProjectPage = container.dataset.barbaNamespace === "project";
+  
+  if (aboutOverlay.dataset.scriptInitialized) return () => {};
+  aboutOverlay.dataset.scriptInitialized = "true";
+
+  // Find player elements (only on project page)
+  const playerWrap = container.querySelector('.project-player_wrap');
+  const video = playerWrap?.querySelector('video');
   const playerControls = container.querySelector('.project-player_controls');
   const navigationOverlay = container.querySelector('.project-navigation_overlay');
   const centerToggle = container.querySelector('.project-player_center-toggle');
   const pausefx = container.querySelector('.project-player_pausefx');
   
-  if (!aboutButton || !backLink) {
-    console.warn('[AboutOverlay] Missing nav elements');
-    return () => {};
-  }
-  
-  if (aboutOverlay.dataset.scriptInitialized) return () => {};
-  aboutOverlay.dataset.scriptInitialized = "true";
-
-  const playerWrap = container.querySelector('.project-player_wrap');
-  const video = playerWrap?.querySelector('video');
   let isOpen = false;
   let isAnimating = false;
   let revealTimeline = null;
-  let originalBackHref = backLink.getAttribute('href');
+  let originalBackHref = backLink?.getAttribute('href');
   let wasPlayingBeforeOpen = false;
   const handlers = [];
 
   // Listen for other overlays requesting to open
   const handleOverlayRequest = (e) => {
     if (e.detail.overlay !== 'about' && isOpen && !isAnimating) {
-      // Another overlay wants to open, close this one smoothly
       closeForTransition();
     }
   };
@@ -66,22 +69,19 @@ export default function initAboutOverlay(container) {
   function open() {
     if (isOpen || isAnimating) return;
     
-    // Request to open (will trigger close on other overlays)
+    // Request to open
     window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.REQUEST_OPEN, { 
       detail: { overlay: 'about' } 
     }));
     
-    // Listen for when another overlay starts closing
     let waitingForOther = false;
     const onOtherClosing = () => {
       waitingForOther = true;
-      // Start opening with cross-fade
       performOpen(true);
     };
     
     window.addEventListener(OVERLAY_EVENTS.CLOSING, onOtherClosing, { once: true });
     
-    // If no other overlay responds within 100ms, just open normally
     setTimeout(() => {
       window.removeEventListener(OVERLAY_EVENTS.CLOSING, onOtherClosing);
       if (!waitingForOther && !isOpen && !isAnimating) {
@@ -98,7 +98,7 @@ export default function initAboutOverlay(container) {
     // Add class to nav for color change
     navWrap.classList.add('has-overlay-open');
 
-    // Store video state and pause
+    // Handle video on project pages
     if (video) {
       wasPlayingBeforeOpen = !video.paused;
       if (wasPlayingBeforeOpen) {
@@ -106,7 +106,7 @@ export default function initAboutOverlay(container) {
       }
     }
 
-    // Show pausefx if on project page
+    // Show pausefx on project pages
     if (pausefx) {
       if (window.gsap) {
         gsap.to(pausefx, { opacity: 1, duration: 0.3, ease: "power2.out" });
@@ -119,36 +119,40 @@ export default function initAboutOverlay(container) {
     aboutOverlay.classList.remove('u-display-none');
     
     if (isCrossFade && window.gsap) {
-      // Cross-fade: start with opacity 0 and fade in
       gsap.set(aboutOverlay, { opacity: 0 });
       gsap.to(aboutOverlay, {
         opacity: 1,
         duration: 0.4,
         ease: "power2.inOut",
         onComplete: () => {
-          // Then run content reveal
           runContentReveal();
         }
       });
     } else {
-      // Normal open
       runContentReveal();
     }
 
-    // Update nav states - fade all except About
-    navLinks.forEach(link => {
-      if (link !== aboutButton) {
-        link.classList.add('u-color-faded');
+    // Update nav states - handle both home and project pages
+    if (isHomePage) {
+      // On home page, just add a close button or use About as toggle
+      aboutButton.setAttribute('data-overlay-open', 'true');
+    } else if (isProjectPage) {
+      // On project page, fade other links and change Back to Close
+      navLinks.forEach(link => {
+        if (link !== aboutButton) {
+          link.classList.add('u-color-faded');
+        }
+      });
+      
+      if (backLink) {
+        backLink.textContent = 'Close';
+        backLink.removeAttribute('href');
+        backLink.style.cursor = 'pointer';
       }
-    });
+    }
 
-    // Change Back to Close
-    backLink.textContent = 'Close';
-    backLink.removeAttribute('href');
-    backLink.style.cursor = 'pointer';
-
-    // Hide player controls if on project page
-    if (window.gsap) {
+    // Hide player controls on project pages
+    if (isProjectPage && window.gsap) {
       if (playerControls || navigationOverlay || centerToggle) {
         gsap.to([playerControls, navigationOverlay, centerToggle].filter(Boolean), {
           opacity: 0,
@@ -156,10 +160,6 @@ export default function initAboutOverlay(container) {
           ease: "power2.out"
         });
       }
-    } else {
-      if (playerControls) playerControls.style.opacity = '0';
-      if (navigationOverlay) navigationOverlay.style.opacity = '0';
-      if (centerToggle) centerToggle.style.opacity = '0';
     }
   }
 
@@ -189,7 +189,6 @@ export default function initAboutOverlay(container) {
   function closeForTransition() {
     if (!isOpen || isAnimating) return;
     
-    // Notify that we're closing
     window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSING, { 
       detail: { overlay: 'about' } 
     }));
@@ -205,33 +204,37 @@ export default function initAboutOverlay(container) {
     navWrap.classList.remove('has-overlay-open');
 
     if (window.gsap && revealTimeline) {
-      // Create a timeline for smoother closing
       const closeTl = gsap.timeline({
         onComplete: () => {
           aboutOverlay.classList.add('u-display-none');
           
-          // Restore nav states
-          navLinks.forEach(link => {
-            link.classList.remove('u-color-faded');
-          });
+          // Restore nav states based on page type
+          if (isHomePage) {
+            aboutButton.removeAttribute('data-overlay-open');
+          } else if (isProjectPage) {
+            navLinks.forEach(link => {
+              link.classList.remove('u-color-faded');
+            });
 
-          // Restore Back link
-          backLink.textContent = 'Back';
-          backLink.setAttribute('href', originalBackHref);
-          backLink.style.cursor = '';
+            if (backLink) {
+              backLink.textContent = 'Back';
+              backLink.setAttribute('href', originalBackHref);
+              backLink.style.cursor = '';
+            }
+          }
 
-          // Hide pausefx if on project page
+          // Hide pausefx on project pages
           if (pausefx) {
             gsap.to(pausefx, { opacity: 0, duration: 0.3, ease: "power2.out" });
           }
 
-          // Resume video if it was playing
+          // Resume video on project pages
           if (video && wasPlayingBeforeOpen) {
             video.play().catch(() => {});
           }
 
-          // Show player controls again if on project page
-          if (playerControls || navigationOverlay || centerToggle) {
+          // Show player controls on project pages
+          if (isProjectPage && (playerControls || navigationOverlay || centerToggle)) {
             gsap.to([playerControls, navigationOverlay, centerToggle].filter(Boolean), {
               opacity: 1,
               duration: 0.3,
@@ -263,7 +266,7 @@ export default function initAboutOverlay(container) {
         }
       });
 
-      // Smoother content fade out - faster but gentler
+      // Fade out animation
       closeTl.to([
         '.about-award-item',
         '.about-work-link',
@@ -275,32 +278,36 @@ export default function initAboutOverlay(container) {
         '.about-bio-label'
       ], {
         opacity: 0,
-        y: -10, // Reduced from -15
-        filter: "blur(10px)", // Increased blur for softer transition
-        duration: 0.25, // Slightly faster content fade
-        stagger: 0.015, // Tighter stagger
+        y: -10,
+        filter: "blur(10px)",
+        duration: 0.25,
+        stagger: 0.015,
         ease: "power2.in"
       })
-      
-      // Then fade the entire overlay more smoothly
       .to(aboutOverlay, {
         opacity: 0,
-        scale: 0.98, // Subtle scale down for gentler exit
-        duration: 0.6, // Longer fade for smoother transition
-        ease: "power3.inOut" // Smoother easing curve
-      }, "-=0.1"); // Slight overlap with content fade
+        scale: 0.98,
+        duration: 0.6,
+        ease: "power3.inOut"
+      }, "-=0.1");
 
     } else {
+      // No animation fallback
       aboutOverlay.classList.add('u-display-none');
       
-      // Restore everything without animation
-      navLinks.forEach(link => {
-        link.classList.remove('u-color-faded');
-      });
+      if (isHomePage) {
+        aboutButton.removeAttribute('data-overlay-open');
+      } else if (isProjectPage) {
+        navLinks.forEach(link => {
+          link.classList.remove('u-color-faded');
+        });
 
-      backLink.textContent = 'Back';
-      backLink.setAttribute('href', originalBackHref);
-      backLink.style.cursor = '';
+        if (backLink) {
+          backLink.textContent = 'Back';
+          backLink.setAttribute('href', originalBackHref);
+          backLink.style.cursor = '';
+        }
+      }
 
       if (pausefx) pausefx.style.opacity = '0';
       if (video && wasPlayingBeforeOpen) video.play().catch(() => {});
@@ -319,7 +326,7 @@ export default function initAboutOverlay(container) {
   };
 
   const onBackClick = (e) => {
-    if (isOpen) {
+    if (isOpen && isProjectPage) {
       e.preventDefault();
       close();
     }
@@ -338,13 +345,17 @@ export default function initAboutOverlay(container) {
   };
 
   aboutButton.addEventListener('click', onAboutClick);
-  backLink.addEventListener('click', onBackClick);
+  if (backLink) {
+    backLink.addEventListener('click', onBackClick);
+  }
   document.addEventListener('keydown', onKeyDown);
   aboutOverlay.addEventListener('click', onOverlayClick);
 
   handlers.push(() => {
     aboutButton.removeEventListener('click', onAboutClick);
-    backLink.removeEventListener('click', onBackClick);
+    if (backLink) {
+      backLink.removeEventListener('click', onBackClick);
+    }
     document.removeEventListener('keydown', onKeyDown);
     aboutOverlay.removeEventListener('click', onOverlayClick);
   });
