@@ -1,5 +1,5 @@
 // assets/v1/core/transitions/page-transition.js
-// Panel slide transition: left to center, load page, center to right
+// FIXED: Panel now stays at 0% between leave and enter phases
 
 export function createPageTransition(options = {}) {
   const { onNavReveal = () => {} } = options;
@@ -20,7 +20,7 @@ export function createPageTransition(options = {}) {
     transitionPanel = document.createElement('div');
     transitionPanel.className = 'page-transition-panel';
     
-    // Initial styles - start off-screen left
+    // Initial styles - DON'T set transform here, let GSAP handle it
     Object.assign(transitionPanel.style, {
       position: 'fixed',
       top: '0',
@@ -29,9 +29,10 @@ export function createPageTransition(options = {}) {
       height: '100vh',
       backgroundColor: 'var(--_theme---background, #000000)',
       zIndex: '99999',
-      transform: 'translateX(-100%)',
       willChange: 'transform',
-      pointerEvents: 'none'
+      pointerEvents: 'none',
+      opacity: '0', // Start invisible, GSAP will make visible
+      visibility: 'hidden' // Start hidden, GSAP will show
     });
     
     document.body.appendChild(transitionPanel);
@@ -74,16 +75,26 @@ export function createPageTransition(options = {}) {
         gsap.set(panel, {
           xPercent: -100,
           opacity: 1,
-          visibility: 'visible'
+          visibility: 'visible',
+          pointerEvents: 'none'
         });
         
-        // Slide to center
+        // Slide to center and KEEP IT THERE
         await gsap.to(panel, {
           xPercent: 0,
           duration: 0.6,
           ease: "power2.inOut",
           onComplete: () => {
             console.log("[Transition] Panel is now at center (0%)");
+            // CRITICAL: Lock panel at 0% with higher specificity
+            gsap.set(panel, {
+              xPercent: 0,
+              x: 0,
+              transform: 'translateX(0%)',
+              opacity: 1,
+              visibility: 'visible',
+              pointerEvents: 'none'
+            });
           }
         });
       } else {
@@ -92,6 +103,7 @@ export function createPageTransition(options = {}) {
         panel.style.transform = 'translateX(-100%)';
         panel.style.opacity = '1';
         panel.style.visibility = 'visible';
+        panel.style.pointerEvents = 'none';
         
         // Force reflow
         panel.offsetHeight;
@@ -100,10 +112,7 @@ export function createPageTransition(options = {}) {
         await new Promise(resolve => setTimeout(resolve, 600));
       }
       
-      console.log("[Transition] LEAVE COMPLETE: Panel now covers screen");
-      
-      // IMPORTANT: Do NOT remove or reset the panel here!
-      // It needs to persist for the enter phase
+      console.log("[Transition] LEAVE COMPLETE: Panel locked at center (0%)");
     },
     
     // PHASE 2: Load new page behind panel, then slide panel out
@@ -129,19 +138,24 @@ export function createPageTransition(options = {}) {
         return;
       }
       
-      console.log("[Transition] Panel found, setting up new page behind it");
+      console.log("[Transition] Panel found, ensuring it stays at center (0%)");
       
-      // Ensure panel is still at center and visible
+      // CRITICAL: Lock panel at 0% before doing anything else
       if (window.gsap) {
         gsap.set(panel, {
           xPercent: 0,
+          x: 0,
+          transform: 'translateX(0%)',
           opacity: 1,
-          visibility: 'visible'
+          visibility: 'visible',
+          pointerEvents: 'none',
+          immediateRender: true
         });
       } else {
         panel.style.transform = 'translateX(0%)';
         panel.style.opacity = '1';
         panel.style.visibility = 'visible';
+        panel.style.pointerEvents = 'none';
       }
       
       // Prepare new page (hide certain elements if it's home page)
@@ -189,10 +203,10 @@ export function createPageTransition(options = {}) {
       // Reset scroll position
       window.scrollTo(0, 0);
       
-      // Small delay to ensure new page is rendered
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Wait for new page to fully render and scripts to initialize
+      await new Promise(resolve => setTimeout(resolve, 300));
       
-      console.log("[Transition] New page ready, sliding panel out to right");
+      console.log("[Transition] New page ready behind panel, sliding panel out to right");
       
       // ANIMATE: Panel slides from 0% to 100%
       if (window.gsap) {
