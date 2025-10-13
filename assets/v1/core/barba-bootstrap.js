@@ -1,6 +1,6 @@
-// assets/v1/core/barba-bootstrap.js - SIMPLIFIED VERSION
+// assets/v1/core/barba-bootstrap.js - Updated with wipe transition
 import { initPageScripts, initGlobal } from "./page-scripts.js";
-import { createSplitScreenTransition } from "./transitions/split-screen.js";
+import { createSimpleWipeTransition } from "./transitions/simple-wipe.js";
 import { createProjectNavAnimation } from "./transitions/nav-reveal.js";
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -12,8 +12,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // Initialize global features
   initGlobal();
   
-  // Create split screen transition
-  const transition = createSplitScreenTransition({
+  // Create simple wipe transition
+  const wipeTransition = createSimpleWipeTransition({
     onNavReveal: createProjectNavAnimation
   });
   
@@ -23,7 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Initialize Barba
   barba.init({
     transitions: [{
-      name: "split-screen",
+      name: "wipe-transition",
       
       once({ next }) {
         const main = next.container;
@@ -33,9 +33,14 @@ document.addEventListener("DOMContentLoaded", () => {
         main.__cleanup = activeCleanup;
         
         // Ensure visibility
-        gsap.set(main, { opacity: 1, scale: 1 });
+        if (window.gsap) {
+          gsap.set(main, { opacity: 1, scale: 1 });
+        } else {
+          main.style.opacity = "1";
+          main.style.transform = "scale(1)";
+        }
         
-        // Animate nav on initial page load
+        // Animate nav on initial page load if it's a project page
         createProjectNavAnimation(main);
         
         // Clear the initial load flag
@@ -44,31 +49,37 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 100);
       },
       
-      leave: transition.leave,
-      enter: transition.enter,
+      async leave({ current }) {
+        // Run the wipe out
+        await wipeTransition.leave({ current });
+      },
       
-      beforeEnter({ next }) {
+      async enter({ current, next }) {
         // Clean up old page scripts
         if (activeCleanup) {
           try {
             activeCleanup();
-            console.log("[Barba] Cleanup complete");
+            console.log("[Barba] Old container cleanup complete");
           } catch (err) {
             console.warn("[Barba] Cleanup error:", err);
           }
           activeCleanup = null;
         }
         
-        // Initialize new page scripts
+        // Initialize new page
         const newCleanup = initPageScripts(next.container);
         next.container.__cleanup = newCleanup;
         activeCleanup = newCleanup;
+        
+        // Run wipe reveal
+        return wipeTransition.enter({ current, next });
       }
     }],
     prefetch: true,
     cacheIgnore: false,
     timeout: 10000,
     prevent: ({ el }) => {
+      // Prevent Barba on external links and anchors
       return el.hasAttribute('target') || 
              el.getAttribute('href')?.startsWith('#') ||
              el.getAttribute('href')?.startsWith('mailto:') ||
@@ -99,6 +110,4 @@ document.addEventListener("DOMContentLoaded", () => {
       activeCleanup = null;
     }
   });
-  
-  console.log("[Barba] initialized with split-screen transition");
 });
