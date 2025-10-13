@@ -1,11 +1,16 @@
-// assets/v1/core/transitions/split-screen.js - FIXED
+// assets/v1/core/transitions/split-screen.js - FIXED VERSION
 import { ANIMATION } from "../animation-constants.js";
 
 export function createSplitScreenTransition(options = {}) {
   const { onNavReveal = () => {} } = options;
   
+  // Store panels at module level to share between phases
+  let panels = null;
+  
   return {
     async leave({ current, trigger }) {
+      console.log("[SplitScreen] Leave phase starting");
+      
       // Mark as navigating
       document.body.classList.add('barba-navigating');
       
@@ -29,20 +34,19 @@ export function createSplitScreenTransition(options = {}) {
       
       // Try to determine next namespace from the clicked link
       if (trigger && trigger.href) {
-        // Check if it's a project page (has /work/ in URL)
         if (trigger.href.includes('/work/') || trigger.href.includes('/project/')) {
           nextNamespace = 'project';
-        } else if (trigger.href === '/' || trigger.href.endsWith('.com/') || trigger.href.endsWith('.com')) {
+        } else if (trigger.href === '/' || trigger.href.endsWith('.com/') || trigger.href.endsWith('.com') || trigger.href.includes('/#')) {
           nextNamespace = 'home';
         }
       }
       
-      // Determine direction based on page hierarchy
+      // Determine direction
       const isForward = currentNamespace === 'home' && nextNamespace === 'project';
       const isBackward = currentNamespace === 'project' && nextNamespace === 'home';
       
-      console.log(`[SplitScreen] Direction: ${isForward ? 'forward' : isBackward ? 'backward' : 'lateral'}`);
       console.log(`[SplitScreen] Current: ${currentNamespace}, Next: ${nextNamespace}`);
+      console.log(`[SplitScreen] Direction: ${isForward ? 'forward' : isBackward ? 'backward' : 'lateral'}`);
       
       // Create split panels
       const leftPanel = document.createElement('div');
@@ -68,7 +72,7 @@ export function createSplitScreenTransition(options = {}) {
         document.body.appendChild(panel);
       });
       
-      // ADD BRAND ELEMENT TO PANELS
+      // ADD BRAND ELEMENT
       const brandMark = document.createElement('div');
       brandMark.className = 'transition-panel__brand';
       brandMark.innerHTML = 'AB';
@@ -84,21 +88,19 @@ export function createSplitScreenTransition(options = {}) {
         opacity: '0.1',
         letterSpacing: '0.1em',
         pointerEvents: 'none',
-        userSelect: 'none',
-        willChange: 'transform, opacity'
+        userSelect: 'none'
       });
       
-      // Add brand to both panels
       leftPanel.appendChild(brandMark.cloneNode(true));
       rightPanel.appendChild(brandMark.cloneNode(true));
       
-      const leftBrand = leftPanel.querySelector('.transition-panel__brand');
-      const rightBrand = rightPanel.querySelector('.transition-panel__brand');
+      // Store panels for enter phase
+      panels = { leftPanel, rightPanel, isForward, isBackward };
       
-      // Create timeline for entrance
+      // Animate panels in
       const tl = gsap.timeline();
       
-      // Fade/blur current content
+      // Fade current content
       tl.to(current.container, {
         opacity: 0.3,
         filter: 'blur(8px)',
@@ -107,9 +109,9 @@ export function createSplitScreenTransition(options = {}) {
         ease: "power2.in"
       }, 0);
       
-      // DIRECTION-BASED PANEL ENTRANCE WITH BRAND ANIMATION
-      if (isForward) {
-        // Going deeper: panels close inward
+      // Animate panels based on direction
+      if (isForward || !isBackward) {
+        // Close inward for forward or lateral
         tl.fromTo(leftPanel, {
           scaleX: 0
         }, {
@@ -125,20 +127,8 @@ export function createSplitScreenTransition(options = {}) {
           duration: 0.5,
           ease: "power3.inOut"
         }, 0.08);
-        
-        // Subtle brand rotation as panels enter
-        tl.fromTo([leftBrand, rightBrand], {
-          rotation: 0,
-          opacity: 0
-        }, {
-          rotation: 90,
-          opacity: 0.1,
-          duration: 0.7,
-          ease: "power2.out"
-        }, 0.2);
-        
-      } else if (isBackward) {
-        // Going back: panels slide in from outside
+      } else {
+        // Slide in from outside for backward
         tl.fromTo(leftPanel, {
           xPercent: -100
         }, {
@@ -154,64 +144,24 @@ export function createSplitScreenTransition(options = {}) {
           duration: 0.5,
           ease: "power3.out"
         }, 0.08);
-        
-        // Brand scales up as panels slide in
-        tl.fromTo([leftBrand, rightBrand], {
-          scale: 0.5,
-          opacity: 0
-        }, {
-          scale: 1,
-          opacity: 0.1,
-          duration: 0.6,
-          ease: "back.out(1.2)"
-        }, 0.2);
-        
-      } else {
-        // Lateral movement: diagonal wipe
-        tl.fromTo(leftPanel, {
-          xPercent: -50,
-          scaleX: 0
-        }, {
-          xPercent: 0,
-          scaleX: 1,
-          duration: 0.5,
-          ease: "power3.inOut"
-        }, 0);
-        
-        tl.fromTo(rightPanel, {
-          xPercent: 50,
-          scaleX: 0
-        }, {
-          xPercent: 0,
-          scaleX: 1,
-          duration: 0.5,
-          ease: "power3.inOut"
-        }, 0.08);
-        
-        // Brand fades in simply
-        tl.fromTo([leftBrand, rightBrand], {
-          opacity: 0
-        }, {
-          opacity: 0.1,
-          duration: 0.5,
-          ease: "power2.out"
-        }, 0.2);
       }
       
       await tl;
       
-      // Pass direction info to enter phase
-      return { leftPanel, rightPanel, isForward, isBackward };
+      console.log("[SplitScreen] Leave phase complete");
     },
     
-    async enter({ current, next }, leaveData) {
-      const { leftPanel, rightPanel, isForward, isBackward } = leaveData;
+    async enter({ current, next }) {
+      console.log("[SplitScreen] Enter phase starting");
+      
+      if (!panels) {
+        console.error("[SplitScreen] No panels found!");
+        return;
+      }
+      
+      const { leftPanel, rightPanel, isForward, isBackward } = panels;
       const oldMain = current.container;
       const newMain = next.container;
-      
-      // Get brand elements for exit animation
-      const leftBrand = leftPanel.querySelector('.transition-panel__brand');
-      const rightBrand = rightPanel.querySelector('.transition-panel__brand');
       
       // Hide home content if navigating to home
       if (newMain.dataset.barbaNamespace === "home") {
@@ -225,12 +175,10 @@ export function createSplitScreenTransition(options = {}) {
           ".home-awards_list"
         ].join(","));
         
-        if (window.gsap) {
-          gsap.set(elementsToHide, {
-            opacity: 0,
-            visibility: "visible"
-          });
-        }
+        gsap.set(elementsToHide, {
+          opacity: 0,
+          visibility: "visible"
+        });
       }
       
       // Position containers
@@ -242,7 +190,7 @@ export function createSplitScreenTransition(options = {}) {
       newMain.style.inset = '0';
       newMain.style.zIndex = '2';
       
-      // Prepare new content based on direction
+      // Prepare new content
       gsap.set(newMain, {
         opacity: 0,
         scale: isForward ? 1.05 : isBackward ? 0.95 : 1,
@@ -250,7 +198,9 @@ export function createSplitScreenTransition(options = {}) {
       });
       
       // Remove old container
-      oldMain.remove();
+      if (oldMain?.parentNode) {
+        oldMain.remove();
+      }
       
       // Reveal new content
       await gsap.to(newMain, {
@@ -264,19 +214,11 @@ export function createSplitScreenTransition(options = {}) {
       // Small pause
       await gsap.delayedCall(0.1);
       
-      // DIRECTION-BASED PANEL EXIT WITH BRAND ANIMATION
+      // Animate panels out
       const exitTl = gsap.timeline();
       
-      if (isForward) {
-        // Fade out brand marks as panels split
-        exitTl.to([leftBrand, rightBrand], {
-          opacity: 0,
-          scale: 1.2,
-          duration: 0.4,
-          ease: "power2.in"
-        }, 0);
-        
-        // Panels split apart
+      if (isForward || !isBackward) {
+        // Split apart for forward/lateral
         exitTl.to(leftPanel, {
           xPercent: -100,
           duration: 0.6,
@@ -288,24 +230,8 @@ export function createSplitScreenTransition(options = {}) {
           duration: 0.6,
           ease: "power3.in"
         }, 0.08);
-        
-      } else if (isBackward) {
-        // Rotate brand marks as panels close
-        exitTl.to(leftBrand, {
-          rotation: -90,
-          opacity: 0,
-          duration: 0.5,
-          ease: "power2.in"
-        }, 0);
-        
-        exitTl.to(rightBrand, {
-          rotation: 90,
-          opacity: 0,
-          duration: 0.5,
-          ease: "power2.in"
-        }, 0);
-        
-        // Panels scale back to center
+      } else {
+        // Scale back to center for backward
         exitTl.to(leftPanel, {
           scaleX: 0,
           transformOrigin: 'right center',
@@ -319,34 +245,14 @@ export function createSplitScreenTransition(options = {}) {
           duration: 0.6,
           ease: "power3.inOut"
         }, 0.08);
-        
-      } else {
-        // Simple fade for brand on lateral movement
-        exitTl.to([leftBrand, rightBrand], {
-          opacity: 0,
-          duration: 0.3,
-          ease: "power2.in"
-        }, 0);
-        
-        // Panels slide up and down
-        exitTl.to(leftPanel, {
-          yPercent: -100,
-          duration: 0.6,
-          ease: "power3.in"
-        }, 0);
-        
-        exitTl.to(rightPanel, {
-          yPercent: 100,
-          duration: 0.6,
-          ease: "power3.in"
-        }, 0.08);
       }
       
       await exitTl;
       
-      // Clean up
+      // Clean up panels
       leftPanel.remove();
       rightPanel.remove();
+      panels = null;
       
       // Reset container
       newMain.style.position = '';
@@ -366,6 +272,8 @@ export function createSplitScreenTransition(options = {}) {
       
       // Run nav animations
       onNavReveal(newMain);
+      
+      console.log("[SplitScreen] Enter phase complete");
     }
   };
 }
