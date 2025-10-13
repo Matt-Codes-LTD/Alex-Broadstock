@@ -273,7 +273,6 @@ export default function initAboutOverlay(container) {
       })
       .to(aboutOverlay, {
         opacity: 0,
-        scale: 0.98,
         duration: 0.6,
         ease: "power3.inOut"
       }, "-=0.1");
