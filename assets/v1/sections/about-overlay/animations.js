@@ -13,7 +13,7 @@ export function createRevealAnimation(container) {
     '.about-work-label',
     '.about-work-link',
     '.about-awards-label',
-    '.about-awards-item'
+    '.about-award-item'
   ], {
     opacity: 0,
     y: 15,
@@ -83,7 +83,7 @@ export function createRevealAnimation(container) {
     ease: "power2.out"
   }, "-=0.25")
   
-  .to('.about-awards-item', {
+  .to('.about-award-item', {
     opacity: 1,
     y: 0,
     filter: "blur(0px)",

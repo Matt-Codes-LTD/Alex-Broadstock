@@ -207,7 +207,7 @@ export default function initAboutOverlay(container) {
     if (window.gsap && revealTimeline) {
       // Reverse animation
       gsap.to([
-        '.about-awards-item',
+        '.about-award-item',
         '.about-work-link',
         '.about-contact-link',
         '.about-bio-content',
@@ -263,7 +263,7 @@ export default function initAboutOverlay(container) {
             '.about-work-label',
             '.about-work-link',
             '.about-awards-label',
-            '.about-awards-item'
+            '.about-award-item'
           ], { clearProps: "all" });
           
           gsap.set(aboutOverlay, { clearProps: "opacity" });
