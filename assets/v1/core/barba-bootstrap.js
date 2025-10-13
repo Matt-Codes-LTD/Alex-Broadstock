@@ -1,6 +1,6 @@
-// barba-bootstrap.js - Simplified with fade transition
+// assets/v1/core/barba-bootstrap.js
 import { initPageScripts, initGlobal } from "./page-scripts.js";
-import { createSimpleFadeTransition } from "./transitions/simple-fade.js";
+import { createSplitScreenTransition } from "./transitions/split-screen.js";
 import { createProjectNavAnimation } from "./transitions/nav-reveal.js";
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -12,8 +12,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // Initialize global features
   initGlobal();
   
-  // Create simple fade transition
-  const fadeTransition = createSimpleFadeTransition({
+  // Create split screen transition with nav reveal callback
+  const splitScreenTransition = createSplitScreenTransition({
     onNavReveal: createProjectNavAnimation
   });
   
@@ -23,7 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Initialize Barba
   barba.init({
     transitions: [{
-      name: "fade-transition",
+      name: "split-screen-transition",
       
       once({ next }) {
         const main = next.container;
@@ -49,12 +49,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 100);
       },
       
-      async leave({ current }) {
-        // Run the fade out
-        await fadeTransition.leave({ current });
+      async leave(data) {
+        // Run the split screen leave animation
+        return await splitScreenTransition.leave(data);
       },
       
-      async enter({ current, next }) {
+      async enter(data) {
         // Clean up old page scripts
         if (activeCleanup) {
           try {
@@ -66,20 +66,31 @@ document.addEventListener("DOMContentLoaded", () => {
           activeCleanup = null;
         }
         
-        // Initialize new page
-        const newCleanup = initPageScripts(next.container);
-        next.container.__cleanup = newCleanup;
+        // Initialize new page scripts
+        const newCleanup = initPageScripts(data.next.container);
+        data.next.container.__cleanup = newCleanup;
         activeCleanup = newCleanup;
         
-        // Run transition
-        return fadeTransition.enter({ current, next });
+        // Run split screen enter animation with leave data
+        // The leave method returns data that enter needs
+        return await splitScreenTransition.enter(data, data.current.leaveResult);
+      },
+      
+      // Store leave result for enter phase
+      beforeLeave(data) {
+        data.current.leaveResult = null;
+      },
+      
+      afterLeave(data) {
+        // The leave promise result gets stored here
+        data.current.leaveResult = data.current.leavePromise;
       }
     }],
     prefetch: true,
     cacheIgnore: false,
     timeout: 10000,
     prevent: ({ el }) => {
-      // Prevent Barba on external links and anchors
+      // Prevent Barba on external links, anchors, mailto, and tel links
       return el.hasAttribute('target') || 
              el.getAttribute('href')?.startsWith('#') ||
              el.getAttribute('href')?.startsWith('mailto:') ||
@@ -87,11 +98,27 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
   
+  // Hook to capture leave data properly
+  barba.hooks.leave((data) => {
+    // Store the promise so we can pass its result to enter
+    return new Promise(async (resolve) => {
+      const leaveData = await splitScreenTransition.leave(data);
+      data.current.leaveData = leaveData;
+      resolve();
+    });
+  });
+  
+  barba.hooks.enter((data) => {
+    // Use the stored leave data
+    return splitScreenTransition.enter(data, data.current.leaveData);
+  });
+  
   // Handle browser back/forward with cleanup
   window.addEventListener('popstate', () => {
     if (activeCleanup) {
       try {
         activeCleanup();
+        console.log("[Barba] Popstate cleanup complete");
       } catch (err) {
         console.warn("[Barba] Popstate cleanup error:", err);
       }
@@ -104,10 +131,13 @@ document.addEventListener("DOMContentLoaded", () => {
     if (activeCleanup) {
       try {
         activeCleanup();
+        console.log("[Barba] Unload cleanup complete");
       } catch (err) {
         console.warn("[Barba] Unload cleanup error:", err);
       }
       activeCleanup = null;
     }
   });
+  
+  console.log("[Barba] init complete with split-screen transition");
 });

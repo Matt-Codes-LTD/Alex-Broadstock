@@ -1,4 +1,4 @@
-// assets/v1/core/page-scripts.js
+// assets/v1/core/page-scripts.js - NO CHANGES NEEDED
 import initHomeHero from "../sections/home-hero/index.js";
 import initProjectPlayer from "../sections/project-player/index.js";
 import initSiteLoader from "../sections/site-loader/index.js";
@@ -14,7 +14,7 @@ export function initPageScripts(container) {
   cleanups.push(initProjectPlayer(container));
   cleanups.push(initProjectNavigation(container));
   cleanups.push(initProjectInfo(container));
-  cleanups.push(initAboutOverlay(container)); // Add this line
+  cleanups.push(initAboutOverlay(container));
   
   if (container.dataset.barbaNamespace === "home") {
     cleanups.push(initMobileFilters(container));
