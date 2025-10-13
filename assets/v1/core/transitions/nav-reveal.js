@@ -199,11 +199,14 @@ export function createProjectNavAnimation(container) {
   if (namespace === "project") {
     console.log("[NavReveal] Setting up project page animations");
     
-    // Set initial hidden states for elements that definitely exist
+    // Set initial hidden states - DON'T hide parent containers, only children
     gsap.set([
       ".project_name",
       ".project-player_center-toggle",
-      ".project-player_controls"
+      ".project-player_btn--play", 
+      ".project-player_timeline",
+      ".project-player_btn--mute", 
+      ".project-player_btn--fs"
     ], {
       opacity: 0,
       visibility: "visible"
@@ -241,7 +244,7 @@ export function createProjectNavAnimation(container) {
       ...getAnimProps('brand')
     }, "-=0.3")
     
-    // Player controls
+    // Player controls (individual buttons, not parent container)
     .fromTo([
       ".project-player_btn--play", 
       ".project-player_timeline",
