@@ -22,10 +22,13 @@ export default function initBTSOverlay(container) {
     return () => {};
   }
   
-  // Find the BTS button
+  // Find the BTS button and Back link
   const navLinks = container.querySelectorAll('.nav_link');
   const btsButton = Array.from(navLinks).find(link => 
     link.textContent.trim() === 'BTS'
+  );
+  const backLink = Array.from(navLinks).find(link => 
+    link.textContent.trim() === 'Back'
   );
   
   if (!btsButton) {
@@ -35,6 +38,8 @@ export default function initBTSOverlay(container) {
   
   if (btsOverlay.dataset.scriptInitialized) return () => {};
   btsOverlay.dataset.scriptInitialized = "true";
+  
+  let originalBackHref = backLink?.getAttribute('href');
 
   // Find player elements
   const playerWrap = container.querySelector('.project-player_wrap');
@@ -128,6 +133,13 @@ export default function initBTSOverlay(container) {
       }
     });
 
+    // Change Back to Close
+    if (backLink) {
+      backLink.textContent = 'Close';
+      backLink.removeAttribute('href');
+      backLink.style.cursor = 'pointer';
+    }
+
     // Hide player controls
     if (window.gsap) {
       if (playerControls || navigationOverlay || centerToggle) {
@@ -203,6 +215,13 @@ export default function initBTSOverlay(container) {
           link.classList.remove('u-color-faded');
         });
 
+        // Restore Back link
+        if (backLink) {
+          backLink.textContent = 'Back';
+          backLink.setAttribute('href', originalBackHref);
+          backLink.style.cursor = '';
+        }
+
         // Hide pausefx
         if (pausefx) pausefx.style.opacity = '0';
 
@@ -236,6 +255,12 @@ export default function initBTSOverlay(container) {
         link.classList.remove('u-color-faded');
       });
 
+      if (backLink) {
+        backLink.textContent = 'Back';
+        backLink.setAttribute('href', originalBackHref);
+        backLink.style.cursor = '';
+      }
+
       if (pausefx) pausefx.style.opacity = '0';
       if (video && wasPlayingBeforeOpen) video.play().catch(() => {});
       if (playerControls) playerControls.style.opacity = '1';
@@ -252,6 +277,13 @@ export default function initBTSOverlay(container) {
     isOpen ? close() : open();
   };
 
+  const onBackClick = (e) => {
+    if (isOpen) {
+      e.preventDefault();
+      close();
+    }
+  };
+
   const onKeyDown = (e) => {
     if (e.key === 'Escape' && isOpen) {
       close();
@@ -265,11 +297,17 @@ export default function initBTSOverlay(container) {
   };
 
   btsButton.addEventListener('click', onBTSClick);
+  if (backLink) {
+    backLink.addEventListener('click', onBackClick);
+  }
   document.addEventListener('keydown', onKeyDown);
   btsOverlay.addEventListener('click', onOverlayClick);
 
   handlers.push(() => {
     btsButton.removeEventListener('click', onBTSClick);
+    if (backLink) {
+      backLink.removeEventListener('click', onBackClick);
+    }
     document.removeEventListener('keydown', onKeyDown);
     btsOverlay.removeEventListener('click', onOverlayClick);
   });
