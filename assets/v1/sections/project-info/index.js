@@ -1,6 +1,14 @@
 // assets/v1/sections/project-info/index.js
 import { createRevealAnimation } from "./animations.js";
 
+// Overlay coordination events
+const OVERLAY_EVENTS = {
+  REQUEST_OPEN: 'overlay:request-open',
+  CLOSING: 'overlay:closing',
+  OPENED: 'overlay:opened',
+  CLOSED: 'overlay:closed'
+};
+
 export default function initProjectInfo(container) {
   if (container.dataset.barbaNamespace !== "project") return () => {};
   
@@ -32,14 +40,54 @@ export default function initProjectInfo(container) {
 
   const video = playerWrap.querySelector('video');
   let isOpen = false;
+  let isAnimating = false;
   let revealTimeline = null;
   let originalBackHref = backLink.getAttribute('href');
   let wasMutedBeforeOpen = false;
   const handlers = [];
 
+  // Listen for other overlays requesting to open
+  const handleOverlayRequest = (e) => {
+    if (e.detail.overlay !== 'info' && isOpen && !isAnimating) {
+      // Another overlay wants to open, close this one smoothly
+      closeForTransition();
+    }
+  };
+  
+  window.addEventListener(OVERLAY_EVENTS.REQUEST_OPEN, handleOverlayRequest);
+  handlers.push(() => window.removeEventListener(OVERLAY_EVENTS.REQUEST_OPEN, handleOverlayRequest));
+
   function open() {
-    if (isOpen) return;
+    if (isOpen || isAnimating) return;
+    
+    // Request to open (will trigger close on other overlays)
+    window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.REQUEST_OPEN, { 
+      detail: { overlay: 'info' } 
+    }));
+    
+    // Listen for when another overlay starts closing
+    let waitingForOther = false;
+    const onOtherClosing = () => {
+      waitingForOther = true;
+      // Start opening with cross-fade
+      performOpen(true);
+    };
+    
+    window.addEventListener(OVERLAY_EVENTS.CLOSING, onOtherClosing, { once: true });
+    
+    // If no other overlay responds within 100ms, just open normally
+    setTimeout(() => {
+      window.removeEventListener(OVERLAY_EVENTS.CLOSING, onOtherClosing);
+      if (!waitingForOther && !isOpen && !isAnimating) {
+        performOpen(false);
+      }
+    }, 100);
+  }
+
+  function performOpen(isCrossFade) {
+    if (isOpen || isAnimating) return;
     isOpen = true;
+    isAnimating = true;
 
     // Store mute state and mute video (but keep playing)
     if (video) {
@@ -64,6 +112,23 @@ export default function initProjectInfo(container) {
 
     // Show overlay
     infoOverlay.classList.remove('u-display-none');
+    
+    if (isCrossFade && window.gsap) {
+      // Cross-fade: start with opacity 0 and fade in
+      gsap.set(infoOverlay, { opacity: 0 });
+      gsap.to(infoOverlay, {
+        opacity: 1,
+        duration: 0.4,
+        ease: "power2.inOut",
+        onComplete: () => {
+          // Then run content reveal
+          runContentReveal();
+        }
+      });
+    } else {
+      // Normal open
+      runContentReveal();
+    }
 
     // Update nav states
     navLinks.forEach(link => {
@@ -89,16 +154,45 @@ export default function initProjectInfo(container) {
       if (navigationOverlay) navigationOverlay.style.opacity = '0';
       if (centerToggle) centerToggle.style.opacity = '0';
     }
+  }
 
-    // Run reveal animation
+  function runContentReveal() {
     if (window.gsap) {
       revealTimeline = createRevealAnimation(infoOverlay);
+      if (revealTimeline) {
+        revealTimeline.eventCallback('onComplete', () => {
+          isAnimating = false;
+          window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.OPENED, { 
+            detail: { overlay: 'info' } 
+          }));
+        });
+      } else {
+        isAnimating = false;
+      }
+    } else {
+      isAnimating = false;
     }
   }
 
   function close() {
-    if (!isOpen) return;
+    if (!isOpen || isAnimating) return;
+    performClose(true);
+  }
+
+  function closeForTransition() {
+    if (!isOpen || isAnimating) return;
+    
+    // Notify that we're closing
+    window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSING, { 
+      detail: { overlay: 'info' } 
+    }));
+    
+    performClose(false);
+  }
+
+  function performClose(dispatchComplete) {
     isOpen = false;
+    isAnimating = true;
 
     if (window.gsap && revealTimeline) {
       gsap.to([
@@ -164,36 +258,41 @@ export default function initProjectInfo(container) {
             '.project-info_awards-label',
             '.project-info_award-item'
           ], { clearProps: "all" });
+          
+          gsap.set(infoOverlay, { clearProps: "opacity" });
+          
+          isAnimating = false;
+          
+          if (dispatchComplete) {
+            window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSED, { 
+              detail: { overlay: 'info' } 
+            }));
+          }
         }
       });
     } else {
       infoOverlay.classList.add('u-display-none');
       
-      // Restore nav states
+      // Restore everything without animation
       navLinks.forEach(link => {
         link.classList.remove('u-color-faded');
       });
 
-      // Restore Back link
       backLink.textContent = 'Back';
       backLink.setAttribute('href', originalBackHref);
       backLink.style.cursor = '';
 
-      // Hide pausefx overlay
-      if (pausefx) {
-        pausefx.style.opacity = '0';
-      }
-
-      // Restore video mute state
+      if (pausefx) pausefx.style.opacity = '0';
       if (video && !wasMutedBeforeOpen) {
         video.muted = false;
         video.removeAttribute('muted');
       }
 
-      // Show player controls again
       if (playerControls) playerControls.style.opacity = '1';
       if (navigationOverlay) navigationOverlay.style.opacity = '1';
       if (centerToggle) centerToggle.style.opacity = '1';
+      
+      isAnimating = false;
     }
   }
 

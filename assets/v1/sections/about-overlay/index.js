@@ -1,6 +1,14 @@
 // assets/v1/sections/about-overlay/index.js
 import { createRevealAnimation } from "./animations.js";
 
+// Overlay coordination events
+const OVERLAY_EVENTS = {
+  REQUEST_OPEN: 'overlay:request-open',
+  CLOSING: 'overlay:closing',
+  OPENED: 'overlay:opened',
+  CLOSED: 'overlay:closed'
+};
+
 export default function initAboutOverlay(container) {
   // Only run on pages with navigation
   const navWrap = container.querySelector('.nav_wrap');
@@ -38,14 +46,54 @@ export default function initAboutOverlay(container) {
   const playerWrap = container.querySelector('.project-player_wrap');
   const video = playerWrap?.querySelector('video');
   let isOpen = false;
+  let isAnimating = false;
   let revealTimeline = null;
   let originalBackHref = backLink.getAttribute('href');
   let wasPlayingBeforeOpen = false;
   const handlers = [];
 
+  // Listen for other overlays requesting to open
+  const handleOverlayRequest = (e) => {
+    if (e.detail.overlay !== 'about' && isOpen && !isAnimating) {
+      // Another overlay wants to open, close this one smoothly
+      closeForTransition();
+    }
+  };
+  
+  window.addEventListener(OVERLAY_EVENTS.REQUEST_OPEN, handleOverlayRequest);
+  handlers.push(() => window.removeEventListener(OVERLAY_EVENTS.REQUEST_OPEN, handleOverlayRequest));
+
   function open() {
-    if (isOpen) return;
+    if (isOpen || isAnimating) return;
+    
+    // Request to open (will trigger close on other overlays)
+    window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.REQUEST_OPEN, { 
+      detail: { overlay: 'about' } 
+    }));
+    
+    // Listen for when another overlay starts closing
+    let waitingForOther = false;
+    const onOtherClosing = () => {
+      waitingForOther = true;
+      // Start opening with cross-fade
+      performOpen(true);
+    };
+    
+    window.addEventListener(OVERLAY_EVENTS.CLOSING, onOtherClosing, { once: true });
+    
+    // If no other overlay responds within 100ms, just open normally
+    setTimeout(() => {
+      window.removeEventListener(OVERLAY_EVENTS.CLOSING, onOtherClosing);
+      if (!waitingForOther && !isOpen && !isAnimating) {
+        performOpen(false);
+      }
+    }, 100);
+  }
+
+  function performOpen(isCrossFade) {
+    if (isOpen || isAnimating) return;
     isOpen = true;
+    isAnimating = true;
 
     // Add class to nav for color change
     navWrap.classList.add('has-overlay-open');
@@ -69,6 +117,23 @@ export default function initAboutOverlay(container) {
 
     // Show overlay
     aboutOverlay.classList.remove('u-display-none');
+    
+    if (isCrossFade && window.gsap) {
+      // Cross-fade: start with opacity 0 and fade in
+      gsap.set(aboutOverlay, { opacity: 0 });
+      gsap.to(aboutOverlay, {
+        opacity: 1,
+        duration: 0.4,
+        ease: "power2.inOut",
+        onComplete: () => {
+          // Then run content reveal
+          runContentReveal();
+        }
+      });
+    } else {
+      // Normal open
+      runContentReveal();
+    }
 
     // Update nav states - fade all except About
     navLinks.forEach(link => {
@@ -96,16 +161,45 @@ export default function initAboutOverlay(container) {
       if (navigationOverlay) navigationOverlay.style.opacity = '0';
       if (centerToggle) centerToggle.style.opacity = '0';
     }
+  }
 
-    // Run reveal animation
+  function runContentReveal() {
     if (window.gsap) {
       revealTimeline = createRevealAnimation(aboutOverlay);
+      if (revealTimeline) {
+        revealTimeline.eventCallback('onComplete', () => {
+          isAnimating = false;
+          window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.OPENED, { 
+            detail: { overlay: 'about' } 
+          }));
+        });
+      } else {
+        isAnimating = false;
+      }
+    } else {
+      isAnimating = false;
     }
   }
 
   function close() {
-    if (!isOpen) return;
+    if (!isOpen || isAnimating) return;
+    performClose(true);
+  }
+
+  function closeForTransition() {
+    if (!isOpen || isAnimating) return;
+    
+    // Notify that we're closing
+    window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSING, { 
+      detail: { overlay: 'about' } 
+    }));
+    
+    performClose(false);
+  }
+
+  function performClose(dispatchComplete) {
     isOpen = false;
+    isAnimating = true;
 
     // Remove class from nav
     navWrap.classList.remove('has-overlay-open');
@@ -171,6 +265,16 @@ export default function initAboutOverlay(container) {
             '.about-awards-label',
             '.about-awards-item'
           ], { clearProps: "all" });
+          
+          gsap.set(aboutOverlay, { clearProps: "opacity" });
+          
+          isAnimating = false;
+          
+          if (dispatchComplete) {
+            window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSED, { 
+              detail: { overlay: 'about' } 
+            }));
+          }
         }
       });
     } else {
@@ -190,6 +294,8 @@ export default function initAboutOverlay(container) {
       if (playerControls) playerControls.style.opacity = '1';
       if (navigationOverlay) navigationOverlay.style.opacity = '1';
       if (centerToggle) centerToggle.style.opacity = '1';
+      
+      isAnimating = false;
     }
   }
 
