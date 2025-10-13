@@ -1,6 +1,6 @@
-// assets/v1/core/barba-bootstrap.js - Updated with wipe transition
+// assets/v1/core/barba-bootstrap.js - Updated with new page transition
 import { initPageScripts, initGlobal } from "./page-scripts.js";
-import { createSimpleWipeTransition } from "./transitions/simple-wipe.js";
+import { createPageTransition } from "./transitions/page-transition.js";
 import { createProjectNavAnimation } from "./transitions/nav-reveal.js";
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -12,8 +12,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // Initialize global features
   initGlobal();
   
-  // Create simple wipe transition
-  const wipeTransition = createSimpleWipeTransition({
+  // Create page transition
+  const pageTransition = createPageTransition({
     onNavReveal: createProjectNavAnimation
   });
   
@@ -23,7 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Initialize Barba
   barba.init({
     transitions: [{
-      name: "wipe-transition",
+      name: "page-transition",
       
       once({ next }) {
         const main = next.container;
@@ -50,8 +50,8 @@ document.addEventListener("DOMContentLoaded", () => {
       },
       
       async leave({ current }) {
-        // Run the wipe out
-        await wipeTransition.leave({ current });
+        // Run the panel slide in
+        await pageTransition.leave({ current });
       },
       
       async enter({ current, next }) {
@@ -71,8 +71,8 @@ document.addEventListener("DOMContentLoaded", () => {
         next.container.__cleanup = newCleanup;
         activeCleanup = newCleanup;
         
-        // Run wipe reveal
-        return wipeTransition.enter({ current, next });
+        // Run panel slide out and reveal
+        return pageTransition.enter({ current, next });
       }
     }],
     prefetch: true,
