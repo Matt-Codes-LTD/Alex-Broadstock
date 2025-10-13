@@ -1,4 +1,4 @@
-// assets/v1/core/transitions/split-screen.js - CURTAIN REVEAL VERSION
+// assets/v1/core/transitions/split-screen.js - BLACK CURTAINS, NO BRAND
 import { ANIMATION } from "../animation-constants.js";
 
 export function createSplitScreenTransition(options = {}) {
@@ -48,21 +48,21 @@ export function createSplitScreenTransition(options = {}) {
       
       console.log(`[SplitScreen] Direction: ${isForward ? 'forward' : isBackward ? 'backward' : 'lateral'}`);
       
-      // CREATE CURTAIN PANELS
+      // CREATE BLACK CURTAIN PANELS
       leftPanel = document.createElement('div');
       rightPanel = document.createElement('div');
       
       leftPanel.className = 'transition-panel transition-panel--left';
       rightPanel.className = 'transition-panel transition-panel--right';
       
-      // Style panels
+      // Style panels - BLACK
       [leftPanel, rightPanel].forEach((panel, i) => {
         Object.assign(panel.style, {
           position: 'fixed',
           top: '0',
           width: '50%',
           height: '100%',
-          backgroundColor: 'var(--_theme---background)',
+          backgroundColor: '#000000', // BLACK
           zIndex: '9999',
           transformOrigin: i === 0 ? 'left center' : 'right center',
           willChange: 'transform',
@@ -72,30 +72,7 @@ export function createSplitScreenTransition(options = {}) {
         document.body.appendChild(panel);
       });
       
-      // ADD BRAND ELEMENT
-      const brandMark = document.createElement('div');
-      brandMark.className = 'transition-panel__brand';
-      brandMark.innerHTML = 'AB';
-      
-      Object.assign(brandMark.style, {
-        position: 'absolute',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        fontSize: '4rem',
-        fontWeight: 'var(--_typography---font--primary-medium)',
-        color: 'var(--_theme---text)',
-        opacity: '0.1',
-        letterSpacing: '0.1em',
-        pointerEvents: 'none',
-        userSelect: 'none'
-      });
-      
-      leftPanel.appendChild(brandMark.cloneNode(true));
-      rightPanel.appendChild(brandMark.cloneNode(true));
-      
-      const leftBrand = leftPanel.querySelector('.transition-panel__brand');
-      const rightBrand = rightPanel.querySelector('.transition-panel__brand');
+      // NO BRAND ELEMENT - REMOVED
       
       // ANIMATE CURTAINS CLOSING
       const tl = gsap.timeline();
@@ -125,17 +102,6 @@ export function createSplitScreenTransition(options = {}) {
         duration: 0.5,
         ease: "power3.inOut"
       }, 0.08); // Slight stagger
-      
-      // Animate brand appearing
-      tl.fromTo([leftBrand, rightBrand], {
-        opacity: 0,
-        scale: 0.8
-      }, {
-        opacity: 0.1,
-        scale: 1,
-        duration: 0.6,
-        ease: "power2.out"
-      }, 0.2);
       
       await tl;
       
@@ -195,35 +161,23 @@ export function createSplitScreenTransition(options = {}) {
       
       console.log("[SplitScreen] Page loaded - opening curtains...");
       
-      // GET BRAND ELEMENTS FOR ANIMATION
-      const leftBrand = leftPanel.querySelector('.transition-panel__brand');
-      const rightBrand = rightPanel.querySelector('.transition-panel__brand');
-      
       // ANIMATE CURTAINS OPENING
       const exitTl = gsap.timeline();
       
-      // Fade out brand marks first
-      exitTl.to([leftBrand, rightBrand], {
-        opacity: 0,
-        scale: 1.2,
-        duration: 0.3,
-        ease: "power2.in"
-      }, 0);
-      
-      // Then open curtains
+      // Open curtains based on direction
       if (isForward) {
         // Split apart horizontally
         exitTl.to(leftPanel, {
           xPercent: -100,
           duration: 0.6,
           ease: "power3.in"
-        }, 0.2);
+        }, 0);
         
         exitTl.to(rightPanel, {
           xPercent: 100,
           duration: 0.6,
           ease: "power3.in"
-        }, 0.28); // Slight stagger
+        }, 0.08); // Slight stagger
         
       } else if (isBackward) {
         // Scale back to edges
@@ -232,14 +186,14 @@ export function createSplitScreenTransition(options = {}) {
           transformOrigin: 'right center',
           duration: 0.6,
           ease: "power3.inOut"
-        }, 0.2);
+        }, 0);
         
         exitTl.to(rightPanel, {
           scaleX: 0,
           transformOrigin: 'left center',
           duration: 0.6,
           ease: "power3.inOut"
-        }, 0.28);
+        }, 0.08);
         
       } else {
         // Lateral: slide vertically
@@ -247,13 +201,13 @@ export function createSplitScreenTransition(options = {}) {
           yPercent: -100,
           duration: 0.6,
           ease: "power3.in"
-        }, 0.2);
+        }, 0);
         
         exitTl.to(rightPanel, {
           yPercent: 100,
           duration: 0.6,
           ease: "power3.in"
-        }, 0.28);
+        }, 0.08);
       }
       
       await exitTl;
