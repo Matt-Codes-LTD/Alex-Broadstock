@@ -4,17 +4,24 @@
 export function createPageTransition(options = {}) {
   const { onNavReveal = () => {} } = options;
   
-  // Create and manage the transition panel
-  let panel = null;
+  // Store panel at module level so it persists between leave and enter
+  let transitionPanel = null;
   
-  function createPanel() {
-    if (panel) return panel;
+  function getOrCreatePanel() {
+    // If panel already exists and is in DOM, return it
+    if (transitionPanel && document.body.contains(transitionPanel)) {
+      console.log("[Transition] Using existing panel");
+      return transitionPanel;
+    }
     
-    panel = document.createElement('div');
-    panel.className = 'page-transition-panel';
+    console.log("[Transition] Creating new panel");
+    
+    // Create new panel
+    transitionPanel = document.createElement('div');
+    transitionPanel.className = 'page-transition-panel';
     
     // Initial styles - start off-screen left
-    Object.assign(panel.style, {
+    Object.assign(transitionPanel.style, {
       position: 'fixed',
       top: '0',
       left: '0',
@@ -27,21 +34,14 @@ export function createPageTransition(options = {}) {
       pointerEvents: 'none'
     });
     
-    document.body.appendChild(panel);
-    return panel;
-  }
-  
-  function cleanupPanel() {
-    if (panel && panel.parentNode) {
-      panel.remove();
-      panel = null;
-    }
+    document.body.appendChild(transitionPanel);
+    return transitionPanel;
   }
   
   return {
     // PHASE 1: Panel slides in to cover current page
     async leave({ current }) {
-      console.log("[Transition] Phase 1: Sliding panel in to cover current page");
+      console.log("[Transition] LEAVE PHASE: Starting panel slide in");
       
       // Mark as navigating
       document.body.classList.add('barba-navigating');
@@ -61,8 +61,8 @@ export function createPageTransition(options = {}) {
         }
       });
       
-      // Create or get panel
-      const transitionPanel = createPanel();
+      // Get or create panel
+      const panel = getOrCreatePanel();
       
       // Ensure current page stays visible while panel slides over it
       current.container.style.opacity = '1';
@@ -70,43 +70,78 @@ export function createPageTransition(options = {}) {
       
       // ANIMATE: Panel slides from -100% to 0%
       if (window.gsap) {
-        // Set initial position
-        gsap.set(transitionPanel, {
-          xPercent: -100
+        // Ensure panel starts off-screen
+        gsap.set(panel, {
+          xPercent: -100,
+          opacity: 1,
+          visibility: 'visible'
         });
         
         // Slide to center
-        await gsap.to(transitionPanel, {
+        await gsap.to(panel, {
           xPercent: 0,
           duration: 0.6,
-          ease: "power2.inOut"
+          ease: "power2.inOut",
+          onComplete: () => {
+            console.log("[Transition] Panel is now at center (0%)");
+          }
         });
       } else {
         // Fallback without GSAP
-        transitionPanel.style.transition = 'transform 0.6s ease-in-out';
-        transitionPanel.style.transform = 'translateX(-100%)';
+        panel.style.transition = 'transform 0.6s ease-in-out';
+        panel.style.transform = 'translateX(-100%)';
+        panel.style.opacity = '1';
+        panel.style.visibility = 'visible';
         
         // Force reflow
-        transitionPanel.offsetHeight;
+        panel.offsetHeight;
         
-        transitionPanel.style.transform = 'translateX(0%)';
+        panel.style.transform = 'translateX(0%)';
         await new Promise(resolve => setTimeout(resolve, 600));
       }
       
-      console.log("[Transition] Panel now covers screen, ready for page load");
+      console.log("[Transition] LEAVE COMPLETE: Panel now covers screen");
+      
+      // IMPORTANT: Do NOT remove or reset the panel here!
+      // It needs to persist for the enter phase
     },
     
     // PHASE 2: Load new page behind panel, then slide panel out
     async enter({ current, next }) {
-      console.log("[Transition] Phase 2: Loading new page behind panel");
+      console.log("[Transition] ENTER PHASE: Starting page setup behind panel");
       
       const oldContainer = current.container;
       const newContainer = next.container;
-      const transitionPanel = panel; // Use existing panel from leave phase
       
-      if (!transitionPanel) {
-        console.error("[Transition] Panel not found!");
+      // Get the existing panel (should still be at center from leave phase)
+      const panel = transitionPanel;
+      
+      if (!panel || !document.body.contains(panel)) {
+        console.error("[Transition] ERROR: Panel not found or not in DOM!");
+        // Fallback: just show the new page
+        newContainer.style.opacity = '1';
+        newContainer.style.visibility = 'visible';
+        if (oldContainer && oldContainer.parentNode) {
+          oldContainer.remove();
+        }
+        document.body.classList.remove('barba-navigating');
+        onNavReveal(newContainer);
         return;
+      }
+      
+      console.log("[Transition] Panel found, setting up new page behind it");
+      
+      // Ensure panel is still at center and visible
+      if (window.gsap) {
+        gsap.set(panel, {
+          xPercent: 0,
+          opacity: 1,
+          visibility: 'visible'
+        });
+      } else {
+        panel.style.transform = 'translateX(0%)';
+        panel.style.opacity = '1';
+        panel.style.visibility = 'visible';
       }
       
       // Prepare new page (hide certain elements if it's home page)
@@ -157,20 +192,35 @@ export function createPageTransition(options = {}) {
       // Small delay to ensure new page is rendered
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      console.log("[Transition] New page loaded, sliding panel out");
+      console.log("[Transition] New page ready, sliding panel out to right");
       
       // ANIMATE: Panel slides from 0% to 100%
       if (window.gsap) {
-        await gsap.to(transitionPanel, {
+        await gsap.to(panel, {
           xPercent: 100,
           duration: 0.6,
-          ease: "power2.inOut"
+          ease: "power2.inOut",
+          onComplete: () => {
+            console.log("[Transition] Panel has slid out to right (100%)");
+            
+            // Remove panel after animation
+            if (panel && panel.parentNode) {
+              panel.remove();
+            }
+            transitionPanel = null;
+          }
         });
       } else {
         // Fallback without GSAP
-        transitionPanel.style.transition = 'transform 0.6s ease-in-out';
-        transitionPanel.style.transform = 'translateX(100%)';
+        panel.style.transition = 'transform 0.6s ease-in-out';
+        panel.style.transform = 'translateX(100%)';
         await new Promise(resolve => setTimeout(resolve, 600));
+        
+        // Remove panel after animation
+        if (panel && panel.parentNode) {
+          panel.remove();
+        }
+        transitionPanel = null;
       }
       
       // Reset new container styles
@@ -188,12 +238,11 @@ export function createPageTransition(options = {}) {
       
       // Cleanup
       document.body.classList.remove('barba-navigating');
-      cleanupPanel();
       
       // Run reveal animations for new page
       onNavReveal(newContainer);
       
-      console.log("[Transition] Complete!");
+      console.log("[Transition] COMPLETE: New page revealed!");
     }
   };
 }
