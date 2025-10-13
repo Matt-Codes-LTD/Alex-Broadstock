@@ -272,14 +272,11 @@ export function createProjectNavAnimation(container) {
     
     // Animate navigation overlay last (if it exists)
     if (navOverlay) {
-      tl.to(navOverlay, {
-        opacity: 1,
-        duration: ANIMATION.DURATION.fade,
-        ease: ANIMATION.EASE.fade,
-        onComplete: () => {
-          console.log("[NavReveal] Navigation overlay visible");
-        }
-      }, "-=0.5");
+      // Just add the class - CSS will handle the opacity transition
+      tl.call(() => {
+        navOverlay.classList.add('is-revealed');
+        console.log("[NavReveal] Navigation overlay revealed");
+      }, null, "-=0.5");
     }
     
     return tl;
