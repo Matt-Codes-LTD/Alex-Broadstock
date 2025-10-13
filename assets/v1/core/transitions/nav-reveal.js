@@ -1,5 +1,5 @@
 // assets/v1/core/transitions/nav-reveal.js
-// Navigation reveal animations - UNIFIED with site-loader timing
+// Navigation reveal animations - Simplified without grid dependencies
 import { ANIMATION, getAnimProps } from "../animation-constants.js";
 
 /**
@@ -112,7 +112,7 @@ export function createHomeRevealAnimation(container) {
     });
   }, "-=0.2")
   
-  // ✨ AWARDS STRIP - SMOOTH ITEM STAGGER (FIXED - Fallback to parent)
+  // Awards strip
   .add(() => {
     const awardsList = container.querySelector(".home-awards_list");
     
@@ -123,10 +123,7 @@ export function createHomeRevealAnimation(container) {
     
     const awardsItems = awardsList.querySelectorAll(":scope > *");
     
-    // If CMS items exist, animate them individually
     if (awardsItems.length > 0) {
-      console.log("[NavReveal] Animating", awardsItems.length, "award items");
-      
       gsap.fromTo(awardsItems, {
         opacity: 0, 
         y: ANIMATION.TRANSFORM.tagX, 
@@ -144,9 +141,6 @@ export function createHomeRevealAnimation(container) {
         delay: 0.3
       });
     } else {
-      // Fallback: animate parent container if CMS items not loaded yet
-      console.log("[NavReveal] No award items found, animating parent container");
-      
       gsap.to(awardsList, {
         opacity: 1, 
         y: 0, 
@@ -178,7 +172,7 @@ export function createHomeRevealAnimation(container) {
 }
 
 /**
- * Animate navigation elements on project pages - UNIFIED timing
+ * Animate navigation elements on project pages
  */
 export function createProjectNavAnimation(container) {
   const namespace = container.dataset.barbaNamespace;
@@ -212,10 +206,9 @@ export function createProjectNavAnimation(container) {
       visibility: "visible"
     });
     
-    // NO INITIAL DELAY - start immediately like home page
     const tl = gsap.timeline();
     
-    // Nav wrapper - SAME AS HOME PAGE
+    // Nav wrapper
     tl.fromTo(".nav_wrap", {
       opacity: 0,
       y: ANIMATION.TRANSFORM.navY
@@ -225,7 +218,7 @@ export function createProjectNavAnimation(container) {
       ...getAnimProps('nav')
     })
     
-    // Links and project name - SAME AS HOME PAGE NAV LINKS
+    // Links and project name
     .fromTo([".nav_link", ".project_name"], {
       opacity: 0,
       x: ANIMATION.TRANSFORM.tagX
@@ -233,9 +226,9 @@ export function createProjectNavAnimation(container) {
       opacity: 1,
       x: 0,
       ...getAnimProps('navLinks')
-    }, "-=0.4")  // Same overlap as home page
+    }, "-=0.4")
     
-    // Center button - SAME TIMING AS BRAND LOGO (starts during links)
+    // Center button
     .fromTo(".project-player_center-toggle", {
       opacity: 0,
       scale: ANIMATION.TRANSFORM.scaleSmall
@@ -243,9 +236,9 @@ export function createProjectNavAnimation(container) {
       opacity: 1,
       scale: 1,
       ...getAnimProps('brand')
-    }, "-=0.3")  // Overlaps with links
+    }, "-=0.3")
     
-    // Player controls - START WITH CENTER BUTTON (not after)
+    // Player controls
     .fromTo([
       ".project-player_btn--play", 
       ".project-player_timeline",
@@ -258,59 +251,19 @@ export function createProjectNavAnimation(container) {
       opacity: 1,
       y: 0,
       ...getAnimProps('playerButtons')
-    }, "-=0.4")  // Heavy overlap - starts during center button
+    }, "-=0.4")
     
-    // Navigation overlay - OVERLAPS WITH EVERYTHING
+    // Navigation overlay
     .fromTo(".project-navigation_overlay", {
       opacity: 0
     }, {
       opacity: 1,
       duration: ANIMATION.DURATION.fade,
       ease: ANIMATION.EASE.fade
-    }, "-=0.5");  // Starts even earlier
+    }, "-=0.5");
     
     return tl;
   }
   
   return null;
-}
-
-/**
- * Hide navigation elements (useful for transitions)
- */
-export function hideNavElements(container) {
-  gsap.set([
-    ".nav_wrap",
-    ".nav_link",
-    ".project_name",
-    ".project-player_center-toggle",
-    ".project-player_controls",
-    ".project-player_btn--play",
-    ".project-player_btn--mute",
-    ".project-player_btn--fs",
-    ".project-player_timeline",
-    ".project-navigation_overlay"
-  ], {
-    opacity: 0
-  });
-}
-
-/**
- * Reset navigation elements to default state
- */
-export function resetNavElements(container) {
-  gsap.set([
-    ".nav_wrap",
-    ".nav_link",
-    ".project_name",
-    ".project-player_center-toggle",
-    ".project-player_controls",
-    ".project-player_btn--play",
-    ".project-player_btn--mute", 
-    ".project-player_btn--fs",
-    ".project-player_timeline",
-    ".project-navigation_overlay"
-  ], {
-    clearProps: "all"
-  });
 }

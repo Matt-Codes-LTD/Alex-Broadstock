@@ -1,6 +1,6 @@
-// barba-bootstrap.js - Fixed with deferred cleanup
+// barba-bootstrap.js - Simplified with fade transition
 import { initPageScripts, initGlobal } from "./page-scripts.js";
-import { createGridTransition } from "./transitions/grid-transition.js";
+import { createSimpleFadeTransition } from "./transitions/simple-fade.js";
 import { createProjectNavAnimation } from "./transitions/nav-reveal.js";
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -12,10 +12,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // Initialize global features
   initGlobal();
   
-  // Create transition system
-  const gridTransition = createGridTransition({
-    cols: 20,
-    rows: 12,
+  // Create simple fade transition
+  const fadeTransition = createSimpleFadeTransition({
     onNavReveal: createProjectNavAnimation
   });
   
@@ -25,7 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Initialize Barba
   barba.init({
     transitions: [{
-      name: "grid-stagger-transition",
+      name: "fade-transition",
       
       once({ next }) {
         const main = next.container;
@@ -52,24 +50,29 @@ document.addEventListener("DOMContentLoaded", () => {
       },
       
       async leave({ current }) {
-        // DON'T run cleanup here - videos need to stay visible
-        // Just run the grid animation
-        await gridTransition.leave(current);
+        // Run the fade out
+        await fadeTransition.leave({ current });
       },
       
       async enter({ current, next }) {
-        // Pass the old cleanup to the transition so it can run it at the right time
-        const oldCleanup = activeCleanup;
-        activeCleanup = null;
+        // Clean up old page scripts
+        if (activeCleanup) {
+          try {
+            activeCleanup();
+            console.log("[Barba] Old container cleanup complete");
+          } catch (err) {
+            console.warn("[Barba] Cleanup error:", err);
+          }
+          activeCleanup = null;
+        }
         
         // Initialize new page
         const newCleanup = initPageScripts(next.container);
         next.container.__cleanup = newCleanup;
+        activeCleanup = newCleanup;
         
-        // Run transition and pass old cleanup to be called after grid covers screen
-        return gridTransition.enter(current, next, oldCleanup).then(() => {
-          activeCleanup = newCleanup;
-        });
+        // Run transition
+        return fadeTransition.enter({ current, next });
       }
     }],
     prefetch: true,
@@ -105,11 +108,6 @@ document.addEventListener("DOMContentLoaded", () => {
         console.warn("[Barba] Unload cleanup error:", err);
       }
       activeCleanup = null;
-    }
-    
-    // Clean up transition grid
-    if (gridTransition.cleanup) {
-      gridTransition.cleanup();
     }
   });
 });
