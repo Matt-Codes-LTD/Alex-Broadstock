@@ -1,5 +1,5 @@
 // assets/v1/core/transitions/simple-wipe.js
-// Single panel wipe transition - slides in from left, out to right
+// Single panel wipe transition - slides in from left, pauses, then out to right
 
 export function createSimpleWipeTransition(options = {}) {
   const { onNavReveal = () => {} } = options;
@@ -33,6 +33,8 @@ export function createSimpleWipeTransition(options = {}) {
   
   return {
     async leave({ current }) {
+      console.log("[Wipe] Starting leave phase - sliding in panel");
+      
       // Mark as navigating
       document.body.classList.add('barba-navigating');
       
@@ -56,16 +58,21 @@ export function createSimpleWipeTransition(options = {}) {
       
       // Animate panel sliding in from left to cover screen
       if (window.gsap) {
-        await gsap.fromTo(panel, 
-          {
-            xPercent: -100 // Start off-screen left
-          },
-          {
-            xPercent: 0, // Slide to center (covering screen)
-            duration: 0.6,
-            ease: "power2.inOut"
-          }
-        );
+        // Ensure panel starts off-screen
+        gsap.set(panel, {
+          xPercent: -100
+        });
+        
+        // Slide in to cover screen
+        await gsap.to(panel, {
+          xPercent: 0, // Slide to center (covering screen)
+          duration: 0.6,
+          ease: "power2.inOut"
+        });
+        
+        // IMPORTANT: Keep panel at center position
+        // Don't reset or move it here!
+        
       } else {
         // CSS fallback
         panel.style.transition = 'transform 0.6s cubic-bezier(0.45, 0, 0.55, 1)';
@@ -80,9 +87,13 @@ export function createSimpleWipeTransition(options = {}) {
       
       // Hide old container after wipe covers it
       current.container.style.opacity = '0';
+      
+      console.log("[Wipe] Leave complete - panel covering screen");
     },
     
     async enter({ current, next }) {
+      console.log("[Wipe] Starting enter phase - preparing to slide out panel");
+      
       const oldMain = current.container;
       const newMain = next.container;
       const panel = getWipePanel();
@@ -130,22 +141,25 @@ export function createSimpleWipeTransition(options = {}) {
       // Scroll to top before reveal
       window.scrollTo(0, 0);
       
-      // Small delay to ensure new page is ready
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Small pause while panel covers screen (optional - adjust timing)
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      console.log("[Wipe] Sliding panel out to reveal new page");
       
       // Animate panel sliding out to the right
       if (window.gsap) {
+        // Panel should already be at xPercent: 0 from leave phase
         await gsap.to(panel, {
           xPercent: 100, // Slide out to the right
           duration: 0.6,
-          ease: "power2.inOut",
-          onComplete: () => {
-            // Reset panel position for next use (back to left side)
-            gsap.set(panel, {
-              xPercent: -100 // Reset to off-screen left
-            });
-          }
+          ease: "power2.inOut"
         });
+        
+        // After animation completes, reset panel for next use
+        gsap.set(panel, {
+          xPercent: -100 // Reset to off-screen left for next transition
+        });
+        
       } else {
         // CSS fallback
         panel.style.transition = 'transform 0.6s cubic-bezier(0.45, 0, 0.55, 1)';
@@ -157,7 +171,9 @@ export function createSimpleWipeTransition(options = {}) {
         await new Promise(resolve => setTimeout(resolve, 600));
         
         // Reset for next use
-        panel.style.transform = 'translateX(-100%)';
+        setTimeout(() => {
+          panel.style.transform = 'translateX(-100%)';
+        }, 100);
       }
       
       // Reset container styles
@@ -176,6 +192,8 @@ export function createSimpleWipeTransition(options = {}) {
       
       // Run nav reveal animations
       onNavReveal(newMain);
+      
+      console.log("[Wipe] Transition complete");
     }
   };
 }
