@@ -1,11 +1,11 @@
-// assets/v1/core/transitions/split-screen.js
+// assets/v1/core/transitions/split-screen.js - FIXED
 import { ANIMATION } from "../animation-constants.js";
 
 export function createSplitScreenTransition(options = {}) {
   const { onNavReveal = () => {} } = options;
   
   return {
-    async leave({ current, next }) {
+    async leave({ current, trigger }) {
       // Mark as navigating
       document.body.classList.add('barba-navigating');
       
@@ -23,15 +23,26 @@ export function createSplitScreenTransition(options = {}) {
         }
       });
       
-      // DETECT NAVIGATION DIRECTION
+      // DETECT NAVIGATION DIRECTION FROM TRIGGER
       const currentNamespace = current.container.dataset.barbaNamespace;
-      const nextNamespace = next.container.dataset.barbaNamespace;
+      let nextNamespace = 'home'; // default
+      
+      // Try to determine next namespace from the clicked link
+      if (trigger && trigger.href) {
+        // Check if it's a project page (has /work/ in URL)
+        if (trigger.href.includes('/work/') || trigger.href.includes('/project/')) {
+          nextNamespace = 'project';
+        } else if (trigger.href === '/' || trigger.href.endsWith('.com/') || trigger.href.endsWith('.com')) {
+          nextNamespace = 'home';
+        }
+      }
       
       // Determine direction based on page hierarchy
       const isForward = currentNamespace === 'home' && nextNamespace === 'project';
       const isBackward = currentNamespace === 'project' && nextNamespace === 'home';
       
       console.log(`[SplitScreen] Direction: ${isForward ? 'forward' : isBackward ? 'backward' : 'lateral'}`);
+      console.log(`[SplitScreen] Current: ${currentNamespace}, Next: ${nextNamespace}`);
       
       // Create split panels
       const leftPanel = document.createElement('div');
@@ -51,7 +62,7 @@ export function createSplitScreenTransition(options = {}) {
           zIndex: '9999',
           transformOrigin: i === 0 ? 'left center' : 'right center',
           willChange: 'transform',
-          overflow: 'hidden', // Add to contain brand mark
+          overflow: 'hidden',
           [i === 0 ? 'left' : 'right']: '0'
         });
         document.body.appendChild(panel);
@@ -60,7 +71,7 @@ export function createSplitScreenTransition(options = {}) {
       // ADD BRAND ELEMENT TO PANELS
       const brandMark = document.createElement('div');
       brandMark.className = 'transition-panel__brand';
-      brandMark.innerHTML = 'AB'; // You can replace with SVG logo
+      brandMark.innerHTML = 'AB';
       
       Object.assign(brandMark.style, {
         position: 'absolute',
@@ -81,7 +92,6 @@ export function createSplitScreenTransition(options = {}) {
       leftPanel.appendChild(brandMark.cloneNode(true));
       rightPanel.appendChild(brandMark.cloneNode(true));
       
-      // Optional: Animate brand marks based on direction
       const leftBrand = leftPanel.querySelector('.transition-panel__brand');
       const rightBrand = rightPanel.querySelector('.transition-panel__brand');
       
