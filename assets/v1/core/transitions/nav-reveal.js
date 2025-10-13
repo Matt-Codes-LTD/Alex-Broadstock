@@ -197,12 +197,13 @@ export function createProjectNavAnimation(container) {
   
   // Only animate project-specific elements on project pages
   if (namespace === "project") {
-    // FIXED: Set initial hidden states to prevent FOUC
+    console.log("[NavReveal] Setting up project page animations");
+    
+    // Set initial hidden states for elements that definitely exist
     gsap.set([
       ".project_name",
       ".project-player_center-toggle",
-      ".project-player_controls",
-      ".project-navigation_overlay"
+      ".project-player_controls"
     ], {
       opacity: 0,
       visibility: "visible"
@@ -255,13 +256,37 @@ export function createProjectNavAnimation(container) {
       ...getAnimProps('playerButtons')
     }, "-=0.4")
     
-    // Navigation overlay (Previous/Next buttons)
-    .fromTo(".project-navigation_overlay", {
-      opacity: 0
-    }, {
-      opacity: 1,
-      duration: ANIMATION.DURATION.fade,
-      ease: ANIMATION.EASE.fade
+    // Wait for navigation overlay to exist, then animate it
+    .add(() => {
+      // Use a small delay to ensure project-navigation script has initialized
+      const checkAndAnimateNav = () => {
+        const navOverlay = container.querySelector(".project-navigation_overlay");
+        
+        if (navOverlay) {
+          console.log("[NavReveal] Found navigation overlay, animating...");
+          
+          // Set initial state
+          gsap.set(navOverlay, {
+            opacity: 0,
+            visibility: "visible"
+          });
+          
+          // Animate in
+          gsap.to(navOverlay, {
+            opacity: 1,
+            duration: ANIMATION.DURATION.fade,
+            ease: ANIMATION.EASE.fade,
+            onComplete: () => {
+              console.log("[NavReveal] Navigation overlay visible");
+            }
+          });
+        } else {
+          console.warn("[NavReveal] Navigation overlay not found in DOM");
+        }
+      };
+      
+      // Small delay to let project-navigation script initialize
+      setTimeout(checkAndAnimateNav, 100);
     }, "-=0.5");
     
     return tl;
