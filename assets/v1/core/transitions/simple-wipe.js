@@ -1,5 +1,5 @@
 // assets/v1/core/transitions/simple-wipe.js
-// Single panel wipe transition - slides in from left, pauses, then out to right
+// Single panel wipe transition - slides in over current page, then reveals new page
 
 export function createSimpleWipeTransition(options = {}) {
   const { onNavReveal = () => {} } = options;
@@ -33,7 +33,7 @@ export function createSimpleWipeTransition(options = {}) {
   
   return {
     async leave({ current }) {
-      console.log("[Wipe] Starting leave phase - sliding in panel");
+      console.log("[Wipe] Starting leave phase - sliding panel over current page");
       
       // Mark as navigating
       document.body.classList.add('barba-navigating');
@@ -56,6 +56,10 @@ export function createSimpleWipeTransition(options = {}) {
       // Get or create wipe panel
       const panel = getWipePanel();
       
+      // IMPORTANT: Keep current page visible during the wipe
+      current.container.style.opacity = '1';
+      current.container.style.visibility = 'visible';
+      
       // Animate panel sliding in from left to cover screen
       if (window.gsap) {
         // Ensure panel starts off-screen
@@ -63,15 +67,16 @@ export function createSimpleWipeTransition(options = {}) {
           xPercent: -100
         });
         
-        // Slide in to cover screen
+        // Slide in to cover screen (over the visible current page)
         await gsap.to(panel, {
           xPercent: 0, // Slide to center (covering screen)
           duration: 0.6,
           ease: "power2.inOut"
         });
         
-        // IMPORTANT: Keep panel at center position
-        // Don't reset or move it here!
+        // NOW that panel fully covers, we can hide the current page
+        current.container.style.opacity = '0';
+        current.container.style.visibility = 'hidden';
         
       } else {
         // CSS fallback
@@ -83,16 +88,17 @@ export function createSimpleWipeTransition(options = {}) {
         
         panel.style.transform = 'translateX(0)';
         await new Promise(resolve => setTimeout(resolve, 600));
+        
+        // Hide current page after animation
+        current.container.style.opacity = '0';
+        current.container.style.visibility = 'hidden';
       }
       
-      // Hide old container after wipe covers it
-      current.container.style.opacity = '0';
-      
-      console.log("[Wipe] Leave complete - panel covering screen");
+      console.log("[Wipe] Leave complete - panel now covering screen, old page hidden");
     },
     
     async enter({ current, next }) {
-      console.log("[Wipe] Starting enter phase - preparing to slide out panel");
+      console.log("[Wipe] Starting enter phase - setting up new page behind panel");
       
       const oldMain = current.container;
       const newMain = next.container;
@@ -123,32 +129,34 @@ export function createSimpleWipeTransition(options = {}) {
         }
       }
       
-      // Position containers
-      oldMain.style.position = 'fixed';
-      oldMain.style.inset = '0';
-      oldMain.style.zIndex = '1';
-      
+      // Position new container BEHIND the panel
       newMain.style.position = 'fixed';
       newMain.style.inset = '0';
-      newMain.style.zIndex = '2';
-      newMain.style.opacity = '1'; // New page is visible but covered by panel
+      newMain.style.zIndex = '9998'; // Below panel (99999) but above everything else
+      newMain.style.opacity = '1';
+      newMain.style.visibility = 'visible';
       
-      // Clean up old container
+      // Position old container below new one
+      if (oldMain) {
+        oldMain.style.zIndex = '1';
+      }
+      
+      // Scroll to top
+      window.scrollTo(0, 0);
+      
+      // Small pause to ensure new page is fully rendered behind panel
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Clean up old container (it's already hidden behind panel)
       if (oldMain?.parentNode) {
         oldMain.remove();
       }
       
-      // Scroll to top before reveal
-      window.scrollTo(0, 0);
+      console.log("[Wipe] New page ready behind panel - sliding panel out");
       
-      // Small pause while panel covers screen (optional - adjust timing)
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
-      console.log("[Wipe] Sliding panel out to reveal new page");
-      
-      // Animate panel sliding out to the right
+      // Animate panel sliding out to the right to reveal new page
       if (window.gsap) {
-        // Panel should already be at xPercent: 0 from leave phase
+        // Panel should be at xPercent: 0 from leave phase
         await gsap.to(panel, {
           xPercent: 100, // Slide out to the right
           duration: 0.6,
@@ -193,7 +201,7 @@ export function createSimpleWipeTransition(options = {}) {
       // Run nav reveal animations
       onNavReveal(newMain);
       
-      console.log("[Wipe] Transition complete");
+      console.log("[Wipe] Transition complete - new page revealed");
     }
   };
 }
