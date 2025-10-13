@@ -88,13 +88,14 @@ export default function initAboutOverlay(container) {
     // Listen for CLOSED event (not CLOSING)
     window.addEventListener(OVERLAY_EVENTS.CLOSED, onOtherClosed, { once: true });
     
-    // Timeout fallback if no other overlay is open
+    // Short timeout - if no overlay responds quickly, just open
+    // If another overlay IS open, it will dispatch CLOSED before this timeout
     setTimeout(() => {
       window.removeEventListener(OVERLAY_EVENTS.CLOSED, onOtherClosed);
       if (!waitingForOther && !isOpen && !isAnimating) {
         performOpen(false);
       }
-    }, 600);  // Increased to allow for close animation
+    }, 50);  // Quick timeout - CLOSED event will override if another overlay is open
   }
 
   function performOpen(isCrossFade) {
