@@ -1,4 +1,4 @@
-// index.js - UPDATED: Faster video transitions with 30ms delay
+// index.js - UPDATED: Awards now pull from individual image fields instead of Collection List
 import { createVideoManager } from "./video-manager.js";
 import { initCategoryFilter } from "./category-filter.js";
 
@@ -90,13 +90,47 @@ export default function initHomeHero(container) {
 
   function updateAwards(item) {
     if (!awardsStrip) return;
-    const list = item.querySelector(".home-project_awards .w-dyn-items");
+    
+    // Get the awards container (no longer looking for .w-dyn-items)
+    const list = item.querySelector(".home-project_awards");
+    
     if (!list) {
       console.warn("[HomeHero] No awards found for item:", item);
       return;
     }
 
-    const newHTML = list.innerHTML;
+    // Get all visible award items (ones that passed conditional visibility)
+    const visibleAwards = list.querySelectorAll(".home-project_award:not(.w-condition-invisible)");
+    
+    if (visibleAwards.length === 0) {
+      // No awards, clear the strip
+      if (awardsStrip.innerHTML !== '') {
+        const existingItems = awardsStrip.querySelectorAll(":scope > *");
+        if (window.gsap && existingItems.length > 0) {
+          gsap.to(existingItems, {
+            opacity: 0,
+            y: -10,
+            duration: 0.2,
+            ease: "power2.in",
+            stagger: 0.02,
+            onComplete: () => {
+              awardsStrip.innerHTML = '';
+              currentAwardsHTML = '';
+            }
+          });
+        } else {
+          awardsStrip.innerHTML = '';
+          currentAwardsHTML = '';
+        }
+      }
+      return;
+    }
+
+    // Build HTML from visible awards
+    const newHTML = Array.from(visibleAwards)
+      .map(award => award.outerHTML)
+      .join('');
+    
     if (newHTML === currentAwardsHTML) return;
     
     currentAwardsHTML = newHTML;
