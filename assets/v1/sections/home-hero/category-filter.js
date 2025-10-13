@@ -1,4 +1,4 @@
-// category-filter.js - Fixed to reset opacity on text elements when showing items
+// category-filter.js - Fixed to respect transitions and prevent FOUC
 import { getGhostLayer, makeGhost } from "./ghost-layer.js";
 
 export function initCategoryFilter(section, videoManager, setActiveCallback) {
@@ -61,20 +61,27 @@ export function initCategoryFilter(section, videoManager, setActiveCallback) {
             item.style.removeProperty("display");
           }
           
-          // Reset opacity on text elements
-          const text = item.querySelector(".home_hero_text");
-          const pills = item.querySelectorAll(".home-category_ref_text:not([hidden])");
+          // Only reset opacity if NOT coming from a page transition
+          // Check if we're in a Barba transition or if grid animation is happening
+          const isTransitioning = document.body.classList.contains('barba-navigating') || 
+                                 document.querySelector('.transition-grid[style*="pointer-events: all"]');
           
-          if (text) {
-            text.style.opacity = "1";
-            text.style.filter = "blur(0px)";
-            text.style.transform = "translate(0px, 0px)";
+          if (!isTransitioning) {
+            // Reset opacity on text elements
+            const text = item.querySelector(".home_hero_text");
+            const pills = item.querySelectorAll(".home-category_ref_text:not([hidden])");
+            
+            if (text) {
+              text.style.opacity = "1";
+              text.style.filter = "blur(0px)";
+              text.style.transform = "translate(0px, 0px)";
+            }
+            
+            pills.forEach(pill => {
+              pill.style.opacity = "1";
+              pill.style.transform = "translate(0px, 0px)";
+            });
           }
-          
-          pills.forEach(pill => {
-            pill.style.opacity = "1";
-            pill.style.transform = "translate(0px, 0px)";
-          });
           
           visibleCount++;
           if (!firstVisible) {
@@ -268,20 +275,25 @@ function filterItems(section, listParent, btn, setActiveCallback) {
           item.style.removeProperty("display");
         }
         
-        // CRITICAL: Force text elements to be visible
-        const text = item.querySelector(".home_hero_text");
-        const pills = item.querySelectorAll(".home-category_ref_text:not([hidden])");
+        // CRITICAL: Only force text elements visible if not in a page transition
+        const isTransitioning = document.body.classList.contains('barba-navigating') || 
+                               document.querySelector('.transition-grid[style*="pointer-events: all"]');
         
-        if (text) {
-          text.style.opacity = "1";
-          text.style.filter = "blur(0px)";
-          text.style.transform = "translate(0px, 0px)";
+        if (!isTransitioning) {
+          const text = item.querySelector(".home_hero_text");
+          const pills = item.querySelectorAll(".home-category_ref_text:not([hidden])");
+          
+          if (text) {
+            text.style.opacity = "1";
+            text.style.filter = "blur(0px)";
+            text.style.transform = "translate(0px, 0px)";
+          }
+          
+          pills.forEach(pill => {
+            pill.style.opacity = "1";
+            pill.style.transform = "translate(0px, 0px)";
+          });
         }
-        
-        pills.forEach(pill => {
-          pill.style.opacity = "1";
-          pill.style.transform = "translate(0px, 0px)";
-        });
         
         console.log("[CategoryFilter] SHOWING:", projectName);
       } else {
