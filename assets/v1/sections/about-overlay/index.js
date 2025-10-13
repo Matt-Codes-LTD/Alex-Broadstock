@@ -47,6 +47,9 @@ export default function initAboutOverlay(container) {
     if (isOpen) return;
     isOpen = true;
 
+    // Add class to nav for color change
+    navWrap.classList.add('has-overlay-open');
+
     // Store video state and pause
     if (video) {
       wasPlayingBeforeOpen = !video.paused;
@@ -103,6 +106,9 @@ export default function initAboutOverlay(container) {
   function close() {
     if (!isOpen) return;
     isOpen = false;
+
+    // Remove class from nav
+    navWrap.classList.remove('has-overlay-open');
 
     if (window.gsap && revealTimeline) {
       // Reverse animation
