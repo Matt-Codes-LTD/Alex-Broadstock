@@ -22,13 +22,12 @@ export function populateGrid(overlay, imageElements) {
   // Calculate how many images per row based on screen size
   const imagesPerRow = getImagesPerRow();
   
-  // Ensure we have enough images to fill at least one complete row
-  // If not enough, duplicate the images cyclically
-  const minImagesNeeded = imagesPerRow;
-  const filledImages = fillToMinimum(validImages, minImagesNeeded);
+  // Fill images to next complete row (no gaps!)
+  const filledImages = fillToCompleteRows(validImages, imagesPerRow);
   
   console.log('[BTSGrid] Images per row:', imagesPerRow);
-  console.log('[BTSGrid] Using', filledImages.length, 'images (duplicated if needed)');
+  console.log('[BTSGrid] Total images after filling:', filledImages.length);
+  console.log('[BTSGrid] Complete rows:', filledImages.length / imagesPerRow);
 
   // Create 4 duplicate rows for seamless wrapping
   for (let row = 0; row < 4; row++) {
@@ -56,7 +55,7 @@ export function populateGrid(overlay, imageElements) {
     container.appendChild(contentRow);
   }
 
-  console.log('[BTSGrid] Grid populated with 4 complete rows');
+  console.log('[BTSGrid] Grid populated with 4 complete rows - NO GAPS!');
 }
 
 /**
@@ -75,19 +74,30 @@ function getImagesPerRow() {
 }
 
 /**
- * Fill images array to minimum needed by duplicating cyclically
- * Ensures complete rows with no gaps
+ * Fill images to ensure complete rows with NO GAPS
+ * Duplicates images cyclically to reach next multiple of imagesPerRow
  */
-function fillToMinimum(images, minNeeded) {
-  if (images.length >= minNeeded) {
+function fillToCompleteRows(images, imagesPerRow) {
+  const currentCount = images.length;
+  
+  // Calculate how many images needed for complete rows
+  const remainder = currentCount % imagesPerRow;
+  
+  // If already complete rows, return as-is
+  if (remainder === 0) {
     return images;
   }
   
-  // Duplicate images cyclically until we have enough
+  // Calculate how many more images we need to complete the last row
+  const needed = imagesPerRow - remainder;
+  
+  console.log('[BTSGrid] Need', needed, 'more images to complete rows');
+  
+  // Duplicate images cyclically to fill the gap
   const filled = [...images];
   let index = 0;
   
-  while (filled.length < minNeeded) {
+  for (let i = 0; i < needed; i++) {
     filled.push(images[index % images.length]);
     index++;
   }
