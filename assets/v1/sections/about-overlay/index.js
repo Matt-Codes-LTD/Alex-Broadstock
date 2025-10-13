@@ -227,6 +227,19 @@ export default function initAboutOverlay(container) {
               backLink.setAttribute('href', originalBackHref);
               backLink.style.cursor = '';
             }
+            
+            // Project page specific: Restore UI AFTER overlay is gone
+            if (pausefx) {
+              pausefx.style.opacity = '0';
+            }
+            
+            if (video && wasPlayingBeforeOpen) {
+              video.play().catch(() => {});
+            }
+            
+            if (playerControls) playerControls.style.opacity = '1';
+            if (navigationOverlay) navigationOverlay.style.opacity = '1';
+            if (centerToggle) centerToggle.style.opacity = '1';
           }
 
           // Clear props
@@ -253,7 +266,7 @@ export default function initAboutOverlay(container) {
         }
       });
 
-      // Fade out animation - SAME FOR BOTH PAGES
+      // Fade out animation - IDENTICAL FOR BOTH PAGES
       closeTl.to([
         '.about-award-item',
         '.about-work-link',
@@ -276,34 +289,6 @@ export default function initAboutOverlay(container) {
         duration: 0.6,
         ease: "power3.inOut"
       }, "-=0.1");
-
-      // Project page specific: Fade UI DURING overlay close (not after)
-      if (isProjectPage) {
-        // Hide pausefx overlay simultaneously with overlay fade
-        if (pausefx) {
-          closeTl.to(pausefx, { 
-            opacity: 0, 
-            duration: 0.6, 
-            ease: "power2.out" 
-          }, "-=0.6");
-        }
-
-        // Show player controls simultaneously with overlay fade
-        if (playerControls || navigationOverlay || centerToggle) {
-          closeTl.to([playerControls, navigationOverlay, centerToggle].filter(Boolean), {
-            opacity: 1,
-            duration: 0.6,
-            ease: "power2.out"
-          }, "-=0.6");
-        }
-
-        // Resume video early in the animation
-        if (video && wasPlayingBeforeOpen) {
-          closeTl.call(() => {
-            video.play().catch(() => {});
-          }, null, "-=0.5");
-        }
-      }
 
     } else {
       // No animation fallback
