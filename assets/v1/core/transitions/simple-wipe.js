@@ -1,5 +1,5 @@
 // assets/v1/core/transitions/simple-wipe.js
-// Single panel wipe transition - left to right cover, right to left reveal
+// Single panel wipe transition - slides in from left, out to right
 
 export function createSimpleWipeTransition(options = {}) {
   const { onNavReveal = () => {} } = options;
@@ -12,7 +12,7 @@ export function createSimpleWipeTransition(options = {}) {
       wipePanel = document.createElement('div');
       wipePanel.className = 'barba-wipe-panel';
       
-      // Set initial styles
+      // Set initial styles - start off-screen to the left
       Object.assign(wipePanel.style, {
         position: 'fixed',
         top: '0',
@@ -21,8 +21,7 @@ export function createSimpleWipeTransition(options = {}) {
         height: '100vh',
         backgroundColor: 'var(--_theme---background, #000)',
         zIndex: '99999',
-        transformOrigin: 'left center',
-        transform: 'scaleX(0)',
+        transform: 'translateX(-100%)', // Start off-screen left
         pointerEvents: 'none',
         willChange: 'transform'
       });
@@ -55,15 +54,14 @@ export function createSimpleWipeTransition(options = {}) {
       // Get or create wipe panel
       const panel = getWipePanel();
       
-      // Animate panel from left to right (cover)
+      // Animate panel sliding in from left to cover screen
       if (window.gsap) {
         await gsap.fromTo(panel, 
           {
-            scaleX: 0,
-            transformOrigin: 'left center'
+            xPercent: -100 // Start off-screen left
           },
           {
-            scaleX: 1,
+            xPercent: 0, // Slide to center (covering screen)
             duration: 0.6,
             ease: "power2.inOut"
           }
@@ -71,13 +69,12 @@ export function createSimpleWipeTransition(options = {}) {
       } else {
         // CSS fallback
         panel.style.transition = 'transform 0.6s cubic-bezier(0.45, 0, 0.55, 1)';
-        panel.style.transformOrigin = 'left center';
-        panel.style.transform = 'scaleX(0)';
+        panel.style.transform = 'translateX(-100%)';
         
         // Force reflow
         panel.offsetHeight;
         
-        panel.style.transform = 'scaleX(1)';
+        panel.style.transform = 'translateX(0)';
         await new Promise(resolve => setTimeout(resolve, 600));
       }
       
@@ -136,34 +133,31 @@ export function createSimpleWipeTransition(options = {}) {
       // Small delay to ensure new page is ready
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Animate panel from right to left (reveal)
+      // Animate panel sliding out to the right
       if (window.gsap) {
         await gsap.to(panel, {
-          scaleX: 0,
-          transformOrigin: 'right center',
+          xPercent: 100, // Slide out to the right
           duration: 0.6,
           ease: "power2.inOut",
           onComplete: () => {
-            // Reset panel for next use
+            // Reset panel position for next use (back to left side)
             gsap.set(panel, {
-              transformOrigin: 'left center',
-              scaleX: 0
+              xPercent: -100 // Reset to off-screen left
             });
           }
         });
       } else {
         // CSS fallback
         panel.style.transition = 'transform 0.6s cubic-bezier(0.45, 0, 0.55, 1)';
-        panel.style.transformOrigin = 'right center';
         
         // Force reflow
         panel.offsetHeight;
         
-        panel.style.transform = 'scaleX(0)';
+        panel.style.transform = 'translateX(100%)';
         await new Promise(resolve => setTimeout(resolve, 600));
         
         // Reset for next use
-        panel.style.transformOrigin = 'left center';
+        panel.style.transform = 'translateX(-100%)';
       }
       
       // Reset container styles
