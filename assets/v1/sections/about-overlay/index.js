@@ -205,23 +205,8 @@ export default function initAboutOverlay(container) {
     navWrap.classList.remove('has-overlay-open');
 
     if (window.gsap && revealTimeline) {
-      // Reverse animation
-      gsap.to([
-        '.about-award-item',
-        '.about-work-link',
-        '.about-contact-link',
-        '.about-bio-content',
-        '.about-awards-label',
-        '.about-work-label',
-        '.about-contact-label',
-        '.about-bio-label'
-      ], {
-        opacity: 0,
-        y: -15,
-        filter: "blur(6px)",
-        duration: 0.3,
-        stagger: 0.02,
-        ease: "power2.inOut",
+      // Create a timeline for smoother closing
+      const closeTl = gsap.timeline({
         onComplete: () => {
           aboutOverlay.classList.add('u-display-none');
           
@@ -266,7 +251,7 @@ export default function initAboutOverlay(container) {
             '.about-award-item'
           ], { clearProps: "all" });
           
-          gsap.set(aboutOverlay, { clearProps: "opacity" });
+          gsap.set(aboutOverlay, { clearProps: "all" });
           
           isAnimating = false;
           
@@ -277,6 +262,34 @@ export default function initAboutOverlay(container) {
           }
         }
       });
+
+      // Smoother content fade out - faster but gentler
+      closeTl.to([
+        '.about-award-item',
+        '.about-work-link',
+        '.about-contact-link',
+        '.about-bio-content',
+        '.about-awards-label',
+        '.about-work-label',
+        '.about-contact-label',
+        '.about-bio-label'
+      ], {
+        opacity: 0,
+        y: -10, // Reduced from -15
+        filter: "blur(10px)", // Increased blur for softer transition
+        duration: 0.25, // Slightly faster content fade
+        stagger: 0.015, // Tighter stagger
+        ease: "power2.in"
+      })
+      
+      // Then fade the entire overlay more smoothly
+      .to(aboutOverlay, {
+        opacity: 0,
+        scale: 0.98, // Subtle scale down for gentler exit
+        duration: 0.6, // Longer fade for smoother transition
+        ease: "power3.inOut" // Smoother easing curve
+      }, "-=0.1"); // Slight overlap with content fade
+
     } else {
       aboutOverlay.classList.add('u-display-none');
       
