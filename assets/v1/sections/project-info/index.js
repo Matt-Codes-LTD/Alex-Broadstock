@@ -49,7 +49,6 @@ export default function initProjectInfo(container) {
   // Listen for other overlays requesting to open
   const handleOverlayRequest = (e) => {
     if (e.detail.overlay !== 'info' && isOpen && !isAnimating) {
-      // Another overlay wants to open, close this one smoothly
       closeForTransition();
     }
   };
@@ -60,28 +59,29 @@ export default function initProjectInfo(container) {
   function open() {
     if (isOpen || isAnimating) return;
     
-    // Request to open (will trigger close on other overlays)
+    // Request to open
     window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.REQUEST_OPEN, { 
       detail: { overlay: 'info' } 
     }));
     
-    // Listen for when another overlay starts closing
+    // Wait for other overlay to FULLY close
     let waitingForOther = false;
-    const onOtherClosing = () => {
+    const onOtherClosed = () => {
       waitingForOther = true;
-      // Start opening with cross-fade
-      performOpen(true);
+      // Open normally after other overlay is fully closed
+      performOpen(false);
     };
     
-    window.addEventListener(OVERLAY_EVENTS.CLOSING, onOtherClosing, { once: true });
+    // Listen for CLOSED event (not CLOSING)
+    window.addEventListener(OVERLAY_EVENTS.CLOSED, onOtherClosed, { once: true });
     
-    // If no other overlay responds within 100ms, just open normally
+    // Timeout fallback if no other overlay is open
     setTimeout(() => {
-      window.removeEventListener(OVERLAY_EVENTS.CLOSING, onOtherClosing);
+      window.removeEventListener(OVERLAY_EVENTS.CLOSED, onOtherClosed);
       if (!waitingForOther && !isOpen && !isAnimating) {
         performOpen(false);
       }
-    }, 100);
+    }, 600);  // Increased to allow for close animation
   }
 
   function performOpen(isCrossFade) {
@@ -113,22 +113,8 @@ export default function initProjectInfo(container) {
     // Show overlay
     infoOverlay.classList.remove('u-display-none');
     
-    if (isCrossFade && window.gsap) {
-      // Cross-fade: start with opacity 0 and fade in
-      gsap.set(infoOverlay, { opacity: 0 });
-      gsap.to(infoOverlay, {
-        opacity: 1,
-        duration: 0.4,
-        ease: "power2.inOut",
-        onComplete: () => {
-          // Then run content reveal
-          runContentReveal();
-        }
-      });
-    } else {
-      // Normal open
-      runContentReveal();
-    }
+    // Always do normal open (isCrossFade removed since we wait for full close now)
+    runContentReveal();
 
     // Update nav states
     navLinks.forEach(link => {
@@ -187,7 +173,8 @@ export default function initProjectInfo(container) {
       detail: { overlay: 'info' } 
     }));
     
-    performClose(false);
+    // Close and ALWAYS dispatch CLOSED when done
+    performClose(true);
   }
 
   function performClose(dispatchComplete) {
@@ -219,7 +206,7 @@ export default function initProjectInfo(container) {
         opacity: 0,
         duration: 0.5,
         ease: "power3.inOut"
-      }, "-=0.2") // Slight overlap
+      }, "-=0.2")
       
       // Step 3: Cleanup
       .call(() => {

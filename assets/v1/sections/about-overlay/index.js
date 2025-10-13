@@ -77,20 +77,24 @@ export default function initAboutOverlay(container) {
       detail: { overlay: 'about' } 
     }));
     
+    // Wait for other overlay to FULLY close
     let waitingForOther = false;
-    const onOtherClosing = () => {
+    const onOtherClosed = () => {
       waitingForOther = true;
-      performOpen(true);
+      // Open normally after other overlay is fully closed
+      performOpen(false);
     };
     
-    window.addEventListener(OVERLAY_EVENTS.CLOSING, onOtherClosing, { once: true });
+    // Listen for CLOSED event (not CLOSING)
+    window.addEventListener(OVERLAY_EVENTS.CLOSED, onOtherClosed, { once: true });
     
+    // Timeout fallback if no other overlay is open
     setTimeout(() => {
-      window.removeEventListener(OVERLAY_EVENTS.CLOSING, onOtherClosing);
+      window.removeEventListener(OVERLAY_EVENTS.CLOSED, onOtherClosed);
       if (!waitingForOther && !isOpen && !isAnimating) {
         performOpen(false);
       }
-    }, 100);
+    }, 600);  // Increased to allow for close animation
   }
 
   function performOpen(isCrossFade) {
@@ -121,19 +125,8 @@ export default function initAboutOverlay(container) {
     // Show overlay
     aboutOverlay.classList.remove('u-display-none');
     
-    if (isCrossFade && window.gsap) {
-      gsap.set(aboutOverlay, { opacity: 0 });
-      gsap.to(aboutOverlay, {
-        opacity: 1,
-        duration: 0.4,
-        ease: "power2.inOut",
-        onComplete: () => {
-          runContentReveal();
-        }
-      });
-    } else {
-      runContentReveal();
-    }
+    // Always do normal open (isCrossFade removed since we wait for full close now)
+    runContentReveal();
 
     // Update nav states - handle both home and project pages
     if (isHomePage) {
@@ -193,11 +186,13 @@ export default function initAboutOverlay(container) {
   function closeForTransition() {
     if (!isOpen || isAnimating) return;
     
+    // Notify that we're closing
     window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSING, { 
       detail: { overlay: 'about' } 
     }));
     
-    performClose(false);
+    // Close and ALWAYS dispatch CLOSED when done
+    performClose(true);
   }
 
   function performClose(dispatchComplete) {
@@ -234,7 +229,7 @@ export default function initAboutOverlay(container) {
         opacity: 0,
         duration: 0.5,
         ease: "power3.inOut"
-      }, "-=0.15") // Slight overlap
+      }, "-=0.15")
       
       // Step 3: Cleanup
       .call(() => {
@@ -242,7 +237,6 @@ export default function initAboutOverlay(container) {
         
         // Restore nav states based on page type
         if (isHomePage) {
-          // Restore About text on home page
           aboutButton.textContent = originalAboutText;
           aboutButton.removeAttribute('data-overlay-open');
         } else if (isProjectPage) {
@@ -256,21 +250,13 @@ export default function initAboutOverlay(container) {
             backLink.style.cursor = '';
           }
           
-          // Project page specific: Restore UI AFTER overlay is gone
-          if (pausefx) {
-            pausefx.style.opacity = '0';
-          }
-          
-          if (video && wasPlayingBeforeOpen) {
-            video.play().catch(() => {});
-          }
-          
+          if (pausefx) pausefx.style.opacity = '0';
+          if (video && wasPlayingBeforeOpen) video.play().catch(() => {});
           if (playerControls) playerControls.style.opacity = '1';
           if (navigationOverlay) navigationOverlay.style.opacity = '1';
           if (centerToggle) centerToggle.style.opacity = '1';
         }
 
-        // Clear props
         gsap.set([
           '.about-bio-label',
           '.about-bio-content',
@@ -298,7 +284,6 @@ export default function initAboutOverlay(container) {
       aboutOverlay.classList.add('u-display-none');
       
       if (isHomePage) {
-        // Restore About text
         aboutButton.textContent = originalAboutText;
         aboutButton.removeAttribute('data-overlay-open');
       } else if (isProjectPage) {
@@ -353,23 +338,17 @@ export default function initAboutOverlay(container) {
     if (isHomePage && isOpen) {
       const categoryBtn = e.target.closest('.home-category_text');
       if (categoryBtn) {
-        // Small delay to let the filter animation start first
-        setTimeout(() => {
-          close();
-        }, 100);
+        setTimeout(() => close(), 100);
       }
     }
   };
 
   // Event listeners
   aboutButton.addEventListener('click', onAboutClick);
-  if (backLink) {
-    backLink.addEventListener('click', onBackClick);
-  }
+  if (backLink) backLink.addEventListener('click', onBackClick);
   document.addEventListener('keydown', onKeyDown);
   aboutOverlay.addEventListener('click', onOverlayClick);
   
-  // Listen for category clicks on home page
   if (isHomePage) {
     const categoriesContainer = container.querySelector('.home_hero_categories');
     if (categoriesContainer) {
@@ -380,9 +359,7 @@ export default function initAboutOverlay(container) {
 
   handlers.push(() => {
     aboutButton.removeEventListener('click', onAboutClick);
-    if (backLink) {
-      backLink.removeEventListener('click', onBackClick);
-    }
+    if (backLink) backLink.removeEventListener('click', onBackClick);
     document.removeEventListener('keydown', onKeyDown);
     aboutOverlay.removeEventListener('click', onOverlayClick);
   });

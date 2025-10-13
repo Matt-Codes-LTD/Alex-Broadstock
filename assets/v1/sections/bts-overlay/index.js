@@ -72,20 +72,24 @@ export default function initBTSOverlay(container) {
       detail: { overlay: 'bts' } 
     }));
     
+    // Wait for other overlay to FULLY close
     let waitingForOther = false;
-    const onOtherClosing = () => {
+    const onOtherClosed = () => {
       waitingForOther = true;
-      performOpen(true);
+      // Open normally after other overlay is fully closed
+      performOpen(false);
     };
     
-    window.addEventListener(OVERLAY_EVENTS.CLOSING, onOtherClosing, { once: true });
+    // Listen for CLOSED event (not CLOSING)
+    window.addEventListener(OVERLAY_EVENTS.CLOSED, onOtherClosed, { once: true });
     
+    // Timeout fallback if no other overlay is open
     setTimeout(() => {
-      window.removeEventListener(OVERLAY_EVENTS.CLOSING, onOtherClosing);
+      window.removeEventListener(OVERLAY_EVENTS.CLOSED, onOtherClosed);
       if (!waitingForOther && !isOpen && !isAnimating) {
         performOpen(false);
       }
-    }, 100);
+    }, 600);  // Increased to allow for close animation
   }
 
   function performOpen(isCrossFade) {
@@ -113,19 +117,8 @@ export default function initBTSOverlay(container) {
     // Show overlay
     btsOverlay.classList.remove('u-display-none');
     
-    if (isCrossFade && window.gsap) {
-      gsap.set(btsOverlay, { opacity: 0 });
-      gsap.to(btsOverlay, {
-        opacity: 1,
-        duration: 0.4,
-        ease: "power2.inOut",
-        onComplete: () => {
-          initializeDragging();
-        }
-      });
-    } else {
-      initializeDragging();
-    }
+    // Always do normal open (isCrossFade removed since we wait for full close now)
+    initializeDragging();
 
     // Fade other nav links
     navLinks.forEach(link => {
@@ -164,11 +157,13 @@ export default function initBTSOverlay(container) {
   function closeForTransition() {
     if (!isOpen || isAnimating) return;
     
+    // Notify that we're closing
     window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSING, { 
       detail: { overlay: 'bts' } 
     }));
     
-    performClose(false);
+    // Close and ALWAYS dispatch CLOSED when done
+    performClose(true);
   }
 
   function performClose(dispatchComplete) {
@@ -184,7 +179,7 @@ export default function initBTSOverlay(container) {
     if (window.gsap) {
       const closeTl = gsap.timeline();
       
-      // Step 1: Fade grid slightly (optional, subtle)
+      // Step 1: Fade grid slightly
       closeTl.to('.bts-grid_container', {
         opacity: 0.5,
         duration: 0.3,
@@ -196,7 +191,7 @@ export default function initBTSOverlay(container) {
         opacity: 0,
         duration: 0.5,
         ease: "power3.inOut"
-      }, "-=0.2") // Overlap slightly
+      }, "-=0.2")
       
       // Step 3: Cleanup
       .call(() => {
@@ -208,9 +203,7 @@ export default function initBTSOverlay(container) {
         });
 
         // Hide pausefx
-        if (pausefx) {
-          pausefx.style.opacity = '0';
-        }
+        if (pausefx) pausefx.style.opacity = '0';
 
         // Restore video
         if (video && wasPlayingBeforeOpen) {
