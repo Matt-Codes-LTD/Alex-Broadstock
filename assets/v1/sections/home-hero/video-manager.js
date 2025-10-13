@@ -1,4 +1,4 @@
-// video-manager.js - Enhanced with aspect ratio control from CMS
+// video-manager.js - UPDATED: Faster crossfade timing (0.2s)
 export function createVideoManager(stage) {
   const MAX_VIDEOS = 8;
   const videoBySrc = new Map();
@@ -34,7 +34,6 @@ export function createVideoManager(stage) {
     let v = videoBySrc.get(src);
     if (v) {
       v.__lastUsed = Date.now();
-      // If syncing, update time even for existing video
       if (syncTime > 0) {
         try {
           v.currentTime = syncTime;
@@ -47,9 +46,8 @@ export function createVideoManager(stage) {
       cleanupOldestVideo();
     }
 
-    // Find the item element with this video src to get the ratio setting
     const item = document.querySelector(`[data-video="${src}"]`);
-    const ratio = item?.dataset.ratio || 'cover'; // Default to 'cover' if not specified
+    const ratio = item?.dataset.ratio || 'cover';
 
     v = document.createElement("video");
     v.className = "home-hero_video_el";
@@ -59,15 +57,12 @@ export function createVideoManager(stage) {
     v.playsInline = true;
     v.preload = "auto";
     v.crossOrigin = "anonymous";
-    v.autoplay = true; // Add autoplay attribute
+    v.autoplay = true;
     v.__lastUsed = Date.now();
     
-    // Better sync handling
     if (syncTime > 0) {
-      // Set time before adding to DOM for smoother start
       v.currentTime = syncTime;
       
-      // Also listen for loadedmetadata to re-sync if needed
       v.addEventListener('loadedmetadata', () => {
         if (Math.abs(v.currentTime - syncTime) > 0.1) {
           v.currentTime = syncTime;
@@ -84,13 +79,13 @@ export function createVideoManager(stage) {
         height: '100%',
         left: 0,
         top: 0,
-        objectFit: ratio.toLowerCase() // Apply the aspect ratio from CMS
+        objectFit: ratio.toLowerCase()
       });
     } else {
       v.style.opacity = "0";
       v.style.width = "100%";
       v.style.height = "100%";
-      v.style.objectFit = ratio.toLowerCase(); // Apply the aspect ratio from CMS
+      v.style.objectFit = ratio.toLowerCase();
       v.style.position = "absolute";
       v.style.left = "0";
       v.style.top = "0";
@@ -99,7 +94,6 @@ export function createVideoManager(stage) {
     stage.appendChild(v);
     videoBySrc.set(src, v);
     
-    // Force play with multiple attempts
     const attemptPlay = (attempts = 0) => {
       if (attempts > 5) return;
       
@@ -112,7 +106,6 @@ export function createVideoManager(stage) {
       });
     };
     
-    // Start playing immediately
     attemptPlay();
     
     return v;
@@ -176,13 +169,12 @@ export function createVideoManager(stage) {
   function setActive(src, linkEl, opts = {}) {
     if (transitionInProgress) return;
 
-    // Handle loader handoff - create fresh video synced to loader time
+    // Handle loader handoff
     if (opts.useHandoff && opts.handoff) {
       const { loaderVideo, currentTime } = opts.handoff;
       
       console.log("[VideoManager] Handoff from loader, creating synced video");
       
-      // Create a new video starting at the loader's current time
       let next = videoBySrc.get(src);
       if (!next) {
         const syncTime = currentTime || loaderVideo?.currentTime || 0;
@@ -195,25 +187,21 @@ export function createVideoManager(stage) {
         next.__lastUsed = Date.now();
         next.classList.add("is-active");
         
-        // Check if this video needs different aspect ratio
         const item = document.querySelector(`[data-video="${src}"]`);
         const ratio = item?.dataset.ratio || 'cover';
         next.style.objectFit = ratio.toLowerCase();
         
-        // Adjusted timing for perfect crossfade
+        // UPDATED: Faster fade in for handoff
         if (window.gsap) {
-          // Start slightly later and fade faster for tighter transition
           gsap.to(next, {
             opacity: 1,
-            duration: 0.4, // Reduced from 0.6 for tighter crossfade
-            ease: "power2.out", // Smoother ease out
-            delay: 0.8, // Start later (was 0.6) - begins at 0.8s into morph
+            duration: 0.3,  // Slightly faster than before
+            ease: "power2.out",
+            delay: 0.8,
             onStart: () => {
-              // Ensure it's playing and perfectly synced
               if (next.paused) {
                 next.play().catch(() => {});
               }
-              // Double-check time sync
               if (loaderVideo && !loaderVideo.paused) {
                 try {
                   next.currentTime = loaderVideo.currentTime;
@@ -225,8 +213,6 @@ export function createVideoManager(stage) {
           next.style.opacity = "1";
         }
         
-        // Note: Loader wrapper fade is now handled in timeline.js
-        
         if (linkEl && linkEl !== activeLink) {
           updateLinkState(activeLink, linkEl);
           activeLink = linkEl;
@@ -237,11 +223,10 @@ export function createVideoManager(stage) {
       }
     }
 
-    // Normal video switching logic
+    // Normal video switching
     const next = videoBySrc.get(src) || createVideo(src);
     if (!next) return;
 
-    // Update aspect ratio for active video in case it changed
     const item = document.querySelector(`[data-video="${src}"]`);
     const ratio = item?.dataset.ratio || 'cover';
     next.style.objectFit = ratio.toLowerCase();
@@ -266,13 +251,13 @@ export function createVideoManager(stage) {
     const previousVideo = activeVideo;
     activeVideo = next;
 
-    // Hide old video
+    // UPDATED: Faster fade out
     if (previousVideo) {
       previousVideo.classList.remove("is-active");
       if (window.gsap) {
         gsap.to(previousVideo, {
           opacity: 0,
-          duration: 0.3,
+          duration: 0.2,  // CHANGED from 0.3 to 0.2
           ease: "power2.inOut",
           onComplete: () => {
             if (!previousVideo.__keepAlive) {
@@ -291,16 +276,17 @@ export function createVideoManager(stage) {
     // Show new video
     next.classList.add("is-active");
     
-    // Ensure video starts playing
+    // Ensure video starts playing BEFORE fade
     if (next.paused) {
       next.play().catch(() => {});
     }
     
+    // UPDATED: Faster fade in with snappier easing
     if (window.gsap) {
       gsap.to(next, {
         opacity: 1,
-        duration: 0.3,
-        ease: "power2.out"
+        duration: 0.2,  // CHANGED from 0.3 to 0.2
+        ease: "power2.out"  // Snappier easing
       });
     } else {
       next.style.opacity = "1";

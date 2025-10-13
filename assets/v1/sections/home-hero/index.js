@@ -1,4 +1,4 @@
-// index.js - Simplified with better handoff timing - ALL BUTTON REMOVED
+// index.js - UPDATED: Faster video transitions with 30ms delay
 import { createVideoManager } from "./video-manager.js";
 import { initCategoryFilter } from "./category-filter.js";
 
@@ -47,9 +47,8 @@ export default function initHomeHero(container) {
       videoStage.style.zIndex = "0";
     }
     
-    // Initialize category filter - it will handle initial filtering and call setActive
+    // Initialize category filter
     const cleanupFilter = initCategoryFilter(section, videoManager, (firstItem) => {
-      // On initial setup, use handoff if available
       if (!initialSetupDone && firstItem) {
         initialSetupDone = true;
         
@@ -68,9 +67,7 @@ export default function initHomeHero(container) {
     });
     cleanupFunctions.push(cleanupFilter);
     
-    // Emit ready for site loader
     emitReadyOnce();
-    
     section.dataset.introComplete = "true";
     
     // Preload other videos after initial setup
@@ -84,7 +81,6 @@ export default function initHomeHero(container) {
     morphListener = (e) => {
       handoff = e?.detail || null;
       console.log("[HomeHero] Received handoff:", handoff);
-      // Initialize immediately on handoff
       initializeHero();
     };
     window.addEventListener("siteLoaderMorphBegin", morphListener, { once: true });
@@ -159,7 +155,7 @@ export default function initHomeHero(container) {
     activeItem = item;
 
     requestAnimationFrame(() => {
-      // Fade all items first
+      // Fade all items
       items.forEach((i) => {
         const link  = i.querySelector(".home-hero_link");
         const text  = i.querySelector(".home_hero_text");
@@ -167,14 +163,13 @@ export default function initHomeHero(container) {
         
         if (link) link.setAttribute("aria-current", "false");
         
-        // Only fade items that are visible
         if (i.style.display !== "none") {
           text?.classList.add("u-color-faded");
           pills.forEach(p => p.classList.add("u-color-faded"));
         }
       });
 
-      // Then unfade only the active item
+      // Unfade active item
       const activeLink  = item.querySelector(".home-hero_link");
       const activeText  = item.querySelector(".home_hero_text");
       const activePills = item.querySelectorAll(".home-category_ref_text:not([hidden])");
@@ -205,10 +200,9 @@ export default function initHomeHero(container) {
     const MAX_EAGER = 3;
     let count = 0;
     
-    // Only preload videos from visible items
     items.forEach(item => {
       if (count >= MAX_EAGER) return;
-      if (item.style.display === "none") return; // Skip hidden items
+      if (item.style.display === "none") return;
       
       const projectEl = item.querySelector(".home-hero_item");
       const videoSrc  = projectEl?.dataset.video;
@@ -229,6 +223,7 @@ export default function initHomeHero(container) {
     });
   }
 
+  // UPDATED: Immediate preload, faster response
   function preloadVideoForItem(item) {
     if (navigator.connection?.saveData) return;
     const projectEl = item.querySelector(".home-hero_item");
@@ -237,9 +232,17 @@ export default function initHomeHero(container) {
       const video = videoManager.getVideo(videoSrc) || videoManager.createVideo(videoSrc);
       if (video) {
         video.__keepAlive = true;
+        
+        // Ensure video is loaded
+        if (video.readyState < 2) {
+          video.load();
+        }
+        
         if (!video.__warmed) {
           videoManager.warmVideo(video);
         }
+        
+        // Make sure it's playing smoothly
         if (video.paused) {
           video.play().catch(() => {});
         }
@@ -247,6 +250,7 @@ export default function initHomeHero(container) {
     }
   }
 
+  // UPDATED: Faster interaction response
   function handleInteraction(e) {
     const item = e.target.closest(".home-hero_list");
     if (!item || !listParent.contains(item) || item.style.display === "none") return;
@@ -254,11 +258,11 @@ export default function initHomeHero(container) {
     clearTimeout(hoverTimeout);
     clearTimeout(preloadTimeout);
     
-    preloadTimeout = setTimeout(() => {
-      preloadVideoForItem(item);
-    }, 50);
+    // IMMEDIATE preload (no delay)
+    preloadVideoForItem(item);
     
-    hoverTimeout = setTimeout(() => setActive(item), 120);
+    // REDUCED from 120ms to 30ms - snappier but still prevents accidents
+    hoverTimeout = setTimeout(() => setActive(item), 30);
   }
 
   function handleClick(e) {
