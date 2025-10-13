@@ -229,25 +229,6 @@ export default function initAboutOverlay(container) {
             }
           }
 
-          // Hide pausefx on project pages
-          if (pausefx) {
-            gsap.to(pausefx, { opacity: 0, duration: 0.3, ease: "power2.out" });
-          }
-
-          // Resume video on project pages
-          if (video && wasPlayingBeforeOpen) {
-            video.play().catch(() => {});
-          }
-
-          // Show player controls on project pages
-          if (isProjectPage && (playerControls || navigationOverlay || centerToggle)) {
-            gsap.to([playerControls, navigationOverlay, centerToggle].filter(Boolean), {
-              opacity: 1,
-              duration: 0.3,
-              ease: "power2.out"
-            });
-          }
-
           // Clear props
           gsap.set([
             '.about-bio-label',
@@ -272,7 +253,7 @@ export default function initAboutOverlay(container) {
         }
       });
 
-      // Fade out animation
+      // Fade out animation - SAME FOR BOTH PAGES
       closeTl.to([
         '.about-award-item',
         '.about-work-link',
@@ -296,6 +277,34 @@ export default function initAboutOverlay(container) {
         duration: 0.6,
         ease: "power3.inOut"
       }, "-=0.1");
+
+      // Project page specific: Fade UI DURING overlay close (not after)
+      if (isProjectPage) {
+        // Hide pausefx overlay simultaneously with overlay fade
+        if (pausefx) {
+          closeTl.to(pausefx, { 
+            opacity: 0, 
+            duration: 0.6, 
+            ease: "power2.out" 
+          }, "-=0.6");
+        }
+
+        // Show player controls simultaneously with overlay fade
+        if (playerControls || navigationOverlay || centerToggle) {
+          closeTl.to([playerControls, navigationOverlay, centerToggle].filter(Boolean), {
+            opacity: 1,
+            duration: 0.6,
+            ease: "power2.out"
+          }, "-=0.6");
+        }
+
+        // Resume video early in the animation
+        if (video && wasPlayingBeforeOpen) {
+          closeTl.call(() => {
+            video.play().catch(() => {});
+          }, null, "-=0.5");
+        }
+      }
 
     } else {
       // No animation fallback
@@ -352,7 +361,7 @@ export default function initAboutOverlay(container) {
     }
   };
   
-  // NEW: Close overlay when category is clicked (home page only)
+  // Close overlay when category is clicked (home page only)
   const onCategoryClick = (e) => {
     if (isHomePage && isOpen) {
       const categoryBtn = e.target.closest('.home-category_text');
@@ -373,7 +382,7 @@ export default function initAboutOverlay(container) {
   document.addEventListener('keydown', onKeyDown);
   aboutOverlay.addEventListener('click', onOverlayClick);
   
-  // NEW: Listen for category clicks on home page
+  // Listen for category clicks on home page
   if (isHomePage) {
     const categoriesContainer = container.querySelector('.home_hero_categories');
     if (categoriesContainer) {
