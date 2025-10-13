@@ -29,6 +29,9 @@ export default function initAboutOverlay(container) {
     return () => {};
   }
   
+  // Store original About text
+  const originalAboutText = aboutButton.textContent;
+  
   // Find Back link (optional - only on project pages)
   const backLink = Array.from(navLinks).find(link => 
     link.textContent.trim() === 'Back'
@@ -134,7 +137,8 @@ export default function initAboutOverlay(container) {
 
     // Update nav states - handle both home and project pages
     if (isHomePage) {
-      // On home page, just add a close button or use About as toggle
+      // On home page, change About to Close
+      aboutButton.textContent = 'Close';
       aboutButton.setAttribute('data-overlay-open', 'true');
     } else if (isProjectPage) {
       // On project page, fade other links and change Back to Close
@@ -210,6 +214,8 @@ export default function initAboutOverlay(container) {
           
           // Restore nav states based on page type
           if (isHomePage) {
+            // Restore About text on home page
+            aboutButton.textContent = originalAboutText;
             aboutButton.removeAttribute('data-overlay-open');
           } else if (isProjectPage) {
             navLinks.forEach(link => {
@@ -296,6 +302,8 @@ export default function initAboutOverlay(container) {
       aboutOverlay.classList.add('u-display-none');
       
       if (isHomePage) {
+        // Restore About text
+        aboutButton.textContent = originalAboutText;
         aboutButton.removeAttribute('data-overlay-open');
       } else if (isProjectPage) {
         navLinks.forEach(link => {
@@ -343,13 +351,36 @@ export default function initAboutOverlay(container) {
       close();
     }
   };
+  
+  // NEW: Close overlay when category is clicked (home page only)
+  const onCategoryClick = (e) => {
+    if (isHomePage && isOpen) {
+      const categoryBtn = e.target.closest('.home-category_text');
+      if (categoryBtn) {
+        // Small delay to let the filter animation start first
+        setTimeout(() => {
+          close();
+        }, 100);
+      }
+    }
+  };
 
+  // Event listeners
   aboutButton.addEventListener('click', onAboutClick);
   if (backLink) {
     backLink.addEventListener('click', onBackClick);
   }
   document.addEventListener('keydown', onKeyDown);
   aboutOverlay.addEventListener('click', onOverlayClick);
+  
+  // NEW: Listen for category clicks on home page
+  if (isHomePage) {
+    const categoriesContainer = container.querySelector('.home_hero_categories');
+    if (categoriesContainer) {
+      categoriesContainer.addEventListener('click', onCategoryClick);
+      handlers.push(() => categoriesContainer.removeEventListener('click', onCategoryClick));
+    }
+  }
 
   handlers.push(() => {
     aboutButton.removeEventListener('click', onAboutClick);
