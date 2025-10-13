@@ -182,43 +182,60 @@ export default function initBTSOverlay(container) {
     }
 
     if (window.gsap) {
-      gsap.to(btsOverlay, {
+      const closeTl = gsap.timeline();
+      
+      // Step 1: Fade grid slightly (optional, subtle)
+      closeTl.to('.bts-grid_container', {
+        opacity: 0.5,
+        duration: 0.3,
+        ease: "power2.in"
+      })
+      
+      // Step 2: Fade overlay background
+      .to(btsOverlay, {
         opacity: 0,
-        duration: 0.4,
-        ease: "power2.inOut",
-        onComplete: () => {
-          btsOverlay.classList.add('u-display-none');
-          
-          // Restore nav states
-          navLinks.forEach(link => {
-            link.classList.remove('u-color-faded');
-          });
+        duration: 0.5,
+        ease: "power3.inOut"
+      }, "-=0.2") // Overlap slightly
+      
+      // Step 3: Cleanup
+      .call(() => {
+        btsOverlay.classList.add('u-display-none');
+        
+        // Restore nav states
+        navLinks.forEach(link => {
+          link.classList.remove('u-color-faded');
+        });
 
-          // Hide pausefx
-          if (pausefx) {
-            pausefx.style.opacity = '0';
-          }
+        // Hide pausefx
+        if (pausefx) {
+          pausefx.style.opacity = '0';
+        }
 
-          // Restore video
-          if (video && wasPlayingBeforeOpen) {
-            video.play().catch(() => {});
-          }
+        // Restore video
+        if (video && wasPlayingBeforeOpen) {
+          video.play().catch(() => {});
+        }
 
-          // Show player controls
-          if (playerControls) playerControls.style.opacity = '1';
-          if (navigationOverlay) navigationOverlay.style.opacity = '1';
-          if (centerToggle) centerToggle.style.opacity = '1';
-          
-          isAnimating = false;
-          
-          if (dispatchComplete) {
-            window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSED, { 
-              detail: { overlay: 'bts' } 
-            }));
-          }
+        // Show player controls
+        if (playerControls) playerControls.style.opacity = '1';
+        if (navigationOverlay) navigationOverlay.style.opacity = '1';
+        if (centerToggle) centerToggle.style.opacity = '1';
+        
+        // Reset grid opacity
+        gsap.set('.bts-grid_container', { opacity: 1 });
+        gsap.set(btsOverlay, { clearProps: "opacity" });
+        
+        isAnimating = false;
+        
+        if (dispatchComplete) {
+          window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSED, { 
+            detail: { overlay: 'bts' } 
+          }));
         }
       });
     } else {
+      // No animation fallback
       btsOverlay.classList.add('u-display-none');
       
       navLinks.forEach(link => {

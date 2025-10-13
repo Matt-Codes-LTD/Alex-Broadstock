@@ -195,7 +195,10 @@ export default function initProjectInfo(container) {
     isAnimating = true;
 
     if (window.gsap && revealTimeline) {
-      gsap.to([
+      const closeTl = gsap.timeline();
+      
+      // Step 1: Fade content out
+      closeTl.to([
         '.project-info_award-item',
         '.project-info_awards-label',
         '.project-info_crew-name',
@@ -208,72 +211,70 @@ export default function initProjectInfo(container) {
         filter: "blur(6px)",
         duration: 0.4,
         stagger: 0.03,
-        ease: "power2.inOut",
-        onComplete: () => {
-          infoOverlay.classList.add('u-display-none');
-          
-          // Restore nav states
-          navLinks.forEach(link => {
-            link.classList.remove('u-color-faded');
-          });
+        ease: "power2.inOut"
+      })
+      
+      // Step 2: Fade overlay background
+      .to(infoOverlay, {
+        opacity: 0,
+        duration: 0.5,
+        ease: "power3.inOut"
+      }, "-=0.2") // Slight overlap
+      
+      // Step 3: Cleanup
+      .call(() => {
+        infoOverlay.classList.add('u-display-none');
+        
+        // Restore nav states
+        navLinks.forEach(link => {
+          link.classList.remove('u-color-faded');
+        });
 
-          // Restore Back link
-          backLink.textContent = 'Back';
-          backLink.setAttribute('href', originalBackHref);
-          backLink.style.cursor = '';
+        // Restore Back link
+        backLink.textContent = 'Back';
+        backLink.setAttribute('href', originalBackHref);
+        backLink.style.cursor = '';
 
-          // Hide pausefx overlay
-          if (pausefx) {
-            if (window.gsap) {
-              gsap.to(pausefx, { opacity: 0, duration: 0.3, ease: "power2.out" });
-            } else {
-              pausefx.style.opacity = '0';
-            }
-          }
+        // Hide pausefx overlay
+        if (pausefx) {
+          pausefx.style.opacity = '0';
+        }
 
-          // Restore video mute state
-          if (video && !wasMutedBeforeOpen) {
-            video.muted = false;
-            video.removeAttribute('muted');
-          }
+        // Restore video mute state
+        if (video && !wasMutedBeforeOpen) {
+          video.muted = false;
+          video.removeAttribute('muted');
+        }
 
-          // Show player controls again
-          if (window.gsap) {
-            gsap.to([playerControls, navigationOverlay, centerToggle], {
-              opacity: 1,
-              duration: 0.3,
-              ease: "power2.out"
-            });
-          } else {
-            if (playerControls) playerControls.style.opacity = '1';
-            if (navigationOverlay) navigationOverlay.style.opacity = '1';
-            if (centerToggle) centerToggle.style.opacity = '1';
-          }
+        // Show player controls again
+        if (playerControls) playerControls.style.opacity = '1';
+        if (navigationOverlay) navigationOverlay.style.opacity = '1';
+        if (centerToggle) centerToggle.style.opacity = '1';
 
-          gsap.set([
-            '.project-info_description',
-            '.project-info_crew-label',
-            '.project-info_crew-role',
-            '.project-info_crew-name',
-            '.project-info_awards-label',
-            '.project-info_award-item'
-          ], { clearProps: "all" });
-          
-          gsap.set(infoOverlay, { clearProps: "opacity" });
-          
-          isAnimating = false;
-          
-          if (dispatchComplete) {
-            window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSED, { 
-              detail: { overlay: 'info' } 
-            }));
-          }
+        // Clear props
+        gsap.set([
+          '.project-info_description',
+          '.project-info_crew-label',
+          '.project-info_crew-role',
+          '.project-info_crew-name',
+          '.project-info_awards-label',
+          '.project-info_award-item'
+        ], { clearProps: "all" });
+        
+        gsap.set(infoOverlay, { clearProps: "opacity" });
+        
+        isAnimating = false;
+        
+        if (dispatchComplete) {
+          window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSED, { 
+            detail: { overlay: 'info' } 
+          }));
         }
       });
     } else {
+      // No animation fallback
       infoOverlay.classList.add('u-display-none');
       
-      // Restore everything without animation
       navLinks.forEach(link => {
         link.classList.remove('u-color-faded');
       });

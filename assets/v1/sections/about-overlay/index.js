@@ -208,65 +208,9 @@ export default function initAboutOverlay(container) {
     navWrap.classList.remove('has-overlay-open');
 
     if (window.gsap && revealTimeline) {
-      const closeTl = gsap.timeline({
-        onComplete: () => {
-          aboutOverlay.classList.add('u-display-none');
-          
-          // Restore nav states based on page type
-          if (isHomePage) {
-            // Restore About text on home page
-            aboutButton.textContent = originalAboutText;
-            aboutButton.removeAttribute('data-overlay-open');
-          } else if (isProjectPage) {
-            navLinks.forEach(link => {
-              link.classList.remove('u-color-faded');
-            });
+      const closeTl = gsap.timeline();
 
-            if (backLink) {
-              backLink.textContent = 'Back';
-              backLink.setAttribute('href', originalBackHref);
-              backLink.style.cursor = '';
-            }
-            
-            // Project page specific: Restore UI AFTER overlay is gone
-            if (pausefx) {
-              pausefx.style.opacity = '0';
-            }
-            
-            if (video && wasPlayingBeforeOpen) {
-              video.play().catch(() => {});
-            }
-            
-            if (playerControls) playerControls.style.opacity = '1';
-            if (navigationOverlay) navigationOverlay.style.opacity = '1';
-            if (centerToggle) centerToggle.style.opacity = '1';
-          }
-
-          // Clear props
-          gsap.set([
-            '.about-bio-label',
-            '.about-bio-content',
-            '.about-contact-label',
-            '.about-contact-link',
-            '.about-work-label',
-            '.about-work-link',
-            '.about-awards-label',
-            '.about-award-item'
-          ], { clearProps: "all" });
-          
-          gsap.set(aboutOverlay, { clearProps: "all" });
-          
-          isAnimating = false;
-          
-          if (dispatchComplete) {
-            window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSED, { 
-              detail: { overlay: 'about' } 
-            }));
-          }
-        }
-      });
-
-      // Fade out animation - IDENTICAL FOR BOTH PAGES
+      // Step 1: Fade content out
       closeTl.to([
         '.about-award-item',
         '.about-work-link',
@@ -284,11 +228,70 @@ export default function initAboutOverlay(container) {
         stagger: 0.015,
         ease: "power2.in"
       })
+      
+      // Step 2: Fade overlay background
       .to(aboutOverlay, {
         opacity: 0,
-        duration: 0.6,
+        duration: 0.5,
         ease: "power3.inOut"
-      }, "-=0.1");
+      }, "-=0.15") // Slight overlap
+      
+      // Step 3: Cleanup
+      .call(() => {
+        aboutOverlay.classList.add('u-display-none');
+        
+        // Restore nav states based on page type
+        if (isHomePage) {
+          // Restore About text on home page
+          aboutButton.textContent = originalAboutText;
+          aboutButton.removeAttribute('data-overlay-open');
+        } else if (isProjectPage) {
+          navLinks.forEach(link => {
+            link.classList.remove('u-color-faded');
+          });
+
+          if (backLink) {
+            backLink.textContent = 'Back';
+            backLink.setAttribute('href', originalBackHref);
+            backLink.style.cursor = '';
+          }
+          
+          // Project page specific: Restore UI AFTER overlay is gone
+          if (pausefx) {
+            pausefx.style.opacity = '0';
+          }
+          
+          if (video && wasPlayingBeforeOpen) {
+            video.play().catch(() => {});
+          }
+          
+          if (playerControls) playerControls.style.opacity = '1';
+          if (navigationOverlay) navigationOverlay.style.opacity = '1';
+          if (centerToggle) centerToggle.style.opacity = '1';
+        }
+
+        // Clear props
+        gsap.set([
+          '.about-bio-label',
+          '.about-bio-content',
+          '.about-contact-label',
+          '.about-contact-link',
+          '.about-work-label',
+          '.about-work-link',
+          '.about-awards-label',
+          '.about-award-item'
+        ], { clearProps: "all" });
+        
+        gsap.set(aboutOverlay, { clearProps: "all" });
+        
+        isAnimating = false;
+        
+        if (dispatchComplete) {
+          window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSED, { 
+            detail: { overlay: 'about' } 
+          }));
+        }
+      });
 
     } else {
       // No animation fallback
