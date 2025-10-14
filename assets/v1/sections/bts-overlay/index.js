@@ -123,8 +123,38 @@ export default function initBTSOverlay(container) {
     // Show overlay
     btsOverlay.classList.remove('u-display-none');
     
-    // Always do normal open (isCrossFade removed since we wait for full close now)
-    initializeDragging();
+    // Animate images in with GSAP
+    if (window.gsap) {
+      const allImages = btsOverlay.querySelectorAll('.bts-grid_img');
+      
+      // Set initial state for images
+      gsap.set(allImages, {
+        opacity: 0,
+        scale: 0.85,
+        filter: "blur(8px)"
+      });
+      
+      // Animate images in with stagger
+      gsap.to(allImages, {
+        opacity: 1,
+        scale: 1,
+        filter: "blur(0px)",
+        duration: 0.5,
+        ease: "power2.out",
+        stagger: {
+          amount: 0.6,
+          from: "random",
+          grid: "auto"
+        },
+        onComplete: () => {
+          // Enable dragging after images are in
+          initializeDragging();
+        }
+      });
+    } else {
+      // No GSAP fallback
+      initializeDragging();
+    }
 
     // Fade other nav links
     navLinks.forEach(link => {
@@ -191,12 +221,19 @@ export default function initBTSOverlay(container) {
 
     if (window.gsap) {
       const closeTl = gsap.timeline();
+      const allImages = btsOverlay.querySelectorAll('.bts-grid_img');
       
-      // Step 1: FAST grid fade
-      closeTl.to('.bts-grid_container', {
-        opacity: 0.3,
-        duration: 0.2,
-        ease: "power3.in"
+      // Step 1: FAST image exit with stagger
+      closeTl.to(allImages, {
+        opacity: 0,
+        scale: 0.9,
+        filter: "blur(6px)",
+        duration: 0.25,
+        ease: "power3.in",
+        stagger: {
+          amount: 0.15,
+          from: "random"
+        }
       })
       
       // Step 2: GENTLE background fade
@@ -204,7 +241,7 @@ export default function initBTSOverlay(container) {
         opacity: 0,
         duration: 0.7,
         ease: "sine.out"
-      }, "-=0.1")
+      }, "-=0.5")  // Start while images are still fading
       
       // Step 3: Cleanup
       .call(() => {
@@ -235,8 +272,8 @@ export default function initBTSOverlay(container) {
         if (navigationOverlay) navigationOverlay.style.opacity = '1';
         if (centerToggle) centerToggle.style.opacity = '1';
         
-        // Reset grid opacity
-        gsap.set('.bts-grid_container', { opacity: 1 });
+        // Reset image and overlay states
+        gsap.set(allImages, { clearProps: "all" });
         gsap.set(btsOverlay, { clearProps: "opacity" });
         
         isAnimating = false;
