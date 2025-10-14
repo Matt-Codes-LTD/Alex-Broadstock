@@ -291,6 +291,7 @@ export default function initAboutOverlay(container) {
           if (centerToggle) centerToggle.style.opacity = '1';
         }
 
+        // Clear props - only clear animation properties, not display/visibility
         gsap.set([
           '.about-bio-label',
           '.about-bio-content',
@@ -300,9 +301,9 @@ export default function initAboutOverlay(container) {
           '.about-work-link',
           '.about-awards-label',
           '.about-award-item'
-        ], { clearProps: "all" });
+        ], { clearProps: "transform,filter,opacity" });
         
-        gsap.set(aboutOverlay, { clearProps: "all" });
+        gsap.set(aboutOverlay, { clearProps: "transform,filter" });
         
         isAnimating = false;
         

@@ -277,7 +277,7 @@ export default function initProjectInfo(container) {
         if (navigationOverlay) navigationOverlay.style.opacity = '1';
         if (centerToggle) centerToggle.style.opacity = '1';
 
-        // Clear props
+        // Clear props - only clear animation properties, not display/visibility
         gsap.set([
           '.project-info_description',
           '.project-info_crew-label',
@@ -285,9 +285,9 @@ export default function initProjectInfo(container) {
           '.project-info_crew-name',
           '.project-info_awards-label',
           '.project-info_award-item'
-        ], { clearProps: "all" });
+        ], { clearProps: "transform,filter,opacity" });
         
-        gsap.set(infoOverlay, { clearProps: "all" });
+        gsap.set(infoOverlay, { clearProps: "transform,filter" });
         
         isAnimating = false;
         

@@ -289,9 +289,9 @@ export default function initBTSOverlay(container) {
         if (navigationOverlay) navigationOverlay.style.opacity = '1';
         if (centerToggle) centerToggle.style.opacity = '1';
         
-        // Reset image and overlay states
-        gsap.set(allImages, { clearProps: "all" });
-        gsap.set(btsOverlay, { clearProps: "all" });
+        // Reset image and overlay states - only clear animation properties
+        gsap.set(allImages, { clearProps: "transform,filter,opacity,scale" });
+        gsap.set(btsOverlay, { clearProps: "transform,filter" });
         
         isAnimating = false;
         
