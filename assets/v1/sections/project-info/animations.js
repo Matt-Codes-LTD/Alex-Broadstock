@@ -1,4 +1,5 @@
 // assets/v1/sections/project-info/animations.js
+// UPDATED: Faster animations to match about overlay speed
 import { ANIMATION, getAnimProps } from "../../core/animation-constants.js";
 
 export function createRevealAnimation(container) {
@@ -14,8 +15,8 @@ export function createRevealAnimation(container) {
     '.project-info_award-item'
   ], {
     opacity: 0,
-    y: 15,  // Reduced from 20
-    filter: "blur(6px)"  // Reduced from 8px
+    y: 12,  // REDUCED: Matches about overlay (was 15)
+    filter: "blur(6px)"
   });
 
   const tl = gsap.timeline();
@@ -25,7 +26,7 @@ export function createRevealAnimation(container) {
     opacity: 1,
     y: 0,
     filter: "blur(0px)",
-    duration: 0.5,  // Was 0.8
+    duration: 0.4,  // REDUCED: Was 0.5
     ease: "power3.out"
   })
 
@@ -34,48 +35,48 @@ export function createRevealAnimation(container) {
     opacity: 1,
     y: 0,
     filter: "blur(0px)",
-    duration: 0.4,  // Was 0.6
+    duration: 0.35,  // REDUCED: Was 0.4
     ease: "power2.out"
-  }, "-=0.35")  // Was -=0.5
+  }, "-=0.3")  // INCREASED: Was -=0.35
 
   // Crew roles - faster stagger
   .to('.project-info_crew-role', {
     opacity: 1,
     y: 0,
     filter: "blur(0px)",
-    duration: 0.35,  // Was 0.5
-    stagger: 0.08,  // Was 0.12
+    duration: 0.3,  // REDUCED: Was 0.35
+    stagger: 0.06,  // REDUCED: Was 0.08
     ease: "power2.out"
-  }, "-=0.25")  // Was -=0.35
+  }, "-=0.25")
   
-  // Crew names - simultaneous
+  // Crew names - simultaneous with tighter timing
   .to('.project-info_crew-name', {
     opacity: 1,
     y: 0,
     filter: "blur(0px)",
-    duration: 0.35,  // Was 0.5
-    stagger: 0.08,  // Was 0.12
+    duration: 0.3,  // REDUCED: Was 0.35
+    stagger: 0.06,  // REDUCED: Was 0.08
     ease: "power2.out"
-  }, "-=0.30")  // Was -=0.45
+  }, "-=0.25")  // INCREASED: Was -=0.30
 
   // Awards label - quick
   .to('.project-info_awards-label', {
     opacity: 1,
     y: 0,
     filter: "blur(0px)",
-    duration: 0.4,  // Was 0.6
+    duration: 0.35,  // REDUCED: Was 0.4
     ease: "power2.out"
-  }, "-=0.25")  // Was -=0.4
+  }, "-=0.25")
 
   // Awards - snappy bounce
   .to('.project-info_award-item', {
     opacity: 1,
     y: 0,
     filter: "blur(0px)",
-    duration: 0.35,  // Was 0.5
-    stagger: 0.05,  // Was 0.08
+    duration: 0.3,  // REDUCED: Was 0.35
+    stagger: 0.04,  // REDUCED: Was 0.05 (matches about overlay)
     ease: "back.out(1.4)"
-  }, "-=0.25");  // Was -=0.35
+  }, "-=0.2");  // INCREASED: Was -=0.25
 
   return tl;
 }
