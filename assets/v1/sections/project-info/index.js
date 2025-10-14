@@ -1,4 +1,5 @@
 // assets/v1/sections/project-info/index.js
+// UPDATED: Now passes keepBackdrop flag to match other overlays
 import { createRevealAnimation } from "./animations.js";
 
 // Overlay coordination events
@@ -44,7 +45,8 @@ export default function initProjectInfo(container) {
   const handleClosing = (e) => {
     if (e.detail.overlay === 'info' && isOpen && !isAnimating) {
       console.log('[ProjectInfo] Received close request from manager');
-      performClose(true);
+      // Pass through keepBackdrop flag from manager
+      performClose(true, e.detail.keepBackdrop);
     }
   };
   
@@ -171,14 +173,14 @@ export default function initProjectInfo(container) {
 
   function close() {
     if (!isOpen || isAnimating) return;
-    performClose(true);
+    performClose(true, false);  // Normal close, hide backdrop
   }
 
-  function performClose(dispatchComplete) {
+  function performClose(dispatchComplete, keepBackdrop = false) {
     isOpen = false;
     isAnimating = true;
 
-    console.log('[ProjectInfo] Closing');
+    console.log('[ProjectInfo] Closing, keepBackdrop:', keepBackdrop);
 
     if (window.gsap && revealTimeline) {
       const closeTl = gsap.timeline();
@@ -239,7 +241,10 @@ export default function initProjectInfo(container) {
         
         if (dispatchComplete) {
           window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSED, { 
-            detail: { overlay: 'info' } 
+            detail: { 
+              overlay: 'info',
+              keepBackdrop: keepBackdrop  // Pass flag to manager
+            } 
           }));
           console.log('[ProjectInfo] Closed');
         }

@@ -1,4 +1,5 @@
 // assets/v1/sections/bts-overlay/index.js
+// FIXED: Now tracks and restores video mute state
 import { populateGrid, cleanupGrid } from "./grid.js";
 import { initDragging } from "./dragging.js";
 
@@ -48,6 +49,7 @@ export default function initBTSOverlay(container) {
   let isOpen = false;
   let isAnimating = false;
   let wasPlayingBeforeOpen = false;
+  let wasMutedBeforeOpen = false;  // ADDED: Track mute state
   let cleanupDragging = null;
   const handlers = [];
 
@@ -55,7 +57,8 @@ export default function initBTSOverlay(container) {
   const handleClosing = (e) => {
     if (e.detail.overlay === 'bts' && isOpen && !isAnimating) {
       console.log('[BTSOverlay] Received close request from manager');
-      performClose(true);
+      // Pass through keepBackdrop flag from manager
+      performClose(true, e.detail.keepBackdrop);
     }
   };
   
@@ -102,9 +105,11 @@ export default function initBTSOverlay(container) {
 
     console.log('[BTSOverlay] Opening');
 
-    // Handle video
+    // ADDED: Store both playing and mute state
     if (video) {
       wasPlayingBeforeOpen = !video.paused;
+      wasMutedBeforeOpen = video.muted;  // Store mute state
+      
       if (wasPlayingBeforeOpen) {
         video.pause();
       }
@@ -188,14 +193,14 @@ export default function initBTSOverlay(container) {
 
   function close() {
     if (!isOpen || isAnimating) return;
-    performClose(true);
+    performClose(true, false);  // Normal close, hide backdrop
   }
 
-  function performClose(dispatchComplete) {
+  function performClose(dispatchComplete, keepBackdrop = false) {
     isOpen = false;
     isAnimating = true;
 
-    console.log('[BTSOverlay] Closing');
+    console.log('[BTSOverlay] Closing, keepBackdrop:', keepBackdrop);
 
     // Cleanup dragging
     if (cleanupDragging) {
@@ -243,8 +248,13 @@ export default function initBTSOverlay(container) {
           backLink.style.cursor = '';
         }
 
-        // Restore video
+        // UPDATED: Restore video with proper mute state
         if (video && wasPlayingBeforeOpen) {
+          // Restore mute state BEFORE playing
+          if (!wasMutedBeforeOpen) {
+            video.muted = false;
+            video.removeAttribute('muted');
+          }
           video.play().catch(() => {});
         }
         
@@ -256,7 +266,10 @@ export default function initBTSOverlay(container) {
         
         if (dispatchComplete) {
           window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSED, { 
-            detail: { overlay: 'bts' } 
+            detail: { 
+              overlay: 'bts',
+              keepBackdrop: keepBackdrop  // Pass flag to manager
+            } 
           }));
           console.log('[BTSOverlay] Closed');
         }
@@ -275,7 +288,15 @@ export default function initBTSOverlay(container) {
         backLink.style.cursor = '';
       }
 
-      if (video && wasPlayingBeforeOpen) video.play().catch(() => {});
+      // UPDATED: Restore video with proper mute state
+      if (video && wasPlayingBeforeOpen) {
+        // Restore mute state BEFORE playing
+        if (!wasMutedBeforeOpen) {
+          video.muted = false;
+          video.removeAttribute('muted');
+        }
+        video.play().catch(() => {});
+      }
       
       isAnimating = false;
     }

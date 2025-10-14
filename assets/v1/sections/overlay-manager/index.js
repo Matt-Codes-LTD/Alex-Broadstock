@@ -1,5 +1,5 @@
 // assets/v1/sections/overlay-manager/index.js
-// Centralized overlay coordination and backdrop management
+// Centralized overlay coordination and backdrop management - FIXED
 
 const OVERLAY_EVENTS = {
   REQUEST_OPEN: 'overlay:request-open',
@@ -103,13 +103,16 @@ export function initOverlayManager(container) {
 
     isTransitioning = true;
 
-    // If another overlay is open, close it first
+    // If another overlay is open, close it first WITHOUT hiding backdrop
     if (activeOverlay && activeOverlay !== requestedOverlay) {
       console.log('[OverlayManager] Closing current overlay:', activeOverlay);
       
-      // Request close
+      // CRITICAL: Keep backdrop visible during transition
       window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSING, {
-        detail: { overlay: activeOverlay }
+        detail: { 
+          overlay: activeOverlay,
+          keepBackdrop: true  // Signal to NOT hide backdrop
+        }
       }));
 
       // Wait for close to complete
@@ -131,16 +134,16 @@ export function initOverlayManager(container) {
       });
 
       console.log('[OverlayManager] Previous overlay closed, ready for next');
-      openCount = 0;
+      // DON'T call hideBackdrop here - backdrop stays visible
       activeOverlay = null;
+    } else {
+      // First overlay opening - show backdrop normally
+      showBackdrop();
     }
 
     // Update state
     activeOverlay = requestedOverlay;
     openCount = 1;
-
-    // Show backdrop
-    showBackdrop();
 
     isTransitioning = false;
     console.log('[OverlayManager] Ready for overlay to open');
@@ -156,7 +159,8 @@ export function initOverlayManager(container) {
   const onClosed = (e) => {
     console.log('[OverlayManager] Overlay closed:', e.detail.overlay);
     
-    if (e.detail.overlay === activeOverlay) {
+    // Only hide backdrop if no keepBackdrop flag (meaning truly closing, not switching)
+    if (e.detail.overlay === activeOverlay && !e.detail.keepBackdrop) {
       activeOverlay = null;
       openCount = 0;
       hideBackdrop();

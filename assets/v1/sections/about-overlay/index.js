@@ -1,4 +1,5 @@
 // assets/v1/sections/about-overlay/index.js
+// FIXED: Now tracks and restores video mute state
 import { createRevealAnimation } from "./animations.js";
 
 const OVERLAY_EVENTS = {
@@ -44,20 +45,22 @@ export default function initAboutOverlay(container) {
   if (aboutOverlay.dataset.scriptInitialized) return () => {};
   aboutOverlay.dataset.scriptInitialized = "true";
 
-  // Find player elements (only on project page)
+  // Find video element (only on project page)
   const video = container.querySelector('video');
   
   let isOpen = false;
   let isAnimating = false;
   let revealTimeline = null;
   let originalBackHref = backLink?.getAttribute('href');
+  let wasMutedBeforeOpen = false;  // ADDED: Track mute state
   const handlers = [];
 
   // Listen for manager requesting us to close
   const handleClosing = (e) => {
     if (e.detail.overlay === 'about' && isOpen && !isAnimating) {
       console.log('[AboutOverlay] Received close request from manager');
-      performClose(true);
+      // Pass through keepBackdrop flag from manager
+      performClose(true, e.detail.keepBackdrop);
     }
   };
   
@@ -101,6 +104,17 @@ export default function initAboutOverlay(container) {
     isAnimating = true;
 
     console.log('[AboutOverlay] Opening');
+
+    // ADDED: Store mute state and mute video (but keep playing)
+    if (video && isProjectPage) {
+      wasMutedBeforeOpen = video.muted;
+      video.muted = true;
+      video.setAttribute('muted', '');
+      
+      if (video.paused) {
+        video.play().catch(() => {});
+      }
+    }
 
     if (window.gsap) {
       // Set initial states BEFORE making overlay visible
@@ -184,14 +198,14 @@ export default function initAboutOverlay(container) {
 
   function close() {
     if (!isOpen || isAnimating) return;
-    performClose(true);
+    performClose(true, false);  // Normal close, hide backdrop
   }
 
-  function performClose(dispatchComplete) {
+  function performClose(dispatchComplete, keepBackdrop = false) {
     isOpen = false;
     isAnimating = true;
 
-    console.log('[AboutOverlay] Closing');
+    console.log('[AboutOverlay] Closing, keepBackdrop:', keepBackdrop);
 
     if (window.gsap && revealTimeline) {
       const closeTl = gsap.timeline();
@@ -242,6 +256,12 @@ export default function initAboutOverlay(container) {
           }
         }
 
+        // ADDED: Restore video mute state
+        if (video && isProjectPage && !wasMutedBeforeOpen) {
+          video.muted = false;
+          video.removeAttribute('muted');
+        }
+
         // Clear props
         gsap.set([
           '.about-bio-label',
@@ -260,7 +280,10 @@ export default function initAboutOverlay(container) {
         
         if (dispatchComplete) {
           window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSED, { 
-            detail: { overlay: 'about' } 
+            detail: { 
+              overlay: 'about',
+              keepBackdrop: keepBackdrop  // Pass flag to manager
+            } 
           }));
           console.log('[AboutOverlay] Closed');
         }
@@ -283,6 +306,12 @@ export default function initAboutOverlay(container) {
           backLink.setAttribute('href', originalBackHref);
           backLink.style.cursor = '';
         }
+      }
+
+      // ADDED: Restore video mute state
+      if (video && isProjectPage && !wasMutedBeforeOpen) {
+        video.muted = false;
+        video.removeAttribute('muted');
       }
       
       isAnimating = false;
