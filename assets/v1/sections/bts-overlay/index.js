@@ -120,12 +120,13 @@ export default function initBTSOverlay(container) {
       }
     }
 
-    // Show overlay
-    btsOverlay.classList.remove('u-display-none');
-    
-    // Animate images in with GSAP
+    // Handle background and content entrance
     if (window.gsap) {
       const allImages = btsOverlay.querySelectorAll('.bts-grid_img');
+      
+      // CRITICAL: Set initial states BEFORE making overlay visible
+      // Hide overlay background
+      gsap.set(btsOverlay, { opacity: 0 });
       
       // Set initial state for images
       gsap.set(allImages, {
@@ -134,8 +135,21 @@ export default function initBTSOverlay(container) {
         filter: "blur(8px)"
       });
       
-      // Animate images in with stagger
-      gsap.to(allImages, {
+      // NOW show the overlay container (but it's transparent)
+      btsOverlay.classList.remove('u-display-none');
+      
+      // Create entrance timeline
+      const entranceTl = gsap.timeline();
+      
+      // Step 1: Fade background in
+      entranceTl.to(btsOverlay, {
+        opacity: 1,
+        duration: 0.5,
+        ease: "power2.out"
+      })
+      
+      // Step 2: Animate images in (after background is visible)
+      .to(allImages, {
         opacity: 1,
         scale: 1,
         filter: "blur(0px)",
@@ -145,14 +159,17 @@ export default function initBTSOverlay(container) {
           amount: 0.6,
           from: "random",
           grid: "auto"
-        },
-        onComplete: () => {
-          // Enable dragging after images are in
-          initializeDragging();
         }
+      }, "-=0.3")  // Slight overlap
+      
+      // Step 3: Enable dragging
+      .call(() => {
+        initializeDragging();
       });
+      
     } else {
       // No GSAP fallback
+      btsOverlay.classList.remove('u-display-none');
       initializeDragging();
     }
 
@@ -274,7 +291,7 @@ export default function initBTSOverlay(container) {
         
         // Reset image and overlay states
         gsap.set(allImages, { clearProps: "all" });
-        gsap.set(btsOverlay, { clearProps: "opacity" });
+        gsap.set(btsOverlay, { clearProps: "all" });
         
         isAnimating = false;
         

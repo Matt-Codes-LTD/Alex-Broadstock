@@ -111,11 +111,49 @@ export default function initProjectInfo(container) {
       }
     }
 
-    // Show overlay
-    infoOverlay.classList.remove('u-display-none');
-    
-    // Always do normal open (isCrossFade removed since we wait for full close now)
-    runContentReveal();
+    // Handle background and content entrance
+    if (window.gsap) {
+      // CRITICAL: Set initial states BEFORE making overlay visible
+      // Hide overlay background
+      gsap.set(infoOverlay, { opacity: 0 });
+      
+      // Hide all content elements
+      gsap.set([
+        '.project-info_description',
+        '.project-info_crew-label',
+        '.project-info_crew-role',
+        '.project-info_crew-name',
+        '.project-info_awards-label',
+        '.project-info_award-item'
+      ], {
+        opacity: 0,
+        y: 15,
+        filter: "blur(6px)"
+      });
+      
+      // NOW show the overlay container (but it's transparent)
+      infoOverlay.classList.remove('u-display-none');
+      
+      // Create entrance timeline
+      const entranceTl = gsap.timeline();
+      
+      // Step 1: Fade background in
+      entranceTl.to(infoOverlay, {
+        opacity: 1,
+        duration: 0.5,
+        ease: "power2.out"
+      })
+      
+      // Step 2: Animate content in (after background is visible)
+      .add(() => {
+        runContentReveal();
+      });
+      
+    } else {
+      // No GSAP fallback
+      infoOverlay.classList.remove('u-display-none');
+      runContentReveal();
+    }
 
     // Update nav states
     navLinks.forEach(link => {
@@ -249,7 +287,7 @@ export default function initProjectInfo(container) {
           '.project-info_award-item'
         ], { clearProps: "all" });
         
-        gsap.set(infoOverlay, { clearProps: "opacity" });
+        gsap.set(infoOverlay, { clearProps: "all" });
         
         isAnimating = false;
         
