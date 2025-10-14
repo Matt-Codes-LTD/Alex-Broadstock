@@ -103,9 +103,6 @@ export default function initAboutOverlay(container) {
     isOpen = true;
     isAnimating = true;
 
-    // Add class to nav for color change
-    navWrap.classList.add('has-overlay-open');
-
     // Handle video on project pages
     if (video) {
       wasPlayingBeforeOpen = !video.paused;
@@ -239,9 +236,6 @@ export default function initAboutOverlay(container) {
     isOpen = false;
     isAnimating = true;
 
-    // Remove class from nav
-    navWrap.classList.remove('has-overlay-open');
-
     if (window.gsap && revealTimeline) {
       const closeTl = gsap.timeline();
 
@@ -257,10 +251,10 @@ export default function initAboutOverlay(container) {
         '.about-bio-label'
       ], {
         opacity: 0,
-        y: -8,              // MATCHED: Changed from -6 to -8
+        y: -8,
         filter: "blur(4px)",
-        duration: 0.22,     // MATCHED: Changed from 0.2 to 0.22
-        stagger: 0.015,     // MATCHED: Changed from 0.01 to 0.015
+        duration: 0.22,
+        stagger: 0.015,
         ease: "power3.in"
       })
       
