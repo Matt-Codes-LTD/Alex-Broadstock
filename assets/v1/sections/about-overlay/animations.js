@@ -1,10 +1,10 @@
 // assets/v1/sections/about-overlay/animations.js
-import { ANIMATION } from "../../core/animation-constants.js";
+import { ANIMATION, getAnimProps } from "../../core/animation-constants.js";
 
 export function createRevealAnimation(container) {
   if (!window.gsap) return null;
 
-  // Set initial states with blur
+  // Set initial states with blur for depth
   gsap.set([
     '.about-bio-label',
     '.about-bio-content',
@@ -16,7 +16,7 @@ export function createRevealAnimation(container) {
     '.about-award-item'
   ], {
     opacity: 0,
-    y: 15,
+    y: 12,
     filter: "blur(6px)"
   });
 

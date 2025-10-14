@@ -123,11 +123,27 @@ export default function initAboutOverlay(container) {
       }
     }
 
-    // Show overlay
+    // Show overlay and animate background in
     aboutOverlay.classList.remove('u-display-none');
     
-    // Always do normal open (isCrossFade removed since we wait for full close now)
-    runContentReveal();
+    if (window.gsap) {
+      // Set initial state - transparent background
+      gsap.set(aboutOverlay, { opacity: 0 });
+      
+      // Fade background in first
+      gsap.to(aboutOverlay, {
+        opacity: 1,
+        duration: 0.5,
+        ease: "power2.out",
+        onComplete: () => {
+          // Then animate content in
+          runContentReveal();
+        }
+      });
+    } else {
+      // No GSAP fallback
+      runContentReveal();
+    }
 
     // Update nav states - handle both home and project pages
     if (isHomePage) {
