@@ -10,10 +10,11 @@ export default function initMobileFilters(container) {
   // Create mobile UI elements
   const { button, panel, backdrop } = createMobileUI();
   
-  // Ensure button starts fully hidden
+  // Ensure button starts fully hidden (prevents FOUC)
   button.style.opacity = '0';
   button.style.visibility = 'hidden';
   button.style.transform = 'translateX(-50%) translateY(10px)';
+  button.style.pointerEvents = 'none'; // Prevent clicks during loader
   
   // Add to DOM after setting initial styles
   document.body.appendChild(backdrop);
@@ -58,7 +59,7 @@ export default function initMobileFilters(container) {
   // Make button globally accessible for reveal timeline
   window.__mobileFiltersButton = button;
   
-  // Reveal function
+  // Reveal function - called AFTER site loader completes
   const revealButton = () => {
     if (window.gsap) {
       gsap.set(button, { visibility: 'visible' });
@@ -66,12 +67,16 @@ export default function initMobileFilters(container) {
         opacity: 1,
         y: 0,
         duration: 0.6,
-        ease: "power3.out"
+        ease: "power3.out",
+        onComplete: () => {
+          button.style.pointerEvents = 'auto'; // Re-enable clicks
+        }
       });
     } else {
       button.style.visibility = 'visible';
       button.style.opacity = '1';
       button.style.transform = 'translateX(-50%) translateY(0)';
+      button.style.pointerEvents = 'auto';
     }
   };
   
@@ -263,8 +268,8 @@ function createMobileUI() {
     left: '50%',
     transform: 'translateX(-50%)',
     padding: '0.75rem 1.5rem',
-    backgroundColor: 'var(--swatch--brand-paper)',  // Changed
-    color: 'var(--swatch--brand-ink)',                // Changed
+    backgroundColor: 'var(--swatch--brand-paper)',
+    color: 'var(--swatch--brand-ink)',
     border: '1px solid var(--_theme---button-primary--border)',
     borderRadius: 'var(--radius--main)',
     cursor: 'pointer',
@@ -316,7 +321,7 @@ function createMobileUI() {
     .mobile-filters-panel.is-visible {
       transform: translateY(0) !important;
     }
-    /* Center align categories in panel */
+    /* Center align categories horizontally with gaps */
     .mobile-filters-content {
       display: flex;
       justify-content: center;
@@ -324,8 +329,11 @@ function createMobileUI() {
     }
     .mobile-filters-content .mobile-categories-list {
       display: flex;
-      flex-direction: column;
+      flex-direction: row;
+      flex-wrap: wrap;
+      justify-content: center;
       align-items: center;
+      gap: 1rem;
       width: 100%;
     }
     .mobile-filters-content .home-category_text {
