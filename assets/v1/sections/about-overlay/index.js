@@ -123,25 +123,48 @@ export default function initAboutOverlay(container) {
       }
     }
 
-    // Show overlay and animate background in
-    aboutOverlay.classList.remove('u-display-none');
-    
     if (window.gsap) {
-      // Set initial state - transparent background
+      // CRITICAL: Set initial states BEFORE making overlay visible
+      // Hide overlay background
       gsap.set(aboutOverlay, { opacity: 0 });
       
-      // Fade background in first
-      gsap.to(aboutOverlay, {
+      // Hide all content elements
+      gsap.set([
+        '.about-bio-label',
+        '.about-bio-content',
+        '.about-contact-label',
+        '.about-contact-link',
+        '.about-work-label',
+        '.about-work-link',
+        '.about-awards-label',
+        '.about-award-item'
+      ], {
+        opacity: 0,
+        y: 12,
+        filter: "blur(6px)"
+      });
+      
+      // NOW show the overlay container (but it's transparent)
+      aboutOverlay.classList.remove('u-display-none');
+      
+      // Create entrance timeline
+      const entranceTl = gsap.timeline();
+      
+      // Step 1: Fade background in
+      entranceTl.to(aboutOverlay, {
         opacity: 1,
         duration: 0.5,
-        ease: "power2.out",
-        onComplete: () => {
-          // Then animate content in
-          runContentReveal();
-        }
+        ease: "power2.out"
+      })
+      
+      // Step 2: Animate content in (after background is visible)
+      .add(() => {
+        runContentReveal();
       });
+      
     } else {
       // No GSAP fallback
+      aboutOverlay.classList.remove('u-display-none');
       runContentReveal();
     }
 
