@@ -256,15 +256,15 @@ function createMobileUI() {
   button.setAttribute('aria-expanded', 'false');
   button.innerHTML = `<span class="mobile-filters-button-text">Filters</span>`;
   
-  // Styles for button
+  // Styles for button - UPDATED COLORS
   Object.assign(button.style, {
     position: 'fixed',
     bottom: '2rem',
     left: '50%',
     transform: 'translateX(-50%)',
     padding: '0.75rem 1.5rem',
-    backgroundColor: 'var(--_theme---button-primary--background)',
-    color: 'var(--_theme---button-primary--text)',
+    backgroundColor: 'var(--swatch--brand-paper)',  // Changed
+    color: 'var(--swatch--brand-ink)',                // Changed
     border: '1px solid var(--_theme---button-primary--border)',
     borderRadius: 'var(--radius--main)',
     cursor: 'pointer',
@@ -306,7 +306,7 @@ function createMobileUI() {
     overflowY: 'auto'
   });
   
-  // Visible states
+  // Visible states and center alignment styles
   const style = document.createElement('style');
   style.textContent = `
     .mobile-filters-backdrop.is-visible {
@@ -315,6 +315,21 @@ function createMobileUI() {
     }
     .mobile-filters-panel.is-visible {
       transform: translateY(0) !important;
+    }
+    /* Center align categories in panel */
+    .mobile-filters-content {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .mobile-filters-content .mobile-categories-list {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+    }
+    .mobile-filters-content .home-category_text {
+      text-align: center;
     }
   `;
   document.head.appendChild(style);
