@@ -185,7 +185,7 @@ export default function initProjectInfo(container) {
     if (window.gsap && revealTimeline) {
       const closeTl = gsap.timeline();
       
-      // Step 1: Fade content out
+      // Step 1: FAST content exit (snappy)
       closeTl.to([
         '.project-info_award-item',
         '.project-info_awards-label',
@@ -195,19 +195,19 @@ export default function initProjectInfo(container) {
         '.project-info_description'
       ], {
         opacity: 0,
-        y: -15,
-        filter: "blur(6px)",
-        duration: 0.4,
-        stagger: 0.03,
-        ease: "power2.inOut"
+        y: -8,
+        filter: "blur(4px)",
+        duration: 0.22,
+        stagger: 0.015,
+        ease: "power3.in"
       })
       
-      // Step 2: Fade overlay background
+      // Step 2: GENTLE background fade (smooth)
       .to(infoOverlay, {
         opacity: 0,
-        duration: 0.5,
-        ease: "power3.inOut"
-      }, "-=0.2")
+        duration: 0.7,
+        ease: "sine.out"
+      }, "-=0.1")
       
       // Step 3: Cleanup
       .call(() => {

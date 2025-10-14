@@ -206,7 +206,7 @@ export default function initAboutOverlay(container) {
     if (window.gsap && revealTimeline) {
       const closeTl = gsap.timeline();
 
-      // Step 1: Fade content out
+      // Step 1: FAST content exit
       closeTl.to([
         '.about-award-item',
         '.about-work-link',
@@ -218,19 +218,19 @@ export default function initAboutOverlay(container) {
         '.about-bio-label'
       ], {
         opacity: 0,
-        y: -10,
-        filter: "blur(10px)",
-        duration: 0.25,
-        stagger: 0.015,
-        ease: "power2.in"
+        y: -6,
+        filter: "blur(4px)",
+        duration: 0.2,
+        stagger: 0.01,
+        ease: "power3.in"
       })
       
-      // Step 2: Fade overlay background
+      // Step 2: GENTLE background fade
       .to(aboutOverlay, {
         opacity: 0,
-        duration: 0.5,
-        ease: "power3.inOut"
-      }, "-=0.15")
+        duration: 0.7,
+        ease: "sine.out"
+      }, "-=0.1")
       
       // Step 3: Cleanup
       .call(() => {

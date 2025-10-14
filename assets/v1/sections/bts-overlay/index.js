@@ -192,19 +192,19 @@ export default function initBTSOverlay(container) {
     if (window.gsap) {
       const closeTl = gsap.timeline();
       
-      // Step 1: Fade grid slightly
+      // Step 1: FAST grid fade
       closeTl.to('.bts-grid_container', {
-        opacity: 0.5,
-        duration: 0.3,
-        ease: "power2.in"
+        opacity: 0.3,
+        duration: 0.2,
+        ease: "power3.in"
       })
       
-      // Step 2: Fade overlay background
+      // Step 2: GENTLE background fade
       .to(btsOverlay, {
         opacity: 0,
-        duration: 0.5,
-        ease: "power3.inOut"
-      }, "-=0.2")
+        duration: 0.7,
+        ease: "sine.out"
+      }, "-=0.1")
       
       // Step 3: Cleanup
       .call(() => {
