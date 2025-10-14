@@ -45,87 +45,67 @@ export default function initAboutOverlay(container) {
   aboutOverlay.dataset.scriptInitialized = "true";
 
   // Find player elements (only on project page)
-  const playerWrap = container.querySelector('.project-player_wrap');
-  const video = playerWrap?.querySelector('video');
-  const playerControls = container.querySelector('.project-player_controls');
-  const navigationOverlay = container.querySelector('.project-navigation_overlay');
-  const centerToggle = container.querySelector('.project-player_center-toggle');
-  const pausefx = container.querySelector('.project-player_pausefx');
+  const video = container.querySelector('video');
   
   let isOpen = false;
   let isAnimating = false;
   let revealTimeline = null;
   let originalBackHref = backLink?.getAttribute('href');
-  let wasPlayingBeforeOpen = false;
   const handlers = [];
 
-  // Listen for other overlays requesting to open
-  const handleOverlayRequest = (e) => {
-    if (e.detail.overlay !== 'about' && isOpen && !isAnimating) {
-      closeForTransition();
+  // Listen for manager requesting us to close
+  const handleClosing = (e) => {
+    if (e.detail.overlay === 'about' && isOpen && !isAnimating) {
+      console.log('[AboutOverlay] Received close request from manager');
+      performClose(true);
     }
   };
   
-  window.addEventListener(OVERLAY_EVENTS.REQUEST_OPEN, handleOverlayRequest);
-  handlers.push(() => window.removeEventListener(OVERLAY_EVENTS.REQUEST_OPEN, handleOverlayRequest));
+  window.addEventListener(OVERLAY_EVENTS.CLOSING, handleClosing);
+  handlers.push(() => window.removeEventListener(OVERLAY_EVENTS.CLOSING, handleClosing));
 
   function open() {
     if (isOpen || isAnimating) return;
+    
+    console.log('[AboutOverlay] Requesting to open');
     
     // Request to open
     window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.REQUEST_OPEN, { 
       detail: { overlay: 'about' } 
     }));
     
-    // Wait for other overlay to FULLY close
-    let waitingForOther = false;
-    const onOtherClosed = () => {
-      waitingForOther = true;
-      // Open normally after other overlay is fully closed
-      performOpen(false);
+    // Wait for manager to give us the go-ahead
+    let waitingForManager = false;
+    const onManagerReady = () => {
+      waitingForManager = true;
+      performOpen();
     };
     
-    // Listen for CLOSED event (not CLOSING)
-    window.addEventListener(OVERLAY_EVENTS.CLOSED, onOtherClosed, { once: true });
+    // Manager will close any open overlay, then we can open
+    // If no overlay is open, this will fire immediately
+    window.addEventListener(OVERLAY_EVENTS.REQUEST_OPEN, onManagerReady, { once: true });
     
-    // Short timeout - if no overlay responds quickly, just open
-    // If another overlay IS open, it will dispatch CLOSED before this timeout
+    // Timeout - if manager doesn't respond, just open
     setTimeout(() => {
-      window.removeEventListener(OVERLAY_EVENTS.CLOSED, onOtherClosed);
-      if (!waitingForOther && !isOpen && !isAnimating) {
-        performOpen(false);
+      window.removeEventListener(OVERLAY_EVENTS.REQUEST_OPEN, onManagerReady);
+      if (!waitingForManager && !isOpen && !isAnimating) {
+        console.log('[AboutOverlay] Manager timeout, opening anyway');
+        performOpen();
       }
-    }, 50);  // Quick timeout - CLOSED event will override if another overlay is open
+    }, 100);
   }
 
-  function performOpen(isCrossFade) {
+  function performOpen() {
     if (isOpen || isAnimating) return;
     isOpen = true;
     isAnimating = true;
 
-    // Handle video on project pages
-    if (video) {
-      wasPlayingBeforeOpen = !video.paused;
-      if (wasPlayingBeforeOpen) {
-        video.pause();
-      }
-    }
-
-    // Show pausefx on project pages
-    if (pausefx) {
-      if (window.gsap) {
-        gsap.to(pausefx, { opacity: 1, duration: 0.3, ease: "power2.out" });
-      } else {
-        pausefx.style.opacity = '1';
-      }
-    }
+    console.log('[AboutOverlay] Opening');
 
     if (window.gsap) {
-      // CRITICAL: Set initial states BEFORE making overlay visible
-      // Hide overlay background
+      // Set initial states BEFORE making overlay visible
       gsap.set(aboutOverlay, { opacity: 0 });
       
-      // Hide all content elements
       gsap.set([
         '.about-bio-label',
         '.about-bio-content',
@@ -141,37 +121,34 @@ export default function initAboutOverlay(container) {
         filter: "blur(6px)"
       });
       
-      // NOW show the overlay container (but it's transparent)
+      // Show the overlay container (transparent)
       aboutOverlay.classList.remove('u-display-none');
       
       // Create entrance timeline
       const entranceTl = gsap.timeline();
       
-      // Step 1: Fade background in
+      // Fade background in
       entranceTl.to(aboutOverlay, {
         opacity: 1,
         duration: 0.5,
         ease: "power2.out"
       })
       
-      // Step 2: Animate content in (after background is visible)
+      // Animate content in
       .add(() => {
         runContentReveal();
       });
       
     } else {
-      // No GSAP fallback
       aboutOverlay.classList.remove('u-display-none');
       runContentReveal();
     }
 
-    // Update nav states - handle both home and project pages
+    // Update nav states
     if (isHomePage) {
-      // On home page, change About to Close
       aboutButton.textContent = 'Close';
       aboutButton.setAttribute('data-overlay-open', 'true');
     } else if (isProjectPage) {
-      // On project page, fade other links and change Back to Close
       navLinks.forEach(link => {
         if (link !== aboutButton) {
           link.classList.add('u-color-faded');
@@ -182,17 +159,6 @@ export default function initAboutOverlay(container) {
         backLink.textContent = 'Close';
         backLink.removeAttribute('href');
         backLink.style.cursor = 'pointer';
-      }
-    }
-
-    // Hide player controls on project pages
-    if (isProjectPage && window.gsap) {
-      if (playerControls || navigationOverlay || centerToggle) {
-        gsap.to([playerControls, navigationOverlay, centerToggle].filter(Boolean), {
-          opacity: 0,
-          duration: 0.3,
-          ease: "power2.out"
-        });
       }
     }
   }
@@ -206,6 +172,7 @@ export default function initAboutOverlay(container) {
           window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.OPENED, { 
             detail: { overlay: 'about' } 
           }));
+          console.log('[AboutOverlay] Opened');
         });
       } else {
         isAnimating = false;
@@ -220,26 +187,16 @@ export default function initAboutOverlay(container) {
     performClose(true);
   }
 
-  function closeForTransition() {
-    if (!isOpen || isAnimating) return;
-    
-    // Notify that we're closing
-    window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSING, { 
-      detail: { overlay: 'about' } 
-    }));
-    
-    // Close and ALWAYS dispatch CLOSED when done
-    performClose(true);
-  }
-
   function performClose(dispatchComplete) {
     isOpen = false;
     isAnimating = true;
 
+    console.log('[AboutOverlay] Closing');
+
     if (window.gsap && revealTimeline) {
       const closeTl = gsap.timeline();
 
-      // Step 1: FAST content exit - MATCHED TO INFO OVERLAY
+      // Fast content exit
       closeTl.to([
         '.about-award-item',
         '.about-work-link',
@@ -258,18 +215,18 @@ export default function initAboutOverlay(container) {
         ease: "power3.in"
       })
       
-      // Step 2: GENTLE background fade (smooth) - ALREADY MATCHES
+      // Gentle background fade
       .to(aboutOverlay, {
         opacity: 0,
         duration: 0.7,
         ease: "sine.out"
       }, "-=0.1")
       
-      // Step 3: Cleanup
+      // Cleanup
       .call(() => {
         aboutOverlay.classList.add('u-display-none');
         
-        // Restore nav states based on page type
+        // Restore nav states
         if (isHomePage) {
           aboutButton.textContent = originalAboutText;
           aboutButton.removeAttribute('data-overlay-open');
@@ -283,15 +240,9 @@ export default function initAboutOverlay(container) {
             backLink.setAttribute('href', originalBackHref);
             backLink.style.cursor = '';
           }
-          
-          if (pausefx) pausefx.style.opacity = '0';
-          if (video && wasPlayingBeforeOpen) video.play().catch(() => {});
-          if (playerControls) playerControls.style.opacity = '1';
-          if (navigationOverlay) navigationOverlay.style.opacity = '1';
-          if (centerToggle) centerToggle.style.opacity = '1';
         }
 
-        // Clear props - only clear animation properties, not display/visibility
+        // Clear props
         gsap.set([
           '.about-bio-label',
           '.about-bio-content',
@@ -311,11 +262,12 @@ export default function initAboutOverlay(container) {
           window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSED, { 
             detail: { overlay: 'about' } 
           }));
+          console.log('[AboutOverlay] Closed');
         }
       });
 
     } else {
-      // No animation fallback
+      // Fallback without GSAP
       aboutOverlay.classList.add('u-display-none');
       
       if (isHomePage) {
@@ -332,12 +284,6 @@ export default function initAboutOverlay(container) {
           backLink.style.cursor = '';
         }
       }
-
-      if (pausefx) pausefx.style.opacity = '0';
-      if (video && wasPlayingBeforeOpen) video.play().catch(() => {});
-      if (playerControls) playerControls.style.opacity = '1';
-      if (navigationOverlay) navigationOverlay.style.opacity = '1';
-      if (centerToggle) centerToggle.style.opacity = '1';
       
       isAnimating = false;
     }

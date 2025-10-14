@@ -6,7 +6,8 @@ import initMobileFilters from "../sections/mobile-filters/index.js";
 import initProjectNavigation from "../sections/project-navigation/index.js";
 import initProjectInfo from "../sections/project-info/index.js";
 import initAboutOverlay from "../sections/about-overlay/index.js";
-import initBTSOverlay from "../sections/bts-overlay/index.js"; // ADD THIS
+import initBTSOverlay from "../sections/bts-overlay/index.js";
+import { initOverlayManager } from "../sections/overlay-manager/index.js";
 
 export function initPageScripts(container) {
   const cleanups = [];
@@ -14,9 +15,13 @@ export function initPageScripts(container) {
   cleanups.push(initHomeHero(container));
   cleanups.push(initProjectPlayer(container));
   cleanups.push(initProjectNavigation(container));
+  
+  // Initialize overlay manager BEFORE individual overlays
+  cleanups.push(initOverlayManager(container));
+  
   cleanups.push(initProjectInfo(container));
   cleanups.push(initAboutOverlay(container));
-  cleanups.push(initBTSOverlay(container)); // ADD THIS
+  cleanups.push(initBTSOverlay(container));
   
   if (container.dataset.barbaNamespace === "home") {
     cleanups.push(initMobileFilters(container));

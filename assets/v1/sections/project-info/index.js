@@ -24,12 +24,6 @@ export default function initProjectInfo(container) {
     link.textContent.trim() === 'Back'
   );
   
-  // Find player controls
-  const playerControls = container.querySelector('.project-player_controls');
-  const navigationOverlay = container.querySelector('.project-navigation_overlay');
-  const centerToggle = container.querySelector('.project-player_center-toggle');
-  const pausefx = container.querySelector('.project-player_pausefx');
-  
   if (!playerWrap || !infoOverlay || !infoButton || !backLink) {
     console.warn('[ProjectInfo] Missing required elements');
     return () => {};
@@ -46,49 +40,52 @@ export default function initProjectInfo(container) {
   let wasMutedBeforeOpen = false;
   const handlers = [];
 
-  // Listen for other overlays requesting to open
-  const handleOverlayRequest = (e) => {
-    if (e.detail.overlay !== 'info' && isOpen && !isAnimating) {
-      closeForTransition();
+  // Listen for manager requesting us to close
+  const handleClosing = (e) => {
+    if (e.detail.overlay === 'info' && isOpen && !isAnimating) {
+      console.log('[ProjectInfo] Received close request from manager');
+      performClose(true);
     }
   };
   
-  window.addEventListener(OVERLAY_EVENTS.REQUEST_OPEN, handleOverlayRequest);
-  handlers.push(() => window.removeEventListener(OVERLAY_EVENTS.REQUEST_OPEN, handleOverlayRequest));
+  window.addEventListener(OVERLAY_EVENTS.CLOSING, handleClosing);
+  handlers.push(() => window.removeEventListener(OVERLAY_EVENTS.CLOSING, handleClosing));
 
   function open() {
     if (isOpen || isAnimating) return;
+    
+    console.log('[ProjectInfo] Requesting to open');
     
     // Request to open
     window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.REQUEST_OPEN, { 
       detail: { overlay: 'info' } 
     }));
     
-    // Wait for other overlay to FULLY close
-    let waitingForOther = false;
-    const onOtherClosed = () => {
-      waitingForOther = true;
-      // Open normally after other overlay is fully closed
-      performOpen(false);
+    // Wait for manager to give us the go-ahead
+    let waitingForManager = false;
+    const onManagerReady = () => {
+      waitingForManager = true;
+      performOpen();
     };
     
-    // Listen for CLOSED event (not CLOSING)
-    window.addEventListener(OVERLAY_EVENTS.CLOSED, onOtherClosed, { once: true });
+    window.addEventListener(OVERLAY_EVENTS.REQUEST_OPEN, onManagerReady, { once: true });
     
-    // Short timeout - if no overlay responds quickly, just open
-    // If another overlay IS open, it will dispatch CLOSED before this timeout
+    // Timeout - if manager doesn't respond, just open
     setTimeout(() => {
-      window.removeEventListener(OVERLAY_EVENTS.CLOSED, onOtherClosed);
-      if (!waitingForOther && !isOpen && !isAnimating) {
-        performOpen(false);
+      window.removeEventListener(OVERLAY_EVENTS.REQUEST_OPEN, onManagerReady);
+      if (!waitingForManager && !isOpen && !isAnimating) {
+        console.log('[ProjectInfo] Manager timeout, opening anyway');
+        performOpen();
       }
-    }, 50);  // Quick timeout - CLOSED event will override if another overlay is open
+    }, 100);
   }
 
-  function performOpen(isCrossFade) {
+  function performOpen() {
     if (isOpen || isAnimating) return;
     isOpen = true;
     isAnimating = true;
+
+    console.log('[ProjectInfo] Opening');
 
     // Store mute state and mute video (but keep playing)
     if (video) {
@@ -96,28 +93,15 @@ export default function initProjectInfo(container) {
       video.muted = true;
       video.setAttribute('muted', '');
       
-      // If video was paused, start playing
       if (video.paused) {
         video.play().catch(() => {});
       }
     }
 
-    // Force pausefx overlay to show
-    if (pausefx) {
-      if (window.gsap) {
-        gsap.to(pausefx, { opacity: 1, duration: 0.3, ease: "power2.out" });
-      } else {
-        pausefx.style.opacity = '1';
-      }
-    }
-
-    // Handle background and content entrance
     if (window.gsap) {
-      // CRITICAL: Set initial states BEFORE making overlay visible
-      // Hide overlay background
+      // Set initial states BEFORE making overlay visible
       gsap.set(infoOverlay, { opacity: 0 });
       
-      // Hide all content elements
       gsap.set([
         '.project-info_description',
         '.project-info_crew-label',
@@ -131,26 +115,25 @@ export default function initProjectInfo(container) {
         filter: "blur(6px)"
       });
       
-      // NOW show the overlay container (but it's transparent)
+      // Show the overlay container
       infoOverlay.classList.remove('u-display-none');
       
       // Create entrance timeline
       const entranceTl = gsap.timeline();
       
-      // Step 1: Fade background in
+      // Fade background in
       entranceTl.to(infoOverlay, {
         opacity: 1,
         duration: 0.5,
         ease: "power2.out"
       })
       
-      // Step 2: Animate content in (after background is visible)
+      // Animate content in
       .add(() => {
         runContentReveal();
       });
       
     } else {
-      // No GSAP fallback
       infoOverlay.classList.remove('u-display-none');
       runContentReveal();
     }
@@ -162,23 +145,9 @@ export default function initProjectInfo(container) {
       }
     });
 
-    // Change Back to Close
     backLink.textContent = 'Close';
     backLink.removeAttribute('href');
     backLink.style.cursor = 'pointer';
-
-    // Hide player controls
-    if (window.gsap) {
-      gsap.to([playerControls, navigationOverlay, centerToggle], {
-        opacity: 0,
-        duration: 0.3,
-        ease: "power2.out"
-      });
-    } else {
-      if (playerControls) playerControls.style.opacity = '0';
-      if (navigationOverlay) navigationOverlay.style.opacity = '0';
-      if (centerToggle) centerToggle.style.opacity = '0';
-    }
   }
 
   function runContentReveal() {
@@ -190,6 +159,7 @@ export default function initProjectInfo(container) {
           window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.OPENED, { 
             detail: { overlay: 'info' } 
           }));
+          console.log('[ProjectInfo] Opened');
         });
       } else {
         isAnimating = false;
@@ -204,26 +174,16 @@ export default function initProjectInfo(container) {
     performClose(true);
   }
 
-  function closeForTransition() {
-    if (!isOpen || isAnimating) return;
-    
-    // Notify that we're closing
-    window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSING, { 
-      detail: { overlay: 'info' } 
-    }));
-    
-    // Close and ALWAYS dispatch CLOSED when done
-    performClose(true);
-  }
-
   function performClose(dispatchComplete) {
     isOpen = false;
     isAnimating = true;
 
+    console.log('[ProjectInfo] Closing');
+
     if (window.gsap && revealTimeline) {
       const closeTl = gsap.timeline();
       
-      // Step 1: FAST content exit (snappy)
+      // Fast content exit
       closeTl.to([
         '.project-info_award-item',
         '.project-info_awards-label',
@@ -240,44 +200,30 @@ export default function initProjectInfo(container) {
         ease: "power3.in"
       })
       
-      // Step 2: GENTLE background fade (smooth)
+      // Gentle background fade
       .to(infoOverlay, {
         opacity: 0,
         duration: 0.7,
         ease: "sine.out"
       }, "-=0.1")
       
-      // Step 3: Cleanup
+      // Cleanup
       .call(() => {
         infoOverlay.classList.add('u-display-none');
         
-        // Restore nav states
         navLinks.forEach(link => {
           link.classList.remove('u-color-faded');
         });
 
-        // Restore Back link
         backLink.textContent = 'Back';
         backLink.setAttribute('href', originalBackHref);
         backLink.style.cursor = '';
 
-        // Hide pausefx overlay
-        if (pausefx) {
-          pausefx.style.opacity = '0';
-        }
-
-        // Restore video mute state
         if (video && !wasMutedBeforeOpen) {
           video.muted = false;
           video.removeAttribute('muted');
         }
 
-        // Show player controls again
-        if (playerControls) playerControls.style.opacity = '1';
-        if (navigationOverlay) navigationOverlay.style.opacity = '1';
-        if (centerToggle) centerToggle.style.opacity = '1';
-
-        // Clear props - only clear animation properties, not display/visibility
         gsap.set([
           '.project-info_description',
           '.project-info_crew-label',
@@ -295,10 +241,11 @@ export default function initProjectInfo(container) {
           window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSED, { 
             detail: { overlay: 'info' } 
           }));
+          console.log('[ProjectInfo] Closed');
         }
       });
     } else {
-      // No animation fallback
+      // Fallback without GSAP
       infoOverlay.classList.add('u-display-none');
       
       navLinks.forEach(link => {
@@ -309,15 +256,10 @@ export default function initProjectInfo(container) {
       backLink.setAttribute('href', originalBackHref);
       backLink.style.cursor = '';
 
-      if (pausefx) pausefx.style.opacity = '0';
       if (video && !wasMutedBeforeOpen) {
         video.muted = false;
         video.removeAttribute('muted');
       }
-
-      if (playerControls) playerControls.style.opacity = '1';
-      if (navigationOverlay) navigationOverlay.style.opacity = '1';
-      if (centerToggle) centerToggle.style.opacity = '1';
       
       isAnimating = false;
     }
