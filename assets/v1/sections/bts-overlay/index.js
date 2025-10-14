@@ -1,5 +1,5 @@
 // assets/v1/sections/bts-overlay/index.js
-// FIXED: Proper coordination using CLOSED event instead of timeout
+// FIXED: Smart coordination - instant open when no other overlay, event-based when switching
 import { populateGrid, cleanupGrid } from "./grid.js";
 import { initDragging } from "./dragging.js";
 
@@ -11,6 +11,7 @@ const OVERLAY_EVENTS = {
 };
 
 export default function initBTSOverlay(container) {
+  // Only run on project pages
   if (container.dataset.barbaNamespace !== "project") return () => {};
   
   const navWrap = container.querySelector('.nav_wrap');
@@ -22,6 +23,7 @@ export default function initBTSOverlay(container) {
     return () => {};
   }
   
+  // Find the BTS button and Back link
   const navLinks = container.querySelectorAll('.nav_link');
   const btsButton = Array.from(navLinks).find(link => 
     link.textContent.trim() === 'BTS'
@@ -40,6 +42,7 @@ export default function initBTSOverlay(container) {
   
   let originalBackHref = backLink?.getAttribute('href');
 
+  // Find player elements
   const playerWrap = container.querySelector('.project-player_wrap');
   const video = playerWrap?.querySelector('video');
   
@@ -48,7 +51,7 @@ export default function initBTSOverlay(container) {
   let wasPlayingBeforeOpen = false;
   let wasMutedBeforeOpen = false;
   let cleanupDragging = null;
-  let pendingOpen = false;  // Track if we're waiting to open
+  let pendingOpen = false;
   const handlers = [];
 
   // Listen for manager requesting us to close
@@ -59,9 +62,8 @@ export default function initBTSOverlay(container) {
     }
   };
   
-  // FIXED: Listen for CLOSED event to know when safe to open
+  // Listen for CLOSED event to know when safe to open
   const handleClosed = (e) => {
-    // If another overlay just closed and we're waiting to open, now we can
     if (pendingOpen && e.detail.keepBackdrop && e.detail.overlay !== 'bts') {
       console.log('[BTSOverlay] Previous overlay closed, now opening');
       pendingOpen = false;
@@ -86,31 +88,40 @@ export default function initBTSOverlay(container) {
     console.log('[BTSOverlay] Requesting to open');
     
     // Dispatch request to manager
-    const requestEvent = new CustomEvent(OVERLAY_EVENTS.REQUEST_OPEN, { 
+    window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.REQUEST_OPEN, { 
       detail: { overlay: 'bts' } 
-    });
-    window.dispatchEvent(requestEvent);
+    }));
     
-    // FIXED: Check if manager needs to close another overlay first
+    // FIXED: Smart detection - check if another overlay is currently open
     setTimeout(() => {
       if (!isOpen && !isAnimating) {
-        const managerExists = document.querySelector('.project-player_pausefx');
+        // Check if any other overlay is visible
+        const otherOverlays = [
+          container.querySelector('.about-overlay'),
+          container.querySelector('.project-info_overlay')
+        ].filter(Boolean);
         
-        if (!managerExists) {
-          // No manager, open immediately
-          performOpen();
-        } else {
-          // Manager exists, wait for signal or timeout
+        const isAnotherOverlayOpen = otherOverlays.some(overlay => 
+          !overlay.classList.contains('u-display-none')
+        );
+        
+        if (isAnotherOverlayOpen) {
+          // Another overlay is open, wait for CLOSED event
+          console.log('[BTSOverlay] Another overlay open, waiting for close');
           pendingOpen = true;
           
-          // Safety timeout - if manager doesn't respond in 1200ms, open anyway
+          // Safety timeout - if CLOSED event doesn't arrive in 1200ms, open anyway
           setTimeout(() => {
             if (pendingOpen && !isOpen && !isAnimating) {
-              console.log('[BTSOverlay] Manager timeout (1200ms), opening anyway');
+              console.log('[BTSOverlay] CLOSED event timeout (1200ms), opening anyway');
               pendingOpen = false;
               performOpen();
             }
           }, 1200);
+        } else {
+          // No other overlay open, safe to open immediately
+          console.log('[BTSOverlay] No other overlay, opening immediately');
+          performOpen();
         }
       }
     }, 10);
@@ -214,15 +225,15 @@ export default function initBTSOverlay(container) {
 
   function close() {
     if (!isOpen || isAnimating) return;
-    performClose(true, false);  // Normal close, hide backdrop
+    performClose(true, false);
   }
 
   function performClose(dispatchComplete, keepBackdrop = false) {
-    if (!isOpen) return;  // Guard against double-close
+    if (!isOpen) return;
     
     isOpen = false;
     isAnimating = true;
-    pendingOpen = false;  // Cancel any pending open
+    pendingOpen = false;
 
     console.log('[BTSOverlay] Closing, keepBackdrop:', keepBackdrop);
 

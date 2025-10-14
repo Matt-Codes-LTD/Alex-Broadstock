@@ -1,5 +1,5 @@
 // assets/v1/sections/about-overlay/index.js
-// FIXED: Proper coordination using CLOSED event instead of timeout
+// FIXED: Smart coordination - instant open when no other overlay, event-based when switching
 import { createRevealAnimation } from "./animations.js";
 
 const OVERLAY_EVENTS = {
@@ -53,7 +53,7 @@ export default function initAboutOverlay(container) {
   let revealTimeline = null;
   let originalBackHref = backLink?.getAttribute('href');
   let wasMutedBeforeOpen = false;
-  let pendingOpen = false;  // Track if we're waiting to open
+  let pendingOpen = false;
   const handlers = [];
 
   // Listen for manager requesting us to close
@@ -64,9 +64,8 @@ export default function initAboutOverlay(container) {
     }
   };
   
-  // FIXED: Listen for CLOSED event to know when safe to open
+  // Listen for CLOSED event to know when safe to open
   const handleClosed = (e) => {
-    // If another overlay just closed and we're waiting to open, now we can
     if (pendingOpen && e.detail.keepBackdrop && e.detail.overlay !== 'about') {
       console.log('[AboutOverlay] Previous overlay closed, now opening');
       pendingOpen = false;
@@ -87,35 +86,40 @@ export default function initAboutOverlay(container) {
     console.log('[AboutOverlay] Requesting to open');
     
     // Dispatch request to manager
-    const requestEvent = new CustomEvent(OVERLAY_EVENTS.REQUEST_OPEN, { 
+    window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.REQUEST_OPEN, { 
       detail: { overlay: 'about' } 
-    });
-    window.dispatchEvent(requestEvent);
+    }));
     
-    // FIXED: Check if manager blocked us (transitioning or same overlay)
-    // If we get here and no other overlay is open, open immediately
-    // Otherwise, set pendingOpen and wait for CLOSED event
+    // FIXED: Smart detection - check if another overlay is currently open
     setTimeout(() => {
-      // Use setTimeout to let manager's event handler run first
       if (!isOpen && !isAnimating) {
-        // Check if manager is handling coordination
-        const managerExists = document.querySelector('.project-player_pausefx');
+        // Check if any other overlay is visible
+        const otherOverlays = [
+          container.querySelector('.project-info_overlay'),
+          container.querySelector('.bts-overlay')
+        ].filter(Boolean);
         
-        if (!managerExists || !isProjectPage) {
-          // No manager on home page, open immediately
-          performOpen();
-        } else {
-          // Manager exists, wait for signal or timeout
+        const isAnotherOverlayOpen = otherOverlays.some(overlay => 
+          !overlay.classList.contains('u-display-none')
+        );
+        
+        if (isAnotherOverlayOpen) {
+          // Another overlay is open, wait for CLOSED event
+          console.log('[AboutOverlay] Another overlay open, waiting for close');
           pendingOpen = true;
           
-          // Safety timeout - if manager doesn't respond in 1200ms, open anyway
+          // Safety timeout - if CLOSED event doesn't arrive in 1200ms, open anyway
           setTimeout(() => {
             if (pendingOpen && !isOpen && !isAnimating) {
-              console.log('[AboutOverlay] Manager timeout (1200ms), opening anyway');
+              console.log('[AboutOverlay] CLOSED event timeout (1200ms), opening anyway');
               pendingOpen = false;
               performOpen();
             }
           }, 1200);
+        } else {
+          // No other overlay open, safe to open immediately
+          console.log('[AboutOverlay] No other overlay, opening immediately');
+          performOpen();
         }
       }
     }, 10);
@@ -226,15 +230,15 @@ export default function initAboutOverlay(container) {
 
   function close() {
     if (!isOpen || isAnimating) return;
-    performClose(true, false);  // Normal close, hide backdrop
+    performClose(true, false);
   }
 
   function performClose(dispatchComplete, keepBackdrop = false) {
-    if (!isOpen) return;  // Guard against double-close
+    if (!isOpen) return;
     
     isOpen = false;
     isAnimating = true;
-    pendingOpen = false;  // Cancel any pending open
+    pendingOpen = false;
 
     console.log('[AboutOverlay] Closing, keepBackdrop:', keepBackdrop);
 
