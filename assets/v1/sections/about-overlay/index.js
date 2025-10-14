@@ -1,5 +1,5 @@
 // assets/v1/sections/about-overlay/index.js
-// FIXED: Now tracks and restores video mute state
+// FIXED: Proper coordination using CLOSED event instead of timeout
 import { createRevealAnimation } from "./animations.js";
 
 const OVERLAY_EVENTS = {
@@ -52,60 +52,88 @@ export default function initAboutOverlay(container) {
   let isAnimating = false;
   let revealTimeline = null;
   let originalBackHref = backLink?.getAttribute('href');
-  let wasMutedBeforeOpen = false;  // ADDED: Track mute state
+  let wasMutedBeforeOpen = false;
+  let pendingOpen = false;  // Track if we're waiting to open
   const handlers = [];
 
   // Listen for manager requesting us to close
   const handleClosing = (e) => {
     if (e.detail.overlay === 'about' && isOpen && !isAnimating) {
       console.log('[AboutOverlay] Received close request from manager');
-      // Pass through keepBackdrop flag from manager
       performClose(true, e.detail.keepBackdrop);
     }
   };
   
+  // FIXED: Listen for CLOSED event to know when safe to open
+  const handleClosed = (e) => {
+    // If another overlay just closed and we're waiting to open, now we can
+    if (pendingOpen && e.detail.keepBackdrop && e.detail.overlay !== 'about') {
+      console.log('[AboutOverlay] Previous overlay closed, now opening');
+      pendingOpen = false;
+      performOpen();
+    }
+  };
+  
   window.addEventListener(OVERLAY_EVENTS.CLOSING, handleClosing);
-  handlers.push(() => window.removeEventListener(OVERLAY_EVENTS.CLOSING, handleClosing));
+  window.addEventListener(OVERLAY_EVENTS.CLOSED, handleClosed);
+  handlers.push(() => {
+    window.removeEventListener(OVERLAY_EVENTS.CLOSING, handleClosing);
+    window.removeEventListener(OVERLAY_EVENTS.CLOSED, handleClosed);
+  });
 
   function open() {
-    if (isOpen || isAnimating) return;
+    if (isOpen || isAnimating || pendingOpen) return;
     
     console.log('[AboutOverlay] Requesting to open');
     
-    // Request to open
-    window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.REQUEST_OPEN, { 
+    // Dispatch request to manager
+    const requestEvent = new CustomEvent(OVERLAY_EVENTS.REQUEST_OPEN, { 
       detail: { overlay: 'about' } 
-    }));
+    });
+    window.dispatchEvent(requestEvent);
     
-    // Wait for manager to give us the go-ahead
-    let waitingForManager = false;
-    const onManagerReady = () => {
-      waitingForManager = true;
-      performOpen();
-    };
-    
-    // Manager will close any open overlay, then we can open
-    // If no overlay is open, this will fire immediately
-    window.addEventListener(OVERLAY_EVENTS.REQUEST_OPEN, onManagerReady, { once: true });
-    
-    // Timeout - if manager doesn't respond, just open
+    // FIXED: Check if manager blocked us (transitioning or same overlay)
+    // If we get here and no other overlay is open, open immediately
+    // Otherwise, set pendingOpen and wait for CLOSED event
     setTimeout(() => {
-      window.removeEventListener(OVERLAY_EVENTS.REQUEST_OPEN, onManagerReady);
-      if (!waitingForManager && !isOpen && !isAnimating) {
-        console.log('[AboutOverlay] Manager timeout, opening anyway');
-        performOpen();
+      // Use setTimeout to let manager's event handler run first
+      if (!isOpen && !isAnimating) {
+        // Check if manager is handling coordination
+        const managerExists = document.querySelector('.project-player_pausefx');
+        
+        if (!managerExists || !isProjectPage) {
+          // No manager on home page, open immediately
+          performOpen();
+        } else {
+          // Manager exists, wait for signal or timeout
+          pendingOpen = true;
+          
+          // Safety timeout - if manager doesn't respond in 1200ms, open anyway
+          setTimeout(() => {
+            if (pendingOpen && !isOpen && !isAnimating) {
+              console.log('[AboutOverlay] Manager timeout (1200ms), opening anyway');
+              pendingOpen = false;
+              performOpen();
+            }
+          }, 1200);
+        }
       }
-    }, 100);
+    }, 10);
   }
 
   function performOpen() {
-    if (isOpen || isAnimating) return;
+    if (isOpen || isAnimating) {
+      pendingOpen = false;
+      return;
+    }
+    
     isOpen = true;
     isAnimating = true;
+    pendingOpen = false;
 
     console.log('[AboutOverlay] Opening');
 
-    // ADDED: Store mute state and mute video (but keep playing)
+    // Store mute state and mute video (but keep playing)
     if (video && isProjectPage) {
       wasMutedBeforeOpen = video.muted;
       video.muted = true;
@@ -202,8 +230,11 @@ export default function initAboutOverlay(container) {
   }
 
   function performClose(dispatchComplete, keepBackdrop = false) {
+    if (!isOpen) return;  // Guard against double-close
+    
     isOpen = false;
     isAnimating = true;
+    pendingOpen = false;  // Cancel any pending open
 
     console.log('[AboutOverlay] Closing, keepBackdrop:', keepBackdrop);
 
@@ -256,41 +287,28 @@ export default function initAboutOverlay(container) {
           }
         }
 
-        // ADDED: Restore video mute state
-        if (video && isProjectPage && !wasMutedBeforeOpen) {
-          video.muted = false;
-          video.removeAttribute('muted');
+        // Restore video mute state ONLY if project page
+        if (video && isProjectPage) {
+          video.muted = wasMutedBeforeOpen;
+          if (wasMutedBeforeOpen) {
+            video.setAttribute('muted', '');
+          } else {
+            video.removeAttribute('muted');
+          }
         }
 
-        // Clear props
-        gsap.set([
-          '.about-bio-label',
-          '.about-bio-content',
-          '.about-contact-label',
-          '.about-contact-link',
-          '.about-work-label',
-          '.about-work-link',
-          '.about-awards-label',
-          '.about-award-item'
-        ], { clearProps: "transform,filter,opacity" });
-        
-        gsap.set(aboutOverlay, { clearProps: "transform,filter" });
-        
         isAnimating = false;
-        
+
+        // Notify manager we're closed
         if (dispatchComplete) {
           window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSED, { 
-            detail: { 
-              overlay: 'about',
-              keepBackdrop: keepBackdrop  // Pass flag to manager
-            } 
+            detail: { overlay: 'about', keepBackdrop } 
           }));
-          console.log('[AboutOverlay] Closed');
+          console.log('[AboutOverlay] Closed complete, keepBackdrop:', keepBackdrop);
         }
       });
-
     } else {
-      // Fallback without GSAP
+      // No GSAP, close immediately
       aboutOverlay.classList.add('u-display-none');
       
       if (isHomePage) {
@@ -300,7 +318,7 @@ export default function initAboutOverlay(container) {
         navLinks.forEach(link => {
           link.classList.remove('u-color-faded');
         });
-
+        
         if (backLink) {
           backLink.textContent = 'Back';
           backLink.setAttribute('href', originalBackHref);
@@ -308,19 +326,22 @@ export default function initAboutOverlay(container) {
         }
       }
 
-      // ADDED: Restore video mute state
-      if (video && isProjectPage && !wasMutedBeforeOpen) {
-        video.muted = false;
-        video.removeAttribute('muted');
+      if (video && isProjectPage) {
+        video.muted = wasMutedBeforeOpen;
       }
-      
+
       isAnimating = false;
+
+      if (dispatchComplete) {
+        window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSED, { 
+          detail: { overlay: 'about', keepBackdrop } 
+        }));
+      }
     }
   }
 
   // Event handlers
-  const onAboutClick = (e) => {
-    e.preventDefault();
+  const onAboutClick = () => {
     isOpen ? close() : open();
   };
 
@@ -376,6 +397,7 @@ export default function initAboutOverlay(container) {
 
   return () => {
     if (revealTimeline) revealTimeline.kill();
+    pendingOpen = false;
     handlers.forEach(fn => fn());
     delete aboutOverlay.dataset.scriptInitialized;
   };

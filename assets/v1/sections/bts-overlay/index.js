@@ -1,5 +1,5 @@
 // assets/v1/sections/bts-overlay/index.js
-// FIXED: Now tracks and restores video mute state
+// FIXED: Proper coordination using CLOSED event instead of timeout
 import { populateGrid, cleanupGrid } from "./grid.js";
 import { initDragging } from "./dragging.js";
 
@@ -11,7 +11,6 @@ const OVERLAY_EVENTS = {
 };
 
 export default function initBTSOverlay(container) {
-  // Only run on project pages
   if (container.dataset.barbaNamespace !== "project") return () => {};
   
   const navWrap = container.querySelector('.nav_wrap');
@@ -23,7 +22,6 @@ export default function initBTSOverlay(container) {
     return () => {};
   }
   
-  // Find the BTS button and Back link
   const navLinks = container.querySelectorAll('.nav_link');
   const btsButton = Array.from(navLinks).find(link => 
     link.textContent.trim() === 'BTS'
@@ -42,80 +40,104 @@ export default function initBTSOverlay(container) {
   
   let originalBackHref = backLink?.getAttribute('href');
 
-  // Find player elements
   const playerWrap = container.querySelector('.project-player_wrap');
   const video = playerWrap?.querySelector('video');
   
   let isOpen = false;
   let isAnimating = false;
   let wasPlayingBeforeOpen = false;
-  let wasMutedBeforeOpen = false;  // ADDED: Track mute state
+  let wasMutedBeforeOpen = false;
   let cleanupDragging = null;
+  let pendingOpen = false;  // Track if we're waiting to open
   const handlers = [];
 
   // Listen for manager requesting us to close
   const handleClosing = (e) => {
     if (e.detail.overlay === 'bts' && isOpen && !isAnimating) {
       console.log('[BTSOverlay] Received close request from manager');
-      // Pass through keepBackdrop flag from manager
       performClose(true, e.detail.keepBackdrop);
     }
   };
   
+  // FIXED: Listen for CLOSED event to know when safe to open
+  const handleClosed = (e) => {
+    // If another overlay just closed and we're waiting to open, now we can
+    if (pendingOpen && e.detail.keepBackdrop && e.detail.overlay !== 'bts') {
+      console.log('[BTSOverlay] Previous overlay closed, now opening');
+      pendingOpen = false;
+      performOpen();
+    }
+  };
+  
   window.addEventListener(OVERLAY_EVENTS.CLOSING, handleClosing);
-  handlers.push(() => window.removeEventListener(OVERLAY_EVENTS.CLOSING, handleClosing));
+  window.addEventListener(OVERLAY_EVENTS.CLOSED, handleClosed);
+  handlers.push(() => {
+    window.removeEventListener(OVERLAY_EVENTS.CLOSING, handleClosing);
+    window.removeEventListener(OVERLAY_EVENTS.CLOSED, handleClosed);
+  });
 
   // Populate grid on initialization
   const imageElements = container.querySelectorAll('.bts-images_source .bts-source_img');
   populateGrid(btsOverlay, imageElements);
 
   function open() {
-    if (isOpen || isAnimating) return;
+    if (isOpen || isAnimating || pendingOpen) return;
     
     console.log('[BTSOverlay] Requesting to open');
     
-    // Request to open
-    window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.REQUEST_OPEN, { 
+    // Dispatch request to manager
+    const requestEvent = new CustomEvent(OVERLAY_EVENTS.REQUEST_OPEN, { 
       detail: { overlay: 'bts' } 
-    }));
+    });
+    window.dispatchEvent(requestEvent);
     
-    // Wait for manager to give us the go-ahead
-    let waitingForManager = false;
-    const onManagerReady = () => {
-      waitingForManager = true;
-      performOpen();
-    };
-    
-    window.addEventListener(OVERLAY_EVENTS.REQUEST_OPEN, onManagerReady, { once: true });
-    
-    // Timeout - if manager doesn't respond, just open
+    // FIXED: Check if manager needs to close another overlay first
     setTimeout(() => {
-      window.removeEventListener(OVERLAY_EVENTS.REQUEST_OPEN, onManagerReady);
-      if (!waitingForManager && !isOpen && !isAnimating) {
-        console.log('[BTSOverlay] Manager timeout, opening anyway');
-        performOpen();
+      if (!isOpen && !isAnimating) {
+        const managerExists = document.querySelector('.project-player_pausefx');
+        
+        if (!managerExists) {
+          // No manager, open immediately
+          performOpen();
+        } else {
+          // Manager exists, wait for signal or timeout
+          pendingOpen = true;
+          
+          // Safety timeout - if manager doesn't respond in 1200ms, open anyway
+          setTimeout(() => {
+            if (pendingOpen && !isOpen && !isAnimating) {
+              console.log('[BTSOverlay] Manager timeout (1200ms), opening anyway');
+              pendingOpen = false;
+              performOpen();
+            }
+          }, 1200);
+        }
       }
-    }, 100);
+    }, 10);
   }
 
   function performOpen() {
-    if (isOpen || isAnimating) return;
+    if (isOpen || isAnimating) {
+      pendingOpen = false;
+      return;
+    }
+    
     isOpen = true;
     isAnimating = true;
+    pendingOpen = false;
 
     console.log('[BTSOverlay] Opening');
 
-    // ADDED: Store both playing and mute state
+    // Store both playing and mute state
     if (video) {
       wasPlayingBeforeOpen = !video.paused;
-      wasMutedBeforeOpen = video.muted;  // Store mute state
+      wasMutedBeforeOpen = video.muted;
       
       if (wasPlayingBeforeOpen) {
         video.pause();
       }
     }
 
-    // Handle background and content entrance
     if (window.gsap) {
       const allImages = btsOverlay.querySelectorAll('.bts-grid_img');
       
@@ -181,7 +203,6 @@ export default function initBTSOverlay(container) {
   }
 
   function initializeDragging() {
-    // Start dragging functionality
     cleanupDragging = initDragging(btsOverlay);
     isAnimating = false;
     
@@ -197,8 +218,11 @@ export default function initBTSOverlay(container) {
   }
 
   function performClose(dispatchComplete, keepBackdrop = false) {
+    if (!isOpen) return;  // Guard against double-close
+    
     isOpen = false;
     isAnimating = true;
+    pendingOpen = false;  // Cancel any pending open
 
     console.log('[BTSOverlay] Closing, keepBackdrop:', keepBackdrop);
 
@@ -230,7 +254,7 @@ export default function initBTSOverlay(container) {
         opacity: 0,
         duration: 0.7,
         ease: "sine.out"
-      }, "-=0.5")
+      }, "-=0.1")
       
       // Cleanup
       .call(() => {
@@ -240,71 +264,72 @@ export default function initBTSOverlay(container) {
         navLinks.forEach(link => {
           link.classList.remove('u-color-faded');
         });
-
-        // Restore Back link
+        
         if (backLink) {
           backLink.textContent = 'Back';
           backLink.setAttribute('href', originalBackHref);
           backLink.style.cursor = '';
         }
 
-        // UPDATED: Restore video with proper mute state
-        if (video && wasPlayingBeforeOpen) {
-          // Restore mute state BEFORE playing
-          if (!wasMutedBeforeOpen) {
-            video.muted = false;
+        // Restore video state
+        if (video) {
+          // Restore mute state
+          video.muted = wasMutedBeforeOpen;
+          if (wasMutedBeforeOpen) {
+            video.setAttribute('muted', '');
+          } else {
             video.removeAttribute('muted');
           }
-          video.play().catch(() => {});
+          
+          // Resume playback if it was playing
+          if (wasPlayingBeforeOpen && video.paused) {
+            video.play().catch(() => {});
+          }
         }
-        
-        // Reset image and overlay states
-        gsap.set(allImages, { clearProps: "transform,filter,opacity,scale" });
-        gsap.set(btsOverlay, { clearProps: "transform,filter" });
-        
+
         isAnimating = false;
-        
+
+        // Notify manager we're closed
         if (dispatchComplete) {
           window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSED, { 
-            detail: { 
-              overlay: 'bts',
-              keepBackdrop: keepBackdrop  // Pass flag to manager
-            } 
+            detail: { overlay: 'bts', keepBackdrop } 
           }));
-          console.log('[BTSOverlay] Closed');
+          console.log('[BTSOverlay] Closed complete, keepBackdrop:', keepBackdrop);
         }
       });
     } else {
-      // No animation fallback
+      // No GSAP, close immediately
       btsOverlay.classList.add('u-display-none');
       
       navLinks.forEach(link => {
         link.classList.remove('u-color-faded');
       });
-
+      
       if (backLink) {
         backLink.textContent = 'Back';
         backLink.setAttribute('href', originalBackHref);
         backLink.style.cursor = '';
       }
 
-      // UPDATED: Restore video with proper mute state
-      if (video && wasPlayingBeforeOpen) {
-        // Restore mute state BEFORE playing
-        if (!wasMutedBeforeOpen) {
-          video.muted = false;
-          video.removeAttribute('muted');
+      if (video) {
+        video.muted = wasMutedBeforeOpen;
+        if (wasPlayingBeforeOpen) {
+          video.play().catch(() => {});
         }
-        video.play().catch(() => {});
       }
-      
+
       isAnimating = false;
+
+      if (dispatchComplete) {
+        window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSED, { 
+          detail: { overlay: 'bts', keepBackdrop } 
+        }));
+      }
     }
   }
 
   // Event handlers
-  const onBTSClick = (e) => {
-    e.preventDefault();
+  const onBTSClick = () => {
     isOpen ? close() : open();
   };
 
@@ -346,6 +371,7 @@ export default function initBTSOverlay(container) {
   return () => {
     if (cleanupDragging) cleanupDragging();
     cleanupGrid(btsOverlay);
+    pendingOpen = false;
     handlers.forEach(fn => fn());
     delete btsOverlay.dataset.scriptInitialized;
   };

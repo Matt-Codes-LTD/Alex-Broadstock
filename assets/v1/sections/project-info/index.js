@@ -1,8 +1,7 @@
 // assets/v1/sections/project-info/index.js
-// UPDATED: Now passes keepBackdrop flag to match other overlays
+// FIXED: Proper coordination using CLOSED event instead of timeout
 import { createRevealAnimation } from "./animations.js";
 
-// Overlay coordination events
 const OVERLAY_EVENTS = {
   REQUEST_OPEN: 'overlay:request-open',
   CLOSING: 'overlay:closing',
@@ -39,53 +38,79 @@ export default function initProjectInfo(container) {
   let revealTimeline = null;
   let originalBackHref = backLink.getAttribute('href');
   let wasMutedBeforeOpen = false;
+  let pendingOpen = false;  // Track if we're waiting to open
   const handlers = [];
 
   // Listen for manager requesting us to close
   const handleClosing = (e) => {
     if (e.detail.overlay === 'info' && isOpen && !isAnimating) {
       console.log('[ProjectInfo] Received close request from manager');
-      // Pass through keepBackdrop flag from manager
       performClose(true, e.detail.keepBackdrop);
     }
   };
   
+  // FIXED: Listen for CLOSED event to know when safe to open
+  const handleClosed = (e) => {
+    // If another overlay just closed and we're waiting to open, now we can
+    if (pendingOpen && e.detail.keepBackdrop && e.detail.overlay !== 'info') {
+      console.log('[ProjectInfo] Previous overlay closed, now opening');
+      pendingOpen = false;
+      performOpen();
+    }
+  };
+  
   window.addEventListener(OVERLAY_EVENTS.CLOSING, handleClosing);
-  handlers.push(() => window.removeEventListener(OVERLAY_EVENTS.CLOSING, handleClosing));
+  window.addEventListener(OVERLAY_EVENTS.CLOSED, handleClosed);
+  handlers.push(() => {
+    window.removeEventListener(OVERLAY_EVENTS.CLOSING, handleClosing);
+    window.removeEventListener(OVERLAY_EVENTS.CLOSED, handleClosed);
+  });
 
   function open() {
-    if (isOpen || isAnimating) return;
+    if (isOpen || isAnimating || pendingOpen) return;
     
     console.log('[ProjectInfo] Requesting to open');
     
-    // Request to open
-    window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.REQUEST_OPEN, { 
+    // Dispatch request to manager
+    const requestEvent = new CustomEvent(OVERLAY_EVENTS.REQUEST_OPEN, { 
       detail: { overlay: 'info' } 
-    }));
+    });
+    window.dispatchEvent(requestEvent);
     
-    // Wait for manager to give us the go-ahead
-    let waitingForManager = false;
-    const onManagerReady = () => {
-      waitingForManager = true;
-      performOpen();
-    };
-    
-    window.addEventListener(OVERLAY_EVENTS.REQUEST_OPEN, onManagerReady, { once: true });
-    
-    // Timeout - if manager doesn't respond, just open
+    // FIXED: Check if manager needs to close another overlay first
     setTimeout(() => {
-      window.removeEventListener(OVERLAY_EVENTS.REQUEST_OPEN, onManagerReady);
-      if (!waitingForManager && !isOpen && !isAnimating) {
-        console.log('[ProjectInfo] Manager timeout, opening anyway');
-        performOpen();
+      if (!isOpen && !isAnimating) {
+        const managerExists = document.querySelector('.project-player_pausefx');
+        
+        if (!managerExists) {
+          // No manager, open immediately
+          performOpen();
+        } else {
+          // Manager exists, wait for signal or timeout
+          pendingOpen = true;
+          
+          // Safety timeout - if manager doesn't respond in 1200ms, open anyway
+          setTimeout(() => {
+            if (pendingOpen && !isOpen && !isAnimating) {
+              console.log('[ProjectInfo] Manager timeout (1200ms), opening anyway');
+              pendingOpen = false;
+              performOpen();
+            }
+          }, 1200);
+        }
       }
-    }, 100);
+    }, 10);
   }
 
   function performOpen() {
-    if (isOpen || isAnimating) return;
+    if (isOpen || isAnimating) {
+      pendingOpen = false;
+      return;
+    }
+    
     isOpen = true;
     isAnimating = true;
+    pendingOpen = false;
 
     console.log('[ProjectInfo] Opening');
 
@@ -146,7 +171,7 @@ export default function initProjectInfo(container) {
         link.classList.add('u-color-faded');
       }
     });
-
+    
     backLink.textContent = 'Close';
     backLink.removeAttribute('href');
     backLink.style.cursor = 'pointer';
@@ -177,20 +202,23 @@ export default function initProjectInfo(container) {
   }
 
   function performClose(dispatchComplete, keepBackdrop = false) {
+    if (!isOpen) return;  // Guard against double-close
+    
     isOpen = false;
     isAnimating = true;
+    pendingOpen = false;  // Cancel any pending open
 
     console.log('[ProjectInfo] Closing, keepBackdrop:', keepBackdrop);
 
     if (window.gsap && revealTimeline) {
       const closeTl = gsap.timeline();
-      
+
       // Fast content exit
       closeTl.to([
         '.project-info_award-item',
-        '.project-info_awards-label',
         '.project-info_crew-name',
         '.project-info_crew-role',
+        '.project-info_awards-label',
         '.project-info_crew-label',
         '.project-info_description'
       ], {
@@ -213,70 +241,66 @@ export default function initProjectInfo(container) {
       .call(() => {
         infoOverlay.classList.add('u-display-none');
         
+        // Restore nav states
         navLinks.forEach(link => {
           link.classList.remove('u-color-faded');
         });
-
+        
         backLink.textContent = 'Back';
         backLink.setAttribute('href', originalBackHref);
         backLink.style.cursor = '';
 
-        if (video && !wasMutedBeforeOpen) {
-          video.muted = false;
-          video.removeAttribute('muted');
+        // Restore video mute state
+        if (video) {
+          video.muted = wasMutedBeforeOpen;
+          if (wasMutedBeforeOpen) {
+            video.setAttribute('muted', '');
+          } else {
+            video.removeAttribute('muted');
+          }
         }
 
-        gsap.set([
-          '.project-info_description',
-          '.project-info_crew-label',
-          '.project-info_crew-role',
-          '.project-info_crew-name',
-          '.project-info_awards-label',
-          '.project-info_award-item'
-        ], { clearProps: "transform,filter,opacity" });
-        
-        gsap.set(infoOverlay, { clearProps: "transform,filter" });
-        
         isAnimating = false;
-        
+
+        // Notify manager we're closed
         if (dispatchComplete) {
           window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSED, { 
-            detail: { 
-              overlay: 'info',
-              keepBackdrop: keepBackdrop  // Pass flag to manager
-            } 
+            detail: { overlay: 'info', keepBackdrop } 
           }));
-          console.log('[ProjectInfo] Closed');
+          console.log('[ProjectInfo] Closed complete, keepBackdrop:', keepBackdrop);
         }
       });
     } else {
-      // Fallback without GSAP
+      // No GSAP, close immediately
       infoOverlay.classList.add('u-display-none');
       
       navLinks.forEach(link => {
         link.classList.remove('u-color-faded');
       });
-
+      
       backLink.textContent = 'Back';
       backLink.setAttribute('href', originalBackHref);
       backLink.style.cursor = '';
 
-      if (video && !wasMutedBeforeOpen) {
-        video.muted = false;
-        video.removeAttribute('muted');
+      if (video) {
+        video.muted = wasMutedBeforeOpen;
       }
-      
+
       isAnimating = false;
+
+      if (dispatchComplete) {
+        window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSED, { 
+          detail: { overlay: 'info', keepBackdrop } 
+        }));
+      }
     }
   }
 
-  // Click Info button to toggle
-  const onInfoClick = (e) => {
-    e.preventDefault();
+  // Event handlers
+  const onInfoClick = () => {
     isOpen ? close() : open();
   };
 
-  // Click Back/Close button to close when popup is open
   const onBackClick = (e) => {
     if (isOpen) {
       e.preventDefault();
@@ -284,20 +308,19 @@ export default function initProjectInfo(container) {
     }
   };
 
-  // ESC key to close
   const onKeyDown = (e) => {
     if (e.key === 'Escape' && isOpen) {
       close();
     }
   };
 
-  // Click overlay background to close
   const onOverlayClick = (e) => {
     if (e.target === infoOverlay) {
       close();
     }
   };
 
+  // Event listeners
   infoButton.addEventListener('click', onInfoClick);
   backLink.addEventListener('click', onBackClick);
   document.addEventListener('keydown', onKeyDown);
@@ -312,6 +335,7 @@ export default function initProjectInfo(container) {
 
   return () => {
     if (revealTimeline) revealTimeline.kill();
+    pendingOpen = false;
     handlers.forEach(fn => fn());
     delete infoOverlay.dataset.scriptInitialized;
   };
