@@ -1,5 +1,5 @@
 // assets/v1/sections/bts-overlay/index.js
-// FIXED: Smart coordination - instant open when no other overlay, event-based when switching
+// FIXED: Handles overlay switching even during open animation
 import { populateGrid, cleanupGrid } from "./grid.js";
 import { initDragging } from "./dragging.js";
 
@@ -54,10 +54,18 @@ export default function initBTSOverlay(container) {
   let pendingOpen = false;
   const handlers = [];
 
-  // Listen for manager requesting us to close
+  // FIXED: Listen for manager requesting us to close, even during animation
   const handleClosing = (e) => {
-    if (e.detail.overlay === 'bts' && isOpen && !isAnimating) {
-      console.log('[BTSOverlay] Received close request from manager');
+    if (e.detail.overlay === 'bts' && isOpen) {
+      // REMOVED !isAnimating check - now handles close even during open animation
+      console.log('[BTSOverlay] Received close request from manager (isAnimating:', isAnimating, ')');
+      
+      // Kill any in-progress dragging
+      if (cleanupDragging) {
+        cleanupDragging();
+        cleanupDragging = null;
+      }
+      
       performClose(true, e.detail.keepBackdrop);
     }
   };
@@ -92,7 +100,7 @@ export default function initBTSOverlay(container) {
       detail: { overlay: 'bts' } 
     }));
     
-    // FIXED: Smart detection - check if another overlay is currently open
+    // Smart detection - check if another overlay is currently open
     setTimeout(() => {
       if (!isOpen && !isAnimating) {
         // Check if any other overlay is visible
@@ -224,7 +232,14 @@ export default function initBTSOverlay(container) {
   }
 
   function close() {
-    if (!isOpen || isAnimating) return;
+    if (!isOpen) return;
+    
+    // Kill any in-progress dragging
+    if (cleanupDragging) {
+      cleanupDragging();
+      cleanupDragging = null;
+    }
+    
     performClose(true, false);
   }
 
@@ -237,7 +252,7 @@ export default function initBTSOverlay(container) {
 
     console.log('[BTSOverlay] Closing, keepBackdrop:', keepBackdrop);
 
-    // Cleanup dragging
+    // Cleanup dragging (in case not already done)
     if (cleanupDragging) {
       cleanupDragging();
       cleanupDragging = null;

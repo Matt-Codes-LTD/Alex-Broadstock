@@ -1,5 +1,5 @@
 // assets/v1/sections/about-overlay/index.js
-// FIXED: Smart coordination - instant open when no other overlay, event-based when switching
+// FIXED: Handles overlay switching even during open animation
 import { createRevealAnimation } from "./animations.js";
 
 const OVERLAY_EVENTS = {
@@ -56,10 +56,18 @@ export default function initAboutOverlay(container) {
   let pendingOpen = false;
   const handlers = [];
 
-  // Listen for manager requesting us to close
+  // FIXED: Listen for manager requesting us to close, even during animation
   const handleClosing = (e) => {
-    if (e.detail.overlay === 'about' && isOpen && !isAnimating) {
-      console.log('[AboutOverlay] Received close request from manager');
+    if (e.detail.overlay === 'about' && isOpen) {
+      // REMOVED !isAnimating check - now handles close even during open animation
+      console.log('[AboutOverlay] Received close request from manager (isAnimating:', isAnimating, ')');
+      
+      // Kill any in-progress animations
+      if (revealTimeline) {
+        revealTimeline.kill();
+        revealTimeline = null;
+      }
+      
       performClose(true, e.detail.keepBackdrop);
     }
   };
@@ -90,7 +98,7 @@ export default function initAboutOverlay(container) {
       detail: { overlay: 'about' } 
     }));
     
-    // FIXED: Smart detection - check if another overlay is currently open
+    // Smart detection - check if another overlay is currently open
     setTimeout(() => {
       if (!isOpen && !isAnimating) {
         // Check if any other overlay is visible
@@ -229,7 +237,14 @@ export default function initAboutOverlay(container) {
   }
 
   function close() {
-    if (!isOpen || isAnimating) return;
+    if (!isOpen) return;
+    
+    // Kill any in-progress animations
+    if (revealTimeline) {
+      revealTimeline.kill();
+      revealTimeline = null;
+    }
+    
     performClose(true, false);
   }
 
@@ -242,7 +257,7 @@ export default function initAboutOverlay(container) {
 
     console.log('[AboutOverlay] Closing, keepBackdrop:', keepBackdrop);
 
-    if (window.gsap && revealTimeline) {
+    if (window.gsap) {
       const closeTl = gsap.timeline();
 
       // Fast content exit
