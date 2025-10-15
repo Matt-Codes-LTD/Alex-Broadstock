@@ -1,5 +1,5 @@
 // assets/v1/core/transitions/nav-reveal.js
-// FIXED: Project navigation overlay now hidden initially to prevent FOUC
+// FIXED: Project navigation overlay now properly animated with GSAP
 import { ANIMATION, getAnimProps } from "../animation-constants.js";
 
 /**
@@ -270,13 +270,14 @@ export function createProjectNavAnimation(container) {
       ...getAnimProps('playerButtons')
     }, "-=0.4");
     
-    // Animate navigation overlay last (if it exists)
+    // ✅ FIX: Animate navigation overlay with GSAP instead of CSS class
     if (navOverlay) {
-      // Just add the class - CSS will handle the opacity transition
-      tl.call(() => {
-        navOverlay.classList.add('is-revealed');
-        console.log("[NavReveal] Navigation overlay revealed");
-      }, null, "-=0.5");
+      tl.to(navOverlay, {
+        opacity: 1,
+        duration: 0.4,
+        ease: "power2.out"
+      }, "-=0.4");
+      console.log("[NavReveal] Navigation overlay will be revealed via GSAP");
     }
     
     return tl;
