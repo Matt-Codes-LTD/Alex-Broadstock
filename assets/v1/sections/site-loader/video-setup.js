@@ -56,7 +56,22 @@ function getFirstProjectInActiveCategory(container) {
   
   // Filter items by category (matches category-filter.js logic)
   const matchingItems = allItems.filter(item => {
-    const cats = item.dataset.cats || "";
+    // Build categories from child pills (same as category-filter.js cacheCats)
+    let cats = item.dataset.cats || "";
+    
+    // If data-cats doesn't exist yet, build it from children
+    if (!cats) {
+      const categoryPills = item.querySelectorAll('.home-category_ref_text');
+      const catSet = new Set();
+      categoryPills.forEach(pill => {
+        const text = normalize(pill.textContent);
+        if (text && text !== "all") {
+          catSet.add(text);
+        }
+      });
+      cats = Array.from(catSet).join("|");
+    }
+    
     const catArray = cats.split("|").map(c => c.trim()).filter(c => c);
     const matches = catArray.includes(activeCategoryName);
     
