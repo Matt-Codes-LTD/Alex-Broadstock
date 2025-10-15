@@ -2,8 +2,11 @@
 import { SELECTORS } from "./constants.js";
 
 export function setupVideo(container, videoWrapper) {
-  const firstProject = getFirstProjectInActiveCategory(container);
-  const videoUrl = firstProject?.dataset?.video;
+  const firstProjectList = getFirstProjectInActiveCategory(container);
+  
+  // Get the video URL from the child .home-hero_item element
+  const firstProjectItem = firstProjectList?.querySelector('.home-hero_item');
+  const videoUrl = firstProjectItem?.dataset?.video;
   
   const video = document.createElement('video');
   video.style.cssText = 'width:100%;height:100%;object-fit:cover;';
@@ -90,7 +93,9 @@ function getFirstProjectInActiveCategory(container) {
   
   const firstProject = matchingItems[0];
   const projectName = firstProject.querySelector('.home_hero_text')?.textContent;
+  const videoUrl = firstProject.querySelector('.home-hero_item')?.dataset?.video;
   console.log("[SiteLoader] ✅ Using first project in category:", projectName);
+  console.log("[SiteLoader] ✅ Video URL:", videoUrl);
   
   return firstProject;
 }
