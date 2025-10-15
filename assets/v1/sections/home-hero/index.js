@@ -1,6 +1,7 @@
-// index.js - UPDATED: Awards now pull from individual image fields instead of Collection List
+// index.js - UPDATED: Added client names feature
 import { createVideoManager } from "./video-manager.js";
 import { initCategoryFilter } from "./category-filter.js";
+import { initClientNames } from "./client-names.js";
 
 export default function initHomeHero(container) {
   const section = container.querySelector(".home-hero_wrap");
@@ -38,6 +39,10 @@ export default function initHomeHero(container) {
 
   function initializeHero() {
     hideMetaTags();
+    
+    // Initialize client names
+    const cleanupClientNames = initClientNames(section);
+    cleanupFunctions.push(cleanupClientNames);
     
     // Set hero stage ready for video
     if (window.gsap) {
