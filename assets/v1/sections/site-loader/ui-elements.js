@@ -1,4 +1,4 @@
-// assets/v1/sections/site-loader/ui-elements.js - UI creation
+// assets/v1/sections/site-loader/ui-elements.js - UI creation with curtain gap fix
 import { SELECTORS } from "./constants.js";
 
 export function createUIElements(loaderEl, container) {
@@ -59,13 +59,15 @@ function createVideoElements() {
   const videoCurtain = document.createElement('div');
   videoCurtain.className = 'site-loader_video-curtain';
   
+  // FIXED: Use inset and add 1px buffer + GPU acceleration to prevent gaps
   gsap.set(videoCurtain, {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: '100%',
-    background: 'var(--swatch--brand-ink)'
+    inset: '-1px', // 1px buffer to prevent sub-pixel gaps
+    background: 'var(--swatch--brand-ink)',
+    transform: 'translateZ(0)', // Force GPU rendering
+    backfaceVisibility: 'hidden', // Prevent rendering artifacts
+    transformOrigin: 'left center',
+    willChange: 'transform'
   });
   
   videoWrapper.appendChild(videoCurtain);
