@@ -32,11 +32,18 @@ export function setupVideo(container, videoWrapper) {
  * Matches the logic from category-filter.js
  */
 function getFirstProjectInActiveCategory(container) {
-  // Find the active category button
-  const activeBtn = document.querySelector('.home-category_text[aria-current="true"]');
+  // Try to find the active category button
+  let activeBtn = document.querySelector('.home-category_text[aria-current="true"]');
+  
+  // If no active button, find the first non-"all" button (default behavior)
+  if (!activeBtn) {
+    console.log("[SiteLoader] No aria-current found, finding first valid category button");
+    const allButtons = Array.from(document.querySelectorAll('.home-category_text'));
+    activeBtn = allButtons.find(btn => normalize(btn.textContent) !== "all");
+  }
   
   if (!activeBtn) {
-    console.warn("[SiteLoader] No active category found, using fallback");
+    console.warn("[SiteLoader] No category buttons found, using fallback");
     return container.querySelector('.home-hero_item');
   }
   
@@ -45,13 +52,21 @@ function getFirstProjectInActiveCategory(container) {
   
   // Find all project items
   const allItems = Array.from(container.querySelectorAll('.home-hero_list'));
+  console.log("[SiteLoader] Total project items found:", allItems.length);
   
   // Filter items by category (matches category-filter.js logic)
   const matchingItems = allItems.filter(item => {
     const cats = item.dataset.cats || "";
     const catArray = cats.split("|").map(c => c.trim()).filter(c => c);
-    return catArray.includes(activeCategoryName);
+    const matches = catArray.includes(activeCategoryName);
+    
+    const projectName = item.querySelector('.home_hero_text')?.textContent;
+    console.log("[SiteLoader] Project:", projectName, "| cats:", cats, "| matches:", matches);
+    
+    return matches;
   });
+  
+  console.log("[SiteLoader] Found", matchingItems.length, "matching projects");
   
   if (matchingItems.length === 0) {
     console.warn("[SiteLoader] No items match active category:", activeCategoryName);
@@ -60,7 +75,7 @@ function getFirstProjectInActiveCategory(container) {
   
   const firstProject = matchingItems[0];
   const projectName = firstProject.querySelector('.home_hero_text')?.textContent;
-  console.log("[SiteLoader] Using first project in category:", projectName);
+  console.log("[SiteLoader] ✅ Using first project in category:", projectName);
   
   return firstProject;
 }
