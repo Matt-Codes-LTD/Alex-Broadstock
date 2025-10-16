@@ -1,5 +1,5 @@
 // assets/v1/sections/about-overlay/animations.js
-// SIMPLIFIED: No stagger, just smooth fade in
+// FIXED: Removed ALL staggers for smooth fade
 import { ANIMATION, getAnimProps } from "../../core/animation-constants.js";
 
 export function createRevealAnimation(container) {
@@ -11,7 +11,7 @@ export function createRevealAnimation(container) {
     '.about-contact-label',
     '.about-contact-link',
     '.about-work-label',
-    '.about-work-link',
+    '.about-work-link', // Multiple links here - no stagger!
     '.about-awards-label',
     '.about-award-item'
   ];
@@ -22,18 +22,19 @@ export function createRevealAnimation(container) {
     willChange: 'opacity'
   });
 
-  // Simple timeline - all fade in together, no stagger
+  // Simple timeline - all fade in together, NO STAGGER
   const tl = gsap.timeline({
     onComplete: () => {
       gsap.set(elements, { willChange: 'auto' });
     }
   });
 
-  // Just fade everything in smoothly
+  // Just fade everything in smoothly - NO STAGGER ANYWHERE
   tl.to(elements, {
     opacity: 1,
     duration: 0.3, // Quick and smooth
     ease: "power2.out"
+    // NO stagger property - this was causing the work links to stagger
   });
 
   return tl;

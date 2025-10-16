@@ -1,5 +1,5 @@
 // assets/v1/sections/bts-overlay/index.js
-// FIXED: Grid population + faster switching + smooth content fade
+// FIXED: Slower with random stagger fade like before
 import { populateGrid, cleanupGrid } from "./grid.js";
 import { initDragging } from "./dragging.js";
 
@@ -42,7 +42,7 @@ export default function initBTSOverlay(container) {
   
   let originalBackHref = backLink?.getAttribute('href');
 
-  // CRITICAL FIX: Populate grid on initialization
+  // CRITICAL: Populate grid on initialization
   const imageElements = container.querySelectorAll('.bts-images_source .bts-source_img');
   populateGrid(btsOverlay, imageElements);
 
@@ -117,14 +117,14 @@ export default function initBTSOverlay(container) {
           console.log('[BTSOverlay] Another overlay open, waiting for close');
           pendingOpen = true;
           
-          // Safety timeout - if CLOSED event doesn't arrive in 600ms, open anyway
+          // Safety timeout
           setTimeout(() => {
             if (pendingOpen && !isOpen && !isAnimating) {
               console.log('[BTSOverlay] CLOSED event timeout (600ms), opening anyway');
               pendingOpen = false;
               performOpen();
             }
-          }, 600); // FASTER - was 1200ms
+          }, 600);
         } else {
           // No other overlay open, safe to open immediately
           console.log('[BTSOverlay] No other overlay, opening immediately');
@@ -165,27 +165,46 @@ export default function initBTSOverlay(container) {
         willChange: 'opacity'
       });
       
-      // SIMPLIFIED: Just fade images in, no stagger
+      // Images start scaled down slightly with blur
       gsap.set(allImages, {
         opacity: 0,
-        willChange: 'opacity'
+        scale: 0.9,
+        filter: "blur(6px)",
+        willChange: 'transform, opacity'
       });
       
       // Show the overlay container
       btsOverlay.classList.remove('u-display-none');
       
-      // Create entrance timeline - SIMPLE & SMOOTH
+      // Create entrance timeline with random stagger
       const entranceTl = gsap.timeline();
       
-      // Fade background + images together
-      entranceTl.to([btsOverlay, allImages], {
+      // Fade background in
+      entranceTl.to(btsOverlay, {
         opacity: 1,
-        duration: 0.2, // Fast and snappy
+        duration: 0.3, // Slightly slower
         ease: "power2.out",
         onComplete: () => {
-          gsap.set([btsOverlay, allImages], { willChange: 'auto' });
+          gsap.set(btsOverlay, { willChange: 'auto' });
         }
       })
+      
+      // Animate images in with RANDOM STAGGER (the magic!)
+      .to(allImages, {
+        opacity: 1,
+        scale: 1,
+        filter: "blur(0px)",
+        duration: 0.4, // Slightly slower than before
+        ease: "power2.out",
+        stagger: {
+          amount: 0.4, // Spread over 0.4s
+          from: "random", // Random positions - this is key!
+          grid: "auto"
+        },
+        onComplete: () => {
+          gsap.set(allImages, { willChange: 'auto' });
+        }
+      }, "-=0.2") // Overlap with background
       
       // Enable dragging
       .call(() => {
@@ -250,36 +269,52 @@ export default function initBTSOverlay(container) {
     }
 
     if (window.gsap) {
+      const closeTl = gsap.timeline();
       const allImages = btsOverlay.querySelectorAll('.bts-grid_img');
       
-      // SUPER FAST close - no stagger
-      gsap.to([btsOverlay, allImages], {
+      // Fast image exit with RANDOM STAGGER
+      closeTl.to(allImages, {
         opacity: 0,
-        duration: 0.15, // VERY FAST
+        scale: 0.95,
+        filter: "blur(4px)",
+        duration: 0.3, // Slightly slower
         ease: "power2.in",
-        onComplete: () => {
-          btsOverlay.classList.add('u-display-none');
-          isAnimating = false;
-          
-          // Restore video state
-          if (video) {
-            if (wasPlayingBeforeOpen) {
-              video.play().catch(() => {});
-            }
-            video.muted = wasMutedBeforeOpen;
-            if (wasMutedBeforeOpen) {
-              video.setAttribute('muted', '');
-            } else {
-              video.removeAttribute('muted');
-            }
+        stagger: {
+          amount: 0.2, // Spread over 0.2s
+          from: "random" // Random positions!
+        }
+      })
+      
+      // Background fade
+      .to(btsOverlay, {
+        opacity: 0,
+        duration: 0.25,
+        ease: "power2.inOut"
+      }, "-=0.15") // Overlap
+      
+      // Cleanup
+      .call(() => {
+        btsOverlay.classList.add('u-display-none');
+        isAnimating = false;
+        
+        // Restore video state
+        if (video) {
+          if (wasPlayingBeforeOpen) {
+            video.play().catch(() => {});
           }
-          
-          if (dispatchComplete) {
-            window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSED, { 
-              detail: { overlay: 'bts', keepBackdrop } 
-            }));
-            console.log('[BTSOverlay] Closed');
+          video.muted = wasMutedBeforeOpen;
+          if (wasMutedBeforeOpen) {
+            video.setAttribute('muted', '');
+          } else {
+            video.removeAttribute('muted');
           }
+        }
+        
+        if (dispatchComplete) {
+          window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSED, { 
+            detail: { overlay: 'bts', keepBackdrop } 
+          }));
+          console.log('[BTSOverlay] Closed');
         }
       });
       
