@@ -1,5 +1,5 @@
 // assets/v1/sections/project-info/index.js
-// UPDATED: Video no longer mutes, fixed close link navigation issue
+// UPDATED: Video no longer mutes, fixed close link navigation, added backdrop click to close
 import { createRevealAnimation } from "./animations.js";
 
 const OVERLAY_EVENTS = {
@@ -318,6 +318,17 @@ export default function initProjectInfo(container) {
   };
   backLink.addEventListener('click', handleBackClick);
   handlers.push(() => backLink.removeEventListener('click', handleBackClick));
+
+  // Click backdrop to close
+  const handleBackdropClick = (e) => {
+    // Only close if clicking directly on the overlay wrapper, not on child elements
+    if (isOpen && e.target === infoOverlay) {
+      e.preventDefault();
+      close();
+    }
+  };
+  infoOverlay.addEventListener('click', handleBackdropClick);
+  handlers.push(() => infoOverlay.removeEventListener('click', handleBackdropClick));
 
   // Cleanup
   return () => {

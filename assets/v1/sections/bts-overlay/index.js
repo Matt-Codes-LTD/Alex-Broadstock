@@ -1,5 +1,5 @@
 // assets/v1/sections/bts-overlay/index.js
-// UPDATED: Video no longer mutes, fixed close link navigation issue
+// UPDATED: Video no longer mutes, fixed close link navigation, added backdrop click to close (drag-aware)
 import { populateGrid, cleanupGrid } from "./grid.js";
 import { initDragging } from "./dragging.js";
 
@@ -375,6 +375,40 @@ export default function initBTSOverlay(container) {
     backLink.addEventListener('click', handleBackClick);
     handlers.push(() => backLink.removeEventListener('click', handleBackClick));
   }
+
+  // Click backdrop to close (but not when dragging)
+  let isDragging = false;
+  let dragStartTime = 0;
+  
+  const handlePointerDown = () => {
+    isDragging = false;
+    dragStartTime = Date.now();
+  };
+  
+  const handlePointerMove = () => {
+    // If pointer moved during press, consider it a drag
+    if (Date.now() - dragStartTime > 50) {
+      isDragging = true;
+    }
+  };
+  
+  const handleBackdropClick = (e) => {
+    // Only close if clicking directly on the overlay wrapper, not dragging, and not on child elements
+    if (isOpen && e.target === btsOverlay && !isDragging) {
+      e.preventDefault();
+      close();
+    }
+  };
+  
+  btsOverlay.addEventListener('pointerdown', handlePointerDown);
+  btsOverlay.addEventListener('pointermove', handlePointerMove);
+  btsOverlay.addEventListener('click', handleBackdropClick);
+  
+  handlers.push(() => {
+    btsOverlay.removeEventListener('pointerdown', handlePointerDown);
+    btsOverlay.removeEventListener('pointermove', handlePointerMove);
+    btsOverlay.removeEventListener('click', handleBackdropClick);
+  });
 
   // Cleanup
   return () => {
