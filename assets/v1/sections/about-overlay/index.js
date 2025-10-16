@@ -1,5 +1,5 @@
 // assets/v1/sections/about-overlay/index.js
-// UPDATED: Faster close for smoother overlay switching
+// UPDATED: Force disable CSS transitions during GSAP animation
 import { createRevealAnimation } from "./animations.js";
 
 const OVERLAY_EVENTS = {
@@ -167,6 +167,11 @@ export default function initAboutOverlay(container) {
         '.about-award-item'
       ];
 
+      // CRITICAL: Force disable CSS transitions BEFORE animation
+      gsap.set(elements, {
+        transition: 'none !important'
+      });
+
       // Set initial states BEFORE making overlay visible
       gsap.set(aboutOverlay, { 
         opacity: 0,
@@ -286,6 +291,11 @@ export default function initAboutOverlay(container) {
         onComplete: () => {
           aboutOverlay.classList.add('u-display-none');
           isAnimating = false;
+          
+          // Re-enable CSS transitions
+          gsap.set(elements, {
+            clearProps: 'transition'
+          });
           
           // Restore video mute state (only on project page)
           if (video && isProjectPage) {
