@@ -70,73 +70,66 @@ export function createHomeRevealAnimation(container) {
     ...getAnimProps('navLinks')
   }, "-=0.4")
   
-  // Category filters
+  // Category text
   .to(".home-category_text", {
     opacity: 1, 
     y: 0, 
     rotateX: 0,
-    ...getAnimProps('categories')
+    ...getAnimProps('categoryText')
+  }, "-=0.3")
+  
+  // Hero text
+  .to(".home_hero_text", {
+    opacity: 1, 
+    x: 0, 
+    filter: "none",
+    ...getAnimProps('heroText')
   }, "-=0.5")
   
-  // Project rows
-  .add(() => {
-    const visibleRows = container.querySelectorAll(".home-hero_list:not([style*='display: none'])");
-    const rowProps = getAnimProps('projectRows');
-    
-    visibleRows.forEach((row, index) => {
-      const name = row.querySelector(".home_hero_text");
-      const tags = row.querySelectorAll(".home-category_ref_text:not([hidden])");
-      
-      if (name) {
-        gsap.to(name, {
-          opacity: 1, 
-          x: 0, 
-          filter: ANIMATION.FILTER.blurNone,
-          duration: rowProps.duration,
-          ease: rowProps.ease,
-          delay: index * rowProps.stagger
-        });
-      }
-      
-      if (tags.length) {
-        const tagProps = getAnimProps('tags');
-        gsap.to(tags, {
-          opacity: 1, 
-          x: 0,
-          duration: tagProps.duration,
-          ease: tagProps.ease,
-          delay: index * rowProps.stagger,
-          stagger: tagProps.stagger
-        });
-      }
-    });
-  }, "-=0.2")
+  // Category refs
+  .to(".home-category_ref_text:not([hidden])", {
+    opacity: 1, 
+    x: 0,
+    ...getAnimProps('categoryRefs')
+  }, "-=0.3")
   
-  // Awards strip
+  // Awards list
   .add(() => {
-    const awardsList = container.querySelector(".home-awards_list");
+    const awardsList = document.querySelector(".home-awards_list");
+    if (!awardsList) return;
     
-    if (!awardsList) {
-      console.warn("[NavReveal] Awards list not found");
-      return;
-    }
+    const hasChildren = awardsList.children.length > 0;
     
-    const awardsItems = awardsList.querySelectorAll(":scope > *");
-    
-    if (awardsItems.length > 0) {
-      gsap.fromTo(awardsItems, {
-        opacity: 0, 
-        y: ANIMATION.TRANSFORM.tagX, 
-        scale: ANIMATION.TRANSFORM.scaleLarge 
-      }, {
+    if (hasChildren && ScrollTrigger) {
+      awardsList.querySelectorAll(":scope > *").forEach((child, i) => {
+        gsap.fromTo(child, 
+          { opacity: 0, y: 20, scale: 1.1 },
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.5,
+            delay: i * 0.05,
+            ease: "power3.out",
+            scrollTrigger: {
+              trigger: child,
+              start: "top 85%",
+              once: true
+            }
+          }
+        );
+      });
+      
+      gsap.to(awardsList, {
         opacity: 1, 
         y: 0, 
         scale: 1,
-        duration: 0.5,
-        ease: "power3.out",
-        stagger: {
-          amount: 0.3,
-          from: "start"
+        duration: 0.3,
+        ease: "power2.out",
+        scrollTrigger: {
+          trigger: awardsList,
+          start: "top 85%",
+          once: true
         },
         delay: 0.3
       });
@@ -200,7 +193,6 @@ export function createProjectNavAnimation(container) {
     console.log("[NavReveal] Setting up project page animations");
     
     // CRITICAL: Hide navigation overlay IMMEDIATELY before any animations
-    // This prevents it from being visible while other elements animate
     const navOverlay = container.querySelector(".project-navigation_overlay");
     if (navOverlay) {
       gsap.set(navOverlay, {
@@ -270,14 +262,25 @@ export function createProjectNavAnimation(container) {
       ...getAnimProps('playerButtons')
     }, "-=0.4");
     
-    // ✅ FIX: Animate navigation overlay with GSAP instead of CSS class
+    // FIX: Force navigation overlay to show using multiple methods
     if (navOverlay) {
       tl.to(navOverlay, {
         opacity: 1,
         duration: 0.4,
-        ease: "power2.out"
+        ease: "power2.out",
+        immediateRender: true,
+        force3D: true,
+        onStart: () => {
+          // Ensure visibility
+          navOverlay.style.visibility = 'visible';
+        },
+        onComplete: () => {
+          // Force override any !important CSS
+          navOverlay.style.setProperty('opacity', '1', 'important');
+          navOverlay.classList.add('is-revealed');
+          console.log("[NavReveal] Navigation overlay revealed");
+        }
       }, "-=0.4");
-      console.log("[NavReveal] Navigation overlay will be revealed via GSAP");
     }
     
     return tl;
