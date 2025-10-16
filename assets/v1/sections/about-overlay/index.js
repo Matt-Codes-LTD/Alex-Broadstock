@@ -1,5 +1,5 @@
 // assets/v1/sections/about-overlay/index.js
-// UPDATED: Force disable CSS transitions during GSAP animation
+// UPDATED: Video no longer mutes when overlay opens
 import { createRevealAnimation } from "./animations.js";
 
 const OVERLAY_EVENTS = {
@@ -52,7 +52,6 @@ export default function initAboutOverlay(container) {
   let isAnimating = false;
   let revealTimeline = null;
   let originalBackHref = backLink?.getAttribute('href');
-  let wasMutedBeforeOpen = false;
   let pendingOpen = false;
   const handlers = [];
 
@@ -144,15 +143,9 @@ export default function initAboutOverlay(container) {
 
     console.log('[AboutOverlay] Opening');
 
-    // Store mute state and mute video (but keep playing)
-    if (video && isProjectPage) {
-      wasMutedBeforeOpen = video.muted;
-      video.muted = true;
-      video.setAttribute('muted', '');
-      
-      if (video.paused) {
-        video.play().catch(() => {});
-      }
+    // Keep video playing without muting
+    if (video && isProjectPage && video.paused) {
+      video.play().catch(() => {});
     }
 
     if (window.gsap) {
@@ -297,15 +290,7 @@ export default function initAboutOverlay(container) {
             clearProps: 'transition'
           });
           
-          // Restore video mute state (only on project page)
-          if (video && isProjectPage) {
-            video.muted = wasMutedBeforeOpen;
-            if (wasMutedBeforeOpen) {
-              video.setAttribute('muted', '');
-            } else {
-              video.removeAttribute('muted');
-            }
-          }
+          // Video mute state remains unchanged
           
           if (dispatchComplete) {
             window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSED, { 
@@ -320,14 +305,7 @@ export default function initAboutOverlay(container) {
       aboutOverlay.classList.add('u-display-none');
       isAnimating = false;
       
-      if (video && isProjectPage) {
-        video.muted = wasMutedBeforeOpen;
-        if (wasMutedBeforeOpen) {
-          video.setAttribute('muted', '');
-        } else {
-          video.removeAttribute('muted');
-        }
-      }
+      // Video mute state remains unchanged
       
       if (dispatchComplete) {
         window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSED, { 

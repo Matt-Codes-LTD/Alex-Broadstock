@@ -1,5 +1,5 @@
 // assets/v1/sections/bts-overlay/index.js
-// FIXED: Slower with random stagger fade like before
+// UPDATED: Video no longer mutes when overlay opens (still pauses)
 import { populateGrid, cleanupGrid } from "./grid.js";
 import { initDragging } from "./dragging.js";
 
@@ -53,7 +53,6 @@ export default function initBTSOverlay(container) {
   let isOpen = false;
   let isAnimating = false;
   let wasPlayingBeforeOpen = false;
-  let wasMutedBeforeOpen = false;
   let cleanupDragging = null;
   let pendingOpen = false;
   const handlers = [];
@@ -146,10 +145,9 @@ export default function initBTSOverlay(container) {
 
     console.log('[BTSOverlay] Opening');
 
-    // Store both playing and mute state
+    // Store playing state and pause video (but don't mute)
     if (video) {
       wasPlayingBeforeOpen = !video.paused;
-      wasMutedBeforeOpen = video.muted;
       
       if (wasPlayingBeforeOpen) {
         video.pause();
@@ -297,17 +295,9 @@ export default function initBTSOverlay(container) {
         btsOverlay.classList.add('u-display-none');
         isAnimating = false;
         
-        // Restore video state
-        if (video) {
-          if (wasPlayingBeforeOpen) {
-            video.play().catch(() => {});
-          }
-          video.muted = wasMutedBeforeOpen;
-          if (wasMutedBeforeOpen) {
-            video.setAttribute('muted', '');
-          } else {
-            video.removeAttribute('muted');
-          }
+        // Restore video playing state (but not mute state)
+        if (video && wasPlayingBeforeOpen) {
+          video.play().catch(() => {});
         }
         
         if (dispatchComplete) {
@@ -322,16 +312,9 @@ export default function initBTSOverlay(container) {
       btsOverlay.classList.add('u-display-none');
       isAnimating = false;
       
-      if (video) {
-        if (wasPlayingBeforeOpen) {
-          video.play().catch(() => {});
-        }
-        video.muted = wasMutedBeforeOpen;
-        if (wasMutedBeforeOpen) {
-          video.setAttribute('muted', '');
-        } else {
-          video.removeAttribute('muted');
-        }
+      // Restore video playing state (but not mute state)
+      if (video && wasPlayingBeforeOpen) {
+        video.play().catch(() => {});
       }
       
       if (dispatchComplete) {
