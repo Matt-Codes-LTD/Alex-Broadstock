@@ -1,5 +1,5 @@
 // assets/v1/sections/project-info/index.js
-// UPDATED: 50% faster with aggressive easing
+// UPDATED: Faster close for smoother overlay switching
 import { createRevealAnimation } from "./animations.js";
 
 const OVERLAY_EVENTS = {
@@ -100,14 +100,14 @@ export default function initProjectInfo(container) {
           console.log('[ProjectInfo] Another overlay open, waiting for close');
           pendingOpen = true;
           
-          // Safety timeout - if CLOSED event doesn't arrive in 1200ms, open anyway
+          // FASTER timeout - was 1200ms
           setTimeout(() => {
             if (pendingOpen && !isOpen && !isAnimating) {
-              console.log('[ProjectInfo] CLOSED event timeout (1200ms), opening anyway');
+              console.log('[ProjectInfo] CLOSED event timeout (600ms), opening anyway');
               pendingOpen = false;
               performOpen();
             }
-          }, 1200);
+          }, 600);
         } else {
           // No other overlay open, safe to open immediately
           console.log('[ProjectInfo] No other overlay, opening immediately');
@@ -141,37 +141,37 @@ export default function initProjectInfo(container) {
     }
 
     if (window.gsap) {
-      // Set initial states BEFORE making overlay visible
-      gsap.set(infoOverlay, { 
-        opacity: 0,
-        willChange: 'transform, opacity' // Performance
-      });
-      
-      gsap.set([
+      const elements = [
         '.project-info_description',
         '.project-info_crew-label',
         '.project-info_crew-role',
         '.project-info_crew-name',
         '.project-info_awards-label',
         '.project-info_award-item'
-      ], {
+      ];
+
+      // Set initial states BEFORE making overlay visible
+      gsap.set(infoOverlay, { 
         opacity: 0,
-        y: 15,
-        filter: "blur(6px)",
-        willChange: 'transform, opacity' // Performance
+        willChange: 'opacity'
+      });
+      
+      gsap.set(elements, {
+        opacity: 0,
+        willChange: 'opacity'
       });
       
       // Show the overlay container
       infoOverlay.classList.remove('u-display-none');
       
-      // Create entrance timeline - FASTER & SNAPPIER
+      // Create entrance timeline - SIMPLE & FAST
       const entranceTl = gsap.timeline();
       
-      // Fade background in - 50% FASTER
+      // Fade background in
       entranceTl.to(infoOverlay, {
         opacity: 1,
-        duration: 0.25, // Was 0.5
-        ease: "power4.out", // More aggressive
+        duration: 0.2, // Fast
+        ease: "power2.out",
         onComplete: () => {
           gsap.set(infoOverlay, { willChange: 'auto' });
         }
@@ -242,58 +242,40 @@ export default function initProjectInfo(container) {
     }
 
     if (window.gsap) {
-      // Add will-change for performance
-      gsap.set(infoOverlay, { willChange: 'transform, opacity' });
-      
-      const closeTl = gsap.timeline();
-      
-      // Fade content out quickly
-      closeTl.to([
+      const elements = [
         '.project-info_description',
         '.project-info_crew-label',
         '.project-info_crew-role',
         '.project-info_crew-name',
         '.project-info_awards-label',
         '.project-info_award-item'
-      ], {
+      ];
+
+      // VERY FAST close - no separate content fade
+      gsap.to([infoOverlay, ...elements], {
         opacity: 0,
-        y: -8,
-        filter: "blur(4px)",
-        duration: 0.15, // Was 0.3 - 50% FASTER
-        ease: "power4.in", // More aggressive
-        stagger: 0.01
-      })
-      
-      // Fade background out - 50% FASTER
-      .to(infoOverlay, {
-        opacity: 0,
-        duration: 0.35, // Was 0.7
-        ease: "power4.inOut" // More aggressive
-      }, "-=0.1")
-      
-      // Cleanup
-      .call(() => {
-        infoOverlay.classList.add('u-display-none');
-        isAnimating = false;
-        
-        // Remove will-change
-        gsap.set(infoOverlay, { willChange: 'auto' });
-        
-        // Restore video mute state
-        if (video) {
-          video.muted = wasMutedBeforeOpen;
-          if (wasMutedBeforeOpen) {
-            video.setAttribute('muted', '');
-          } else {
-            video.removeAttribute('muted');
+        duration: 0.15, // SUPER FAST for switching
+        ease: "power2.in",
+        onComplete: () => {
+          infoOverlay.classList.add('u-display-none');
+          isAnimating = false;
+          
+          // Restore video mute state
+          if (video) {
+            video.muted = wasMutedBeforeOpen;
+            if (wasMutedBeforeOpen) {
+              video.setAttribute('muted', '');
+            } else {
+              video.removeAttribute('muted');
+            }
           }
-        }
-        
-        if (dispatchComplete) {
-          window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSED, { 
-            detail: { overlay: 'info', keepBackdrop } 
-          }));
-          console.log('[ProjectInfo] Closed');
+          
+          if (dispatchComplete) {
+            window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSED, { 
+              detail: { overlay: 'info', keepBackdrop } 
+            }));
+            console.log('[ProjectInfo] Closed');
+          }
         }
       });
       

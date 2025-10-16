@@ -1,5 +1,5 @@
 // assets/v1/sections/bts-overlay/index.js
-// UPDATED: 50% faster with aggressive easing
+// FIXED: Grid population + faster switching + smooth content fade
 import { populateGrid, cleanupGrid } from "./grid.js";
 import { initDragging } from "./dragging.js";
 
@@ -41,6 +41,10 @@ export default function initBTSOverlay(container) {
   btsOverlay.dataset.scriptInitialized = "true";
   
   let originalBackHref = backLink?.getAttribute('href');
+
+  // CRITICAL FIX: Populate grid on initialization
+  const imageElements = container.querySelectorAll('.bts-images_source .bts-source_img');
+  populateGrid(btsOverlay, imageElements);
 
   // Find player elements
   const playerWrap = container.querySelector('.project-player_wrap');
@@ -113,14 +117,14 @@ export default function initBTSOverlay(container) {
           console.log('[BTSOverlay] Another overlay open, waiting for close');
           pendingOpen = true;
           
-          // Safety timeout - if CLOSED event doesn't arrive in 1200ms, open anyway
+          // Safety timeout - if CLOSED event doesn't arrive in 600ms, open anyway
           setTimeout(() => {
             if (pendingOpen && !isOpen && !isAnimating) {
-              console.log('[BTSOverlay] CLOSED event timeout (1200ms), opening anyway');
+              console.log('[BTSOverlay] CLOSED event timeout (600ms), opening anyway');
               pendingOpen = false;
               performOpen();
             }
-          }, 1200);
+          }, 600); // FASTER - was 1200ms
         } else {
           // No other overlay open, safe to open immediately
           console.log('[BTSOverlay] No other overlay, opening immediately');
@@ -158,48 +162,30 @@ export default function initBTSOverlay(container) {
       // Set initial states BEFORE making overlay visible
       gsap.set(btsOverlay, { 
         opacity: 0,
-        willChange: 'transform, opacity' // Performance
+        willChange: 'opacity'
       });
       
+      // SIMPLIFIED: Just fade images in, no stagger
       gsap.set(allImages, {
         opacity: 0,
-        scale: 0.85,
-        filter: "blur(8px)",
-        willChange: 'transform, opacity' // Performance
+        willChange: 'opacity'
       });
       
       // Show the overlay container
       btsOverlay.classList.remove('u-display-none');
       
-      // Create entrance timeline - FASTER & SNAPPIER
+      // Create entrance timeline - SIMPLE & SMOOTH
       const entranceTl = gsap.timeline();
       
-      // Fade background in - 50% FASTER
-      entranceTl.to(btsOverlay, {
+      // Fade background + images together
+      entranceTl.to([btsOverlay, allImages], {
         opacity: 1,
-        duration: 0.25, // Was 0.5
-        ease: "power4.out", // More aggressive
+        duration: 0.2, // Fast and snappy
+        ease: "power2.out",
         onComplete: () => {
-          gsap.set(btsOverlay, { willChange: 'auto' });
+          gsap.set([btsOverlay, allImages], { willChange: 'auto' });
         }
       })
-      
-      // Animate images in - 50% FASTER
-      .to(allImages, {
-        opacity: 1,
-        scale: 1,
-        filter: "blur(0px)",
-        duration: 0.25, // Was 0.5
-        ease: "power4.out", // More aggressive
-        stagger: {
-          amount: 0.3, // Was 0.6 - 50% FASTER
-          from: "random",
-          grid: "auto"
-        },
-        onComplete: () => {
-          gsap.set(allImages, { willChange: 'auto' });
-        }
-      }, "-=0.15") // Tighter overlap
       
       // Enable dragging
       .call(() => {
@@ -264,59 +250,36 @@ export default function initBTSOverlay(container) {
     }
 
     if (window.gsap) {
-      // Add will-change for performance
-      gsap.set(btsOverlay, { willChange: 'transform, opacity' });
-      
-      const closeTl = gsap.timeline();
       const allImages = btsOverlay.querySelectorAll('.bts-grid_img');
       
-      // Fast image exit with stagger - 50% FASTER
-      closeTl.to(allImages, {
+      // SUPER FAST close - no stagger
+      gsap.to([btsOverlay, allImages], {
         opacity: 0,
-        scale: 0.9,
-        filter: "blur(6px)",
-        duration: 0.125, // Was 0.25 - 50% FASTER
-        ease: "power4.in", // More aggressive
-        stagger: {
-          amount: 0.075, // Was 0.15 - 50% FASTER
-          from: "random"
-        }
-      })
-      
-      // Background fade - 50% FASTER
-      .to(btsOverlay, {
-        opacity: 0,
-        duration: 0.35, // Was 0.7
-        ease: "power4.inOut" // More aggressive
-      }, "-=0.05")
-      
-      // Cleanup
-      .call(() => {
-        btsOverlay.classList.add('u-display-none');
-        isAnimating = false;
-        
-        // Remove will-change
-        gsap.set(btsOverlay, { willChange: 'auto' });
-        gsap.set(allImages, { willChange: 'auto' });
-        
-        // Restore video state
-        if (video) {
-          if (wasPlayingBeforeOpen) {
-            video.play().catch(() => {});
+        duration: 0.15, // VERY FAST
+        ease: "power2.in",
+        onComplete: () => {
+          btsOverlay.classList.add('u-display-none');
+          isAnimating = false;
+          
+          // Restore video state
+          if (video) {
+            if (wasPlayingBeforeOpen) {
+              video.play().catch(() => {});
+            }
+            video.muted = wasMutedBeforeOpen;
+            if (wasMutedBeforeOpen) {
+              video.setAttribute('muted', '');
+            } else {
+              video.removeAttribute('muted');
+            }
           }
-          video.muted = wasMutedBeforeOpen;
-          if (wasMutedBeforeOpen) {
-            video.setAttribute('muted', '');
-          } else {
-            video.removeAttribute('muted');
+          
+          if (dispatchComplete) {
+            window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSED, { 
+              detail: { overlay: 'bts', keepBackdrop } 
+            }));
+            console.log('[BTSOverlay] Closed');
           }
-        }
-        
-        if (dispatchComplete) {
-          window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSED, { 
-            detail: { overlay: 'bts', keepBackdrop } 
-          }));
-          console.log('[BTSOverlay] Closed');
         }
       });
       
@@ -385,6 +348,7 @@ export default function initBTSOverlay(container) {
     if (cleanupDragging) {
       cleanupDragging();
     }
+    cleanupGrid(btsOverlay);
     delete btsOverlay.dataset.scriptInitialized;
   };
 }
