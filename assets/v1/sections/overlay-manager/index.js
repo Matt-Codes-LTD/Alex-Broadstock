@@ -1,5 +1,6 @@
 // assets/v1/sections/overlay-manager/index.js
-// Centralized overlay coordination and backdrop management - FIXED
+// Centralized overlay coordination and backdrop management
+// FIXED: Now works on both home and project pages
 
 const OVERLAY_EVENTS = {
   REQUEST_OPEN: 'overlay:request-open',
@@ -15,9 +16,11 @@ export function initOverlayManager(container) {
   const centerToggle = container.querySelector('.project-player_center-toggle');
   const video = container.querySelector('video');
   
-  if (!pausefx) {
-    console.warn('[OverlayManager] pausefx not found');
-    return () => {};
+  // ✅ FIXED: Don't exit early - manager works on both home and project pages
+  const isProjectPage = !!pausefx;
+  
+  if (!isProjectPage) {
+    console.log('[OverlayManager] Running in home page mode (no pausefx)');
   }
 
   let activeOverlay = null;
@@ -29,18 +32,21 @@ export function initOverlayManager(container) {
   function showBackdrop() {
     console.log('[OverlayManager] Showing backdrop');
     
-    if (window.gsap) {
-      gsap.to(pausefx, { 
-        opacity: 1, 
-        duration: 0.3, 
-        ease: "power2.out" 
-      });
-    } else {
-      pausefx.style.opacity = '1';
+    // Only animate pausefx if it exists (project page)
+    if (pausefx) {
+      if (window.gsap) {
+        gsap.to(pausefx, { 
+          opacity: 1, 
+          duration: 0.3, 
+          ease: "power2.out" 
+        });
+      } else {
+        pausefx.style.opacity = '1';
+      }
     }
 
-    // Hide player UI
-    if (playerControls || navigationOverlay || centerToggle) {
+    // Hide player UI (only on project pages)
+    if (isProjectPage && (playerControls || navigationOverlay || centerToggle)) {
       const targets = [playerControls, navigationOverlay, centerToggle].filter(Boolean);
       if (window.gsap) {
         gsap.to(targets, {
@@ -58,18 +64,21 @@ export function initOverlayManager(container) {
   function hideBackdrop() {
     console.log('[OverlayManager] Hiding backdrop');
     
-    if (window.gsap) {
-      gsap.to(pausefx, { 
-        opacity: 0, 
-        duration: 0.3, 
-        ease: "power2.in" 
-      });
-    } else {
-      pausefx.style.opacity = '0';
+    // Only animate pausefx if it exists (project page)
+    if (pausefx) {
+      if (window.gsap) {
+        gsap.to(pausefx, { 
+          opacity: 0, 
+          duration: 0.3, 
+          ease: "power2.in" 
+        });
+      } else {
+        pausefx.style.opacity = '0';
+      }
     }
 
-    // Restore player UI
-    if (playerControls || navigationOverlay || centerToggle) {
+    // Restore player UI (only on project pages)
+    if (isProjectPage && (playerControls || navigationOverlay || centerToggle)) {
       const targets = [playerControls, navigationOverlay, centerToggle].filter(Boolean);
       if (window.gsap) {
         gsap.to(targets, {
@@ -177,7 +186,7 @@ export function initOverlayManager(container) {
     window.removeEventListener(OVERLAY_EVENTS.CLOSED, onClosed);
   });
 
-  console.log('[OverlayManager] Initialized');
+  console.log('[OverlayManager] Initialized', isProjectPage ? '(project page)' : '(home page)');
 
   return () => {
     handlers.forEach(fn => fn());
