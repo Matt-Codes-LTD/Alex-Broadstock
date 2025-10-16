@@ -1,5 +1,5 @@
 // assets/v1/sections/project-info/index.js
-// UPDATED: Video no longer mutes when overlay opens
+// UPDATED: Video no longer mutes, fixed close link navigation issue
 import { createRevealAnimation } from "./animations.js";
 
 const OVERLAY_EVENTS = {
@@ -253,7 +253,18 @@ export default function initProjectInfo(container) {
           infoOverlay.classList.add('u-display-none');
           isAnimating = false;
           
-          // Video mute state remains unchanged
+          // Wait a moment before restoring nav state to prevent accidental navigation
+          setTimeout(() => {
+            // Reset Back link
+            backLink.textContent = 'Back';
+            backLink.setAttribute('href', originalBackHref);
+            backLink.style.cursor = '';
+
+            // Restore nav link colors
+            navLinks.forEach(link => {
+              link.classList.remove('u-color-faded');
+            });
+          }, 100); // Small delay to prevent accidental clicks
           
           if (dispatchComplete) {
             window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSED, { 
@@ -268,7 +279,16 @@ export default function initProjectInfo(container) {
       infoOverlay.classList.add('u-display-none');
       isAnimating = false;
       
-      // Video mute state remains unchanged
+      // Wait a moment before restoring nav state
+      setTimeout(() => {
+        backLink.textContent = 'Back';
+        backLink.setAttribute('href', originalBackHref);
+        backLink.style.cursor = '';
+
+        navLinks.forEach(link => {
+          link.classList.remove('u-color-faded');
+        });
+      }, 100);
       
       if (dispatchComplete) {
         window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSED, { 
@@ -277,16 +297,6 @@ export default function initProjectInfo(container) {
         console.log('[ProjectInfo] Closed (no GSAP)');
       }
     }
-
-    // Reset Back link
-    backLink.textContent = 'Back';
-    backLink.setAttribute('href', originalBackHref);
-    backLink.style.cursor = '';
-
-    // Restore nav link colors
-    navLinks.forEach(link => {
-      link.classList.remove('u-color-faded');
-    });
   }
 
   // Event listeners

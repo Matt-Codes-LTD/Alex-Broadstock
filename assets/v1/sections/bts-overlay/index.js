@@ -1,5 +1,5 @@
 // assets/v1/sections/bts-overlay/index.js
-// UPDATED: Video no longer mutes when overlay opens (still pauses)
+// UPDATED: Video no longer mutes, fixed close link navigation issue
 import { populateGrid, cleanupGrid } from "./grid.js";
 import { initDragging } from "./dragging.js";
 
@@ -300,6 +300,21 @@ export default function initBTSOverlay(container) {
           video.play().catch(() => {});
         }
         
+        // Wait a moment before restoring nav state to prevent accidental navigation
+        setTimeout(() => {
+          // Reset Back link
+          if (backLink) {
+            backLink.textContent = 'Back';
+            backLink.setAttribute('href', originalBackHref || '/');
+            backLink.style.cursor = '';
+          }
+
+          // Restore nav link colors
+          navLinks.forEach(link => {
+            link.classList.remove('u-color-faded');
+          });
+        }, 100); // Small delay to prevent accidental clicks
+        
         if (dispatchComplete) {
           window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSED, { 
             detail: { overlay: 'bts', keepBackdrop } 
@@ -317,6 +332,19 @@ export default function initBTSOverlay(container) {
         video.play().catch(() => {});
       }
       
+      // Wait a moment before restoring nav state
+      setTimeout(() => {
+        if (backLink) {
+          backLink.textContent = 'Back';
+          backLink.setAttribute('href', originalBackHref || '/');
+          backLink.style.cursor = '';
+        }
+
+        navLinks.forEach(link => {
+          link.classList.remove('u-color-faded');
+        });
+      }, 100);
+      
       if (dispatchComplete) {
         window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSED, { 
           detail: { overlay: 'bts', keepBackdrop } 
@@ -324,18 +352,6 @@ export default function initBTSOverlay(container) {
         console.log('[BTSOverlay] Closed (no GSAP)');
       }
     }
-
-    // Reset Back link
-    if (backLink) {
-      backLink.textContent = 'Back';
-      backLink.setAttribute('href', originalBackHref || '/');
-      backLink.style.cursor = '';
-    }
-
-    // Restore nav link colors
-    navLinks.forEach(link => {
-      link.classList.remove('u-color-faded');
-    });
   }
 
   // Event listeners
