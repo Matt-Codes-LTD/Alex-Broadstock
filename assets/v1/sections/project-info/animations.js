@@ -1,5 +1,5 @@
 // assets/v1/sections/project-info/animations.js
-// UPDATED: Faster animations to match about overlay speed
+// UPDATED: 50% faster with aggressive easing
 import { ANIMATION, getAnimProps } from "../../core/animation-constants.js";
 
 export function createRevealAnimation(container) {
@@ -15,68 +15,81 @@ export function createRevealAnimation(container) {
     '.project-info_award-item'
   ], {
     opacity: 0,
-    y: 12,  // REDUCED: Matches about overlay (was 15)
-    filter: "blur(6px)"
+    y: 12,
+    filter: "blur(6px)",
+    willChange: 'transform, opacity' // Performance
   });
 
-  const tl = gsap.timeline();
+  const tl = gsap.timeline({
+    onComplete: () => {
+      // Remove will-change after animation
+      gsap.set([
+        '.project-info_description',
+        '.project-info_crew-label',
+        '.project-info_crew-role',
+        '.project-info_crew-name',
+        '.project-info_awards-label',
+        '.project-info_award-item'
+      ], { willChange: 'auto' });
+    }
+  });
 
-  // Description - faster
+  // Description - 50% FASTER
   tl.to('.project-info_description', {
     opacity: 1,
     y: 0,
     filter: "blur(0px)",
-    duration: 0.4,  // REDUCED: Was 0.5
-    ease: "power3.out"
+    duration: 0.2, // Was 0.4
+    ease: "power4.out" // More aggressive
   })
 
-  // Crew label - tighter overlap
+  // Crew label - 50% FASTER
   .to('.project-info_crew-label', {
     opacity: 1,
     y: 0,
     filter: "blur(0px)",
-    duration: 0.35,  // REDUCED: Was 0.4
-    ease: "power2.out"
-  }, "-=0.3")  // INCREASED: Was -=0.35
+    duration: 0.175, // Was 0.35
+    ease: "power4.out"
+  }, "-=0.15")
 
-  // Crew roles - faster stagger
+  // Crew roles - 50% FASTER
   .to('.project-info_crew-role', {
     opacity: 1,
     y: 0,
     filter: "blur(0px)",
-    duration: 0.3,  // REDUCED: Was 0.35
-    stagger: 0.06,  // REDUCED: Was 0.08
-    ease: "power2.out"
-  }, "-=0.25")
+    duration: 0.15, // Was 0.3
+    stagger: 0.03, // Was 0.06
+    ease: "power4.out"
+  }, "-=0.125")
   
-  // Crew names - simultaneous with tighter timing
+  // Crew names - 50% FASTER
   .to('.project-info_crew-name', {
     opacity: 1,
     y: 0,
     filter: "blur(0px)",
-    duration: 0.3,  // REDUCED: Was 0.35
-    stagger: 0.06,  // REDUCED: Was 0.08
-    ease: "power2.out"
-  }, "-=0.25")  // INCREASED: Was -=0.30
+    duration: 0.15, // Was 0.3
+    stagger: 0.03, // Was 0.06
+    ease: "power4.out"
+  }, "-=0.125")
 
-  // Awards label - quick
+  // Awards label - 50% FASTER
   .to('.project-info_awards-label', {
     opacity: 1,
     y: 0,
     filter: "blur(0px)",
-    duration: 0.35,  // REDUCED: Was 0.4
-    ease: "power2.out"
-  }, "-=0.25")
+    duration: 0.175, // Was 0.35
+    ease: "power4.out"
+  }, "-=0.125")
 
-  // Awards - snappy bounce
+  // Awards - 50% FASTER with snappier bounce
   .to('.project-info_award-item', {
     opacity: 1,
     y: 0,
     filter: "blur(0px)",
-    duration: 0.3,  // REDUCED: Was 0.35
-    stagger: 0.04,  // REDUCED: Was 0.05 (matches about overlay)
-    ease: "back.out(1.4)"
-  }, "-=0.2");  // INCREASED: Was -=0.25
+    duration: 0.15, // Was 0.3
+    stagger: 0.02, // Was 0.04
+    ease: "back.out(1.7)" // More aggressive bounce
+  }, "-=0.1");
 
   return tl;
 }
