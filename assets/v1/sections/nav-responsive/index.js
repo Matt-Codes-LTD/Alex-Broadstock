@@ -1,5 +1,5 @@
 /**
- * Nav Responsive Module
+ * Nav Responsive Modul
  * Handles responsive navigation adjustments based on content availability
  * Removes padding and adjusts margins when BTS button is not present
  */
