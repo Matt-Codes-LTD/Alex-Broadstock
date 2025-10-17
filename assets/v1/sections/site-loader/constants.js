@@ -1,6 +1,9 @@
-// assets/v1/sections/site-loader/constants.js - Configuration
+// assets/v1/sections/site-loader/constants.js - Configuration with new timings
 export const CONFIG = {
-  MIN_LOAD_TIME: 2000
+  MIN_LOAD_TIME: 2000,
+  CURTAIN_DURATION: 0.9,  // Faster curtain
+  MORPH_DURATION: 1.6,  // Smoother morph with cinematic ease
+  MORPH_EASE: 'morphCinematic'  // Custom cinematic ease
 };
 
 export const SELECTORS = {
@@ -18,5 +21,8 @@ export const EASES = {
   powerOut: "power2.out",
   power3Out: "power3.out",
   power3InOut: "power3.inOut",
-  backOut: "back.out(1.2)"
+  power3In: "power3.in",  // Added for faster curtain
+  backOut: "back.out(1.2)",
+  cinematicInOut: "cinematicInOut",  // New cinematic ease
+  morphCinematic: "morphCinematic"  // Specific morph ease
 };

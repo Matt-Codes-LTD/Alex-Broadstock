@@ -1,4 +1,4 @@
-// timeline.js - Optimized for snappier feel with slightly faster curtain
+// timeline.js - Optimized with faster curtain and cinematic morph
 import { CONFIG, EASES } from "./constants.js";
 import { ANIMATION, getAnimProps } from "../../core/animation-constants.js";
 import { ensureVideoReady } from "./video-setup.js";
@@ -34,6 +34,17 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
   gsap.registerEase("custom2InOut", p => 
     p < 0.5 ? 2 * p * p : 1 - ((-2 * p + 2) ** 2) / 2
   );
+  
+  // New cinematic ease for morph - smoother acceleration/deceleration
+  gsap.registerEase("cinematicInOut", p => {
+    // Custom cubic-bezier inspired ease for cinematic feel
+    if (p < 0.5) {
+      return 4 * p * p * p;
+    } else {
+      const f = (2 * p) - 2;
+      return 1 + f * f * f / 2;
+    }
+  });
   
   // Setup name element
   const nameEl = ui.nameReveal;
@@ -127,11 +138,11 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     ease: "power2.out" 
   }, "-=0.15")
   
-  // Phase 4: Curtain reveal - SLIGHTLY FASTER (1.6s → 1.45s as requested)
+  // Phase 4: Curtain reveal - MUCH FASTER (1.45s → 0.9s)
   .to(ui.videoCurtain, { 
     xPercent: 100, 
-    duration: 1.45,
-    ease: "custom2InOut",
+    duration: 0.9,  // Much faster curtain
+    ease: "power3.in",  // Changed to power3.in for snappier curtain movement
     onStart: () => {
       if (video.paused) {
         console.log("[SiteLoader] Video paused at curtain reveal, restarting");
@@ -153,7 +164,8 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
         
         gsap.set(ui.videoWrapper, { opacity: 1, zIndex: 10 });
         
-        morphToHeroStage(ui.videoWrapper, ui.heroVideoContainer, 1.4, () => {
+        // Updated morph with cinematic timing
+        morphToHeroStage(ui.videoWrapper, ui.heroVideoContainer, 1.6, () => {
           morphComplete = true;
           console.log("[SiteLoader] Morph complete");
         });
@@ -165,7 +177,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
           }
         }, 100);
         
-        setTimeout(() => clearInterval(checkPlayback), 1500);
+        setTimeout(() => clearInterval(checkPlayback), 1700);
         
       } catch (err) {
         console.warn("[SiteLoader] Morph failed:", err);
@@ -173,9 +185,9 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     }
   })
   
-  // Phase 5: Handoff during morph
+  // Phase 5: Handoff during morph - adjusted timing for new morph duration
   .call(async () => {
-    await new Promise(resolve => setTimeout(resolve, 200));
+    await new Promise(resolve => setTimeout(resolve, 300));  // Slightly delayed for smoother transition
     
     if (video.paused) {
       console.log("[SiteLoader] Video paused before handoff, restarting");
@@ -200,7 +212,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     window.dispatchEvent(new CustomEvent("siteLoaderMorphBegin", { detail }));
     
     const timeoutPromise = new Promise(resolve => {
-      state.heroResumeTimeout = setTimeout(resolve, 1200);
+      state.heroResumeTimeout = setTimeout(resolve, 1400);  // Adjusted for new morph duration
     });
     
     await Promise.race([heroReadyPromise, timeoutPromise]);
@@ -209,15 +221,15 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
       clearTimeout(state.heroResumeTimeout);
       state.heroResumeTimeout = null;
     }
-  }, null, "-=1.2")
+  }, null, "-=1.3")  // Adjusted overlap for new timing
   
-  // Phase 6: Fade loader wrapper
+  // Phase 6: Fade loader wrapper - delayed to match new morph
   .call(() => {
-    gsap.delayedCall(1.0, () => {
+    gsap.delayedCall(1.2, () => {  // Slightly longer delay for smoother transition
       console.log("[SiteLoader] Starting loader wrapper fade");
       gsap.to(ui.videoWrapper, {
         opacity: 0,
-        duration: 0.35, // Slightly faster fade
+        duration: 0.4,  // Slightly slower fade for elegance
         ease: "power2.in",
         onComplete: () => {
           console.log("[SiteLoader] Loader wrapper fade complete");
@@ -347,95 +359,31 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     });
   }, "-=0.15")
   
-  // Mobile filters button
-  .add(() => {
-    const mobileFiltersButton = window.__mobileFiltersButton;
-    if (mobileFiltersButton && window.innerWidth <= 991) {
-      gsap.fromTo(mobileFiltersButton, {
-        opacity: 0,
-        y: 10,
-        visibility: "hidden"
-      }, {
+  // Awards strip
+  .fromTo(".home-awards_list", {
+    opacity: 0, 
+    y: ANIMATION.TRANSFORM.tagX, 
+    scale: ANIMATION.TRANSFORM.scaleLarge
+  }, {
+    opacity: 1, 
+    y: 0, 
+    scale: 1,
+    duration: 0.5,
+    ease: "power3.out"
+  }, "-=0.3")
+  
+  // Mobile filters button (if exists)
+  .call(() => {
+    if (window.__mobileFiltersButton) {
+      gsap.set(window.__mobileFiltersButton, { visibility: 'visible' });
+      gsap.to(window.__mobileFiltersButton, {
         opacity: 1,
         y: 0,
-        visibility: "visible",
-        duration: 0.4, // FASTER (was 0.5)
-        ease: "power2.out",
-        delay: 0.15 // FASTER (was 0.2)
+        duration: 0.6,
+        ease: "power3.out"
       });
     }
-  }, "-=0.1")
-  
-  // Awards strip - FASTER
-  .add(() => {
-    const awardsList = container.querySelector(".home-awards_list");
-    
-    if (!awardsList) {
-      console.warn("[SiteLoader] Awards list not found");
-      return;
-    }
-    
-    const awardsItems = awardsList.querySelectorAll(":scope > *");
-    
-    if (awardsItems.length > 0) {
-      gsap.fromTo(awardsItems, {
-        opacity: 0,
-        y: 20,
-        scale: 0.95
-      }, {
-        opacity: 1, 
-        y: 0, 
-        scale: 1,
-        duration: 0.4, // FASTER (was 0.5)
-        ease: "power3.out",
-        stagger: {
-          amount: 0.25, // FASTER (was 0.3)
-          from: "start"
-        },
-        delay: 0.2 // FASTER (was 0.3)
-      });
-    } else {
-      gsap.fromTo(awardsList, {
-        opacity: 0,
-        y: 20,
-        scale: 0.95
-      }, {
-        opacity: 1, 
-        y: 0, 
-        scale: 1,
-        duration: 0.5, // FASTER (was 0.6)
-        ease: "power3.out",
-        delay: 0.2 // FASTER (was 0.3)
-      });
-    }
-  }, "-=0.15")
-  
-  // Clear props
-  .add(() => {
-    gsap.set([
-      ".nav_wrap",
-      ".brand_logo",
-      ".nav_link",
-      ".home-category_text",
-      ".home_hero_text",
-      ".home-category_ref_text",
-      ".home-awards_list",
-      ".home-awards_list > *"
-    ], {
-      clearProps: "transform,filter"
-    });
-  })
-  
-  // Final fade - FASTER (0.5s → 0.4s)
-  .to(loaderEl, { 
-    opacity: 0, 
-    duration: 0.4, 
-    ease: "power2.inOut" 
-  }, "-=0.2")
-  
-  .call(() => { 
-    window.dispatchEvent(new CustomEvent("siteLoaderComplete")); 
-  });
+  }, null, "-=0.2");
   
   return tl;
 }
