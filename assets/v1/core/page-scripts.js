@@ -1,88 +1,42 @@
-/**
- * Page Scripts Orchestrator
- * Initializes all page-specific modules
- */
-
-// Section imports
-import initSiteLoader from "../sections/site-loader/index.js";
+// assets/v1/core/page-scripts.js
 import initHomeHero from "../sections/home-hero/index.js";
 import initProjectPlayer from "../sections/project-player/index.js";
-import initSplitChars from "../sections/split-chars/index.js";
-import initNavResponsive from "../sections/nav-responsive/index.js";
+import initSiteLoader from "../sections/site-loader/index.js";
+import initMobileFilters from "../sections/mobile-filters/index.js";
+import initProjectNavigation from "../sections/project-navigation/index.js";
+import initProjectInfo from "../sections/project-info/index.js";
+import initAboutOverlay from "../sections/about-overlay/index.js";
+import initBTSOverlay from "../sections/bts-overlay/index.js";
+import { initOverlayManager } from "../sections/overlay-manager/index.js";
+import initNavResponsive from "../sections/nav-responsive/index.js";  // ADD THIS
 
-/**
- * Initialize all page scripts
- * @param {HTMLElement} container - The container element (usually document or Barba container)
- * @returns {Function} Cleanup function
- */
 export function initPageScripts(container) {
   const cleanups = [];
+
+  cleanups.push(initHomeHero(container));
+  cleanups.push(initProjectPlayer(container));
+  cleanups.push(initProjectNavigation(container));
   
-  // Site loader (only on initial load, not page transitions)
-  if (!window.barbaTransition) {
+  // Initialize overlay manager BEFORE individual overlays
+  cleanups.push(initOverlayManager(container));
+  
+  cleanups.push(initProjectInfo(container));
+  cleanups.push(initAboutOverlay(container));
+  cleanups.push(initBTSOverlay(container));
+  cleanups.push(initNavResponsive(container));  // ADD THIS
+  
+  if (container.dataset.barbaNamespace === "home") {
+    cleanups.push(initMobileFilters(container));
+  }
+
+  if (container.dataset.barbaNamespace === "home" && window.__initialPageLoad) {
+    console.log("[SiteLoader] Initializing for home page initial load");
     cleanups.push(initSiteLoader(container));
   }
-  
-  // Home page modules
-  cleanups.push(initHomeHero(container));
-  
-  // Project page modules  
-  cleanups.push(initProjectPlayer(container));
-  
-  // Global modules
-  cleanups.push(initSplitChars(container));
-  cleanups.push(initNavResponsive(container));
-  
-  // Return master cleanup function
-  return () => {
-    cleanups.forEach(fn => {
-      if (typeof fn === 'function') {
-        try {
-          fn();
-        } catch (err) {
-          console.error('Cleanup error:', err);
-        }
-      }
-    });
-  };
+
+  return () => cleanups.forEach((fn) => fn && fn());
 }
 
-/**
- * Initialize scripts based on Barba namespace
- * @param {string} namespace - The Barba namespace
- * @param {HTMLElement} container - The container element
- * @returns {Function} Cleanup function
- */
-export function initNamespaceScripts(namespace, container) {
-  const cleanups = [];
-  
-  switch(namespace) {
-    case 'home':
-      // Home-specific initializations
-      cleanups.push(initHomeHero(container));
-      cleanups.push(initSplitChars(container));
-      break;
-      
-    case 'project':
-      // Project-specific initializations
-      cleanups.push(initProjectPlayer(container));
-      cleanups.push(initSplitChars(container));
-      break;
-      
-    default:
-      // Default initializations for unknown namespaces
-      cleanups.push(initSplitChars(container));
-      break;
-  }
-  
-  // Always initialize nav responsive on all pages
-  cleanups.push(initNavResponsive(container));
-  
-  return () => {
-    cleanups.forEach(fn => {
-      if (typeof fn === 'function') {
-        fn();
-      }
-    });
-  };
+export function initGlobal() {
+  // Global initialization
 }
