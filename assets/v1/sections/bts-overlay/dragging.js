@@ -12,6 +12,26 @@ export function initDragging(overlay) {
     return () => {};
   }
 
+  // Prevent pull-to-refresh and scrolling on touch devices
+  const preventDefaultTouch = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  
+  // Prevent context menu on long press
+  const preventContextMenu = (e) => {
+    e.preventDefault();
+  };
+  
+  // Add listeners with passive: false to override Chrome's intervention
+  overlay.addEventListener('touchstart', preventDefaultTouch, { passive: false });
+  overlay.addEventListener('touchmove', preventDefaultTouch, { passive: false });
+  overlay.addEventListener('touchend', preventDefaultTouch, { passive: false });
+  overlay.addEventListener('contextmenu', preventContextMenu);
+  
+  // Also prevent on the container itself
+  container.addEventListener('touchmove', preventDefaultTouch, { passive: false });
+
   // Calculate wrapping boundaries
   const halfX = container.clientWidth / 2;
   const wrapX = gsap.utils.wrap(-halfX, 0);
@@ -39,6 +59,9 @@ export function initDragging(overlay) {
   const observer = Observer.create({
     target: overlay,
     type: "wheel,touch,pointer",
+    preventDefault: true, // Prevent default on all events
+    dragMinimum: 3, // Minimum movement before drag starts
+    tolerance: 10, // Helps prevent accidental drags
     onChangeX: (self) => {
       if (self.event.type === "wheel") {
         incrX -= self.deltaX;
@@ -61,9 +84,19 @@ export function initDragging(overlay) {
 
   // Return cleanup function
   return () => {
+    // Remove all event listeners
+    overlay.removeEventListener('touchstart', preventDefaultTouch);
+    overlay.removeEventListener('touchmove', preventDefaultTouch);
+    overlay.removeEventListener('touchend', preventDefaultTouch);
+    overlay.removeEventListener('contextmenu', preventContextMenu);
+    container.removeEventListener('touchmove', preventDefaultTouch);
+    
     if (observer) {
       observer.kill();
     }
+    
     gsap.set(container, { clearProps: 'x,y' });
+    
+    console.log('[BTSDragging] Dragging cleaned up');
   };
 }

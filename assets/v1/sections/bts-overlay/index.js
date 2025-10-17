@@ -1,5 +1,5 @@
 // assets/v1/sections/bts-overlay/index.js
-// UPDATED: Video no longer mutes, fixed close link navigation, added backdrop click to close (drag-aware)
+// UPDATED: Added mobile scroll prevention while keeping drag functionality
 import { populateGrid, cleanupGrid } from "./grid.js";
 import { initDragging } from "./dragging.js";
 
@@ -9,6 +9,32 @@ const OVERLAY_EVENTS = {
   OPENED: 'overlay:opened',
   CLOSED: 'overlay:closed'
 };
+
+// Body scroll lock helpers
+function lockBodyScroll() {
+  const scrollY = window.scrollY;
+  document.body.style.position = 'fixed';
+  document.body.style.top = `-${scrollY}px`;
+  document.body.style.width = '100%';
+  document.body.style.overscrollBehavior = 'none';
+  document.body.dataset.scrollLocked = 'true';
+}
+
+function unlockBodyScroll() {
+  if (document.body.dataset.scrollLocked !== 'true') return;
+  
+  const scrollY = document.body.style.top;
+  document.body.style.position = '';
+  document.body.style.top = '';
+  document.body.style.width = '';
+  document.body.style.overscrollBehavior = '';
+  delete document.body.dataset.scrollLocked;
+  
+  // Restore scroll position
+  if (scrollY) {
+    window.scrollTo(0, parseInt(scrollY || '0') * -1);
+  }
+}
 
 export default function initBTSOverlay(container) {
   // Only run on project pages
@@ -145,6 +171,14 @@ export default function initBTSOverlay(container) {
 
     console.log('[BTSOverlay] Opening');
 
+    // Lock body scroll on mobile
+    if ('ontouchstart' in window) {
+      lockBodyScroll();
+    }
+
+    // Add data attribute for CSS
+    btsOverlay.dataset.open = "true";
+
     // Store playing state and pause video (but don't mute)
     if (video) {
       wasPlayingBeforeOpen = !video.paused;
@@ -180,23 +214,23 @@ export default function initBTSOverlay(container) {
       // Fade background in
       entranceTl.to(btsOverlay, {
         opacity: 1,
-        duration: 0.3, // Slightly slower
+        duration: 0.3,
         ease: "power2.out",
         onComplete: () => {
           gsap.set(btsOverlay, { willChange: 'auto' });
         }
       })
       
-      // Animate images in with RANDOM STAGGER (the magic!)
+      // Animate images in with RANDOM STAGGER
       .to(allImages, {
         opacity: 1,
         scale: 1,
         filter: "blur(0px)",
-        duration: 0.4, // Slightly slower than before
+        duration: 0.4,
         ease: "power2.out",
         stagger: {
-          amount: 0.4, // Spread over 0.4s
-          from: "random", // Random positions - this is key!
+          amount: 0.4,
+          from: "random",
           grid: "auto"
         },
         onComplete: () => {
@@ -260,6 +294,14 @@ export default function initBTSOverlay(container) {
 
     console.log('[BTSOverlay] Closing, keepBackdrop:', keepBackdrop);
 
+    // Unlock body scroll
+    if ('ontouchstart' in window) {
+      unlockBodyScroll();
+    }
+
+    // Remove data attribute
+    delete btsOverlay.dataset.open;
+
     // Cleanup dragging (in case not already done)
     if (cleanupDragging) {
       cleanupDragging();
@@ -275,11 +317,11 @@ export default function initBTSOverlay(container) {
         opacity: 0,
         scale: 0.95,
         filter: "blur(4px)",
-        duration: 0.3, // Slightly slower
+        duration: 0.3,
         ease: "power2.in",
         stagger: {
-          amount: 0.2, // Spread over 0.2s
-          from: "random" // Random positions!
+          amount: 0.2,
+          from: "random"
         }
       })
       
@@ -313,7 +355,7 @@ export default function initBTSOverlay(container) {
           navLinks.forEach(link => {
             link.classList.remove('u-color-faded');
           });
-        }, 100); // Small delay to prevent accidental clicks
+        }, 100);
         
         if (dispatchComplete) {
           window.dispatchEvent(new CustomEvent(OVERLAY_EVENTS.CLOSED, { 
@@ -376,47 +418,26 @@ export default function initBTSOverlay(container) {
     handlers.push(() => backLink.removeEventListener('click', handleBackClick));
   }
 
-  // Click backdrop to close (but not when dragging)
-  let isDragging = false;
-  let dragStartTime = 0;
-  
-  const handlePointerDown = () => {
-    isDragging = false;
-    dragStartTime = Date.now();
-  };
-  
-  const handlePointerMove = () => {
-    // If pointer moved during press, consider it a drag
-    if (Date.now() - dragStartTime > 50) {
-      isDragging = true;
-    }
-  };
-  
-  const handleBackdropClick = (e) => {
-    // Only close if clicking directly on the overlay wrapper, not dragging, and not on child elements
-    if (isOpen && e.target === btsOverlay && !isDragging) {
-      e.preventDefault();
-      close();
-    }
-  };
-  
-  btsOverlay.addEventListener('pointerdown', handlePointerDown);
-  btsOverlay.addEventListener('pointermove', handlePointerMove);
-  btsOverlay.addEventListener('click', handleBackdropClick);
-  
-  handlers.push(() => {
-    btsOverlay.removeEventListener('pointerdown', handlePointerDown);
-    btsOverlay.removeEventListener('pointermove', handlePointerMove);
-    btsOverlay.removeEventListener('click', handleBackdropClick);
-  });
-
-  // Cleanup
+  // Cleanup function
   return () => {
-    handlers.forEach(fn => fn());
+    console.log('[BTSOverlay] Cleanup');
+    
+    // Ensure body scroll is unlocked
+    unlockBodyScroll();
+    
+    // Kill any dragging
     if (cleanupDragging) {
       cleanupDragging();
     }
+    
+    // Remove listeners
+    handlers.forEach(fn => fn());
+    
+    // Cleanup grid
     cleanupGrid(btsOverlay);
+    
+    // Reset state
     delete btsOverlay.dataset.scriptInitialized;
+    delete btsOverlay.dataset.open;
   };
 }
