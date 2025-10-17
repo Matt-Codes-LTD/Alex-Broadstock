@@ -1,14 +1,17 @@
 /**
  * Nav Responsive Module
  * Handles responsive navigation adjustments based on content availability
- * Specifically removes padding when BTS button is not present
+ * Removes padding and adjusts margins when BTS button is not present
  */
 
 export default function initNavResponsive(container) {
-  // Guard clause
-  const navWrap = container.querySelector('.nav-link_wrap.is-mobile');
-  if (!navWrap || navWrap.dataset.navResponsiveInit) return () => {};
-  navWrap.dataset.navResponsiveInit = "true";
+  // Guard clause - check for both elements
+  const navLinkWrap = container.querySelector('.nav-link_wrap.is-mobile');
+  const navWrap = container.querySelector('.nav_wrap.is-project');
+  
+  // Only proceed if we have at least one element to work with
+  if ((!navLinkWrap && !navWrap) || container.dataset.navResponsiveInit) return () => {};
+  container.dataset.navResponsiveInit = "true";
   
   // State
   const state = {
@@ -16,34 +19,45 @@ export default function initNavResponsive(container) {
     handlers: []
   };
   
-  // Check for BTS button and adjust padding
+  // Check for BTS button and adjust styles
   function checkBTSVisibility() {
-    const btsButton = navWrap.querySelector('.nav_link.is-bts');
+    // Look for BTS button in either element
+    const searchElement = navLinkWrap || navWrap;
+    const btsButton = searchElement ? searchElement.querySelector('.nav_link.is-bts') : null;
     
-    // Check if BTS doesn't exist or is hidden via Webflow conditional visibility
+    // Check if BTS doesn't exist or is hidden
     const isBTSHidden = !btsButton || 
                         btsButton.classList.contains('w-condition-invisible') ||
                         btsButton.closest('.w-condition-invisible');
     
-    navWrap.classList.toggle('no-bts', isBTSHidden);
+    // Apply classes to both elements if they exist
+    if (navLinkWrap) {
+      navLinkWrap.classList.toggle('no-bts', isBTSHidden);
+    }
+    if (navWrap) {
+      navWrap.classList.toggle('no-bts', isBTSHidden);
+    }
   }
   
   // Initial check
   checkBTSVisibility();
   
-  // Watch for DOM changes (in case Webflow dynamically updates visibility)
-  state.observer = new MutationObserver(() => {
-    checkBTSVisibility();
-  });
+  // Watch for DOM changes
+  const observeElement = navLinkWrap || navWrap;
+  if (observeElement) {
+    state.observer = new MutationObserver(() => {
+      checkBTSVisibility();
+    });
+    
+    state.observer.observe(observeElement, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['class', 'style']
+    });
+  }
   
-  state.observer.observe(navWrap, {
-    childList: true,
-    subtree: true,
-    attributes: true,
-    attributeFilter: ['class', 'style']
-  });
-  
-  // Also check on window resize in case responsive classes change
+  // Also check on window resize
   const handleResize = () => {
     checkBTSVisibility();
   };
@@ -58,7 +72,12 @@ export default function initNavResponsive(container) {
       state.observer = null;
     }
     state.handlers.forEach(fn => fn());
-    navWrap.classList.remove('no-bts');
-    delete navWrap.dataset.navResponsiveInit;
+    if (navLinkWrap) {
+      navLinkWrap.classList.remove('no-bts');
+    }
+    if (navWrap) {
+      navWrap.classList.remove('no-bts');
+    }
+    delete container.dataset.navResponsiveInit;
   };
 }
