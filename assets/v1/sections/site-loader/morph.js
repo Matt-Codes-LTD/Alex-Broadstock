@@ -49,8 +49,10 @@ export function morphToHeroStage(videoWrapper, heroContainer, duration = 1.6, on
       : 1 - Math.pow(-2 * p + 2, 5) / 2;  // Smooth deceleration
   });
   
-  // Alternative cubic bezier style ease for comparison
-  gsap.registerEase("morphSmooth", CustomEase.create("morphSmooth", "0.25,0.46,0.45,0.94"));
+  // Alternative cubic bezier style ease for comparison (if CustomEase plugin available)
+  if (window.CustomEase) {
+    gsap.registerEase("morphSmooth", CustomEase.create("morphSmooth", "0.25,0.46,0.45,0.94"));
+  }
   
   // Create morph WITHOUT opacity fade - keep video fully visible
   return gsap.timeline()
@@ -99,67 +101,5 @@ export function morphToHeroStage(videoWrapper, heroContainer, duration = 1.6, on
     .set(videoWrapper, { 
       willChange: 'auto',
       zIndex: 5 // Keep relatively high even after morph
-    });
-}
-
-// Alternative version with CustomEase (requires CustomEase plugin)
-export function morphToHeroStageWithCustomEase(videoWrapper, heroContainer, duration = 1.6, onComplete) {
-  if (!heroContainer || !videoWrapper) return null;
-  
-  // Check if CustomEase is available
-  if (!window.CustomEase) {
-    console.warn("[Morph] CustomEase not available, falling back to standard morph");
-    return morphToHeroStage(videoWrapper, heroContainer, duration, onComplete);
-  }
-  
-  const from = videoWrapper.getBoundingClientRect();
-  const to = heroContainer.getBoundingClientRect();
-  
-  const fromCx = from.left + from.width / 2;
-  const fromCy = from.top + from.height / 2;
-  const toCx = to.left + to.width / 2;
-  const toCy = to.top + to.height / 2;
-  
-  const dx = toCx - fromCx;
-  const dy = toCy - fromCy;
-  
-  const scale = Math.max(
-    to.width / from.width,
-    to.height / from.height
-  );
-  
-  const video = videoWrapper.querySelector('video');
-  
-  // Create a custom cubic-bezier ease for ultra-smooth movement
-  const cinematicEase = CustomEase.create("cinematic", "0.19,1,0.22,1");  // Fast start, smooth end
-  
-  gsap.set(videoWrapper, {
-    willChange: 'transform',
-    force3D: true,
-    zIndex: 10
-  });
-  
-  return gsap.timeline()
-    .to(videoWrapper, {
-      x: dx,
-      y: dy,
-      scaleX: scale,
-      scaleY: scale,
-      duration,
-      ease: cinematicEase,
-      force3D: true,
-      onUpdate: () => {
-        if (video && video.paused) {
-          video.play().catch(() => {});
-        }
-      },
-      onComplete: () => {
-        console.log("[Morph] Cinematic animation complete");
-        if (onComplete) onComplete();
-      }
-    })
-    .set(videoWrapper, { 
-      willChange: 'auto',
-      zIndex: 5
     });
 }

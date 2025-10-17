@@ -359,31 +359,95 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     });
   }, "-=0.15")
   
-  // Awards strip
-  .fromTo(".home-awards_list", {
-    opacity: 0, 
-    y: ANIMATION.TRANSFORM.tagX, 
-    scale: ANIMATION.TRANSFORM.scaleLarge
-  }, {
-    opacity: 1, 
-    y: 0, 
-    scale: 1,
-    duration: 0.5,
-    ease: "power3.out"
-  }, "-=0.3")
-  
-  // Mobile filters button (if exists)
-  .call(() => {
-    if (window.__mobileFiltersButton) {
-      gsap.set(window.__mobileFiltersButton, { visibility: 'visible' });
-      gsap.to(window.__mobileFiltersButton, {
+  // Mobile filters button
+  .add(() => {
+    const mobileFiltersButton = window.__mobileFiltersButton;
+    if (mobileFiltersButton && window.innerWidth <= 991) {
+      gsap.fromTo(mobileFiltersButton, {
+        opacity: 0,
+        y: 10,
+        visibility: "hidden"
+      }, {
         opacity: 1,
         y: 0,
-        duration: 0.6,
-        ease: "power3.out"
+        visibility: "visible",
+        duration: 0.4, // FASTER (was 0.5)
+        ease: "power2.out",
+        delay: 0.15 // FASTER (was 0.2)
       });
     }
-  }, null, "-=0.2");
+  }, "-=0.1")
+  
+  // Awards strip - FASTER
+  .add(() => {
+    const awardsList = container.querySelector(".home-awards_list");
+    
+    if (!awardsList) {
+      console.warn("[SiteLoader] Awards list not found");
+      return;
+    }
+    
+    const awardsItems = awardsList.querySelectorAll(":scope > *");
+    
+    if (awardsItems.length > 0) {
+      gsap.fromTo(awardsItems, {
+        opacity: 0,
+        y: 20,
+        scale: 0.95
+      }, {
+        opacity: 1, 
+        y: 0, 
+        scale: 1,
+        duration: 0.4, // FASTER (was 0.5)
+        ease: "power3.out",
+        stagger: {
+          amount: 0.25, // FASTER (was 0.3)
+          from: "start"
+        },
+        delay: 0.2 // FASTER (was 0.3)
+      });
+    } else {
+      gsap.fromTo(awardsList, {
+        opacity: 0,
+        y: 20,
+        scale: 0.95
+      }, {
+        opacity: 1, 
+        y: 0, 
+        scale: 1,
+        duration: 0.5, // FASTER (was 0.6)
+        ease: "power3.out",
+        delay: 0.2 // FASTER (was 0.3)
+      });
+    }
+  }, "-=0.15")
+  
+  // Clear props
+  .add(() => {
+    gsap.set([
+      ".nav_wrap",
+      ".brand_logo",
+      ".nav_link",
+      ".home-category_text",
+      ".home_hero_text",
+      ".home-category_ref_text",
+      ".home-awards_list",
+      ".home-awards_list > *"
+    ], {
+      clearProps: "transform,filter"
+    });
+  })
+  
+  // Final fade - FASTER (0.5s → 0.4s)
+  .to(loaderEl, { 
+    opacity: 0, 
+    duration: 0.4, 
+    ease: "power2.inOut" 
+  }, "-=0.2")
+  
+  .call(() => { 
+    window.dispatchEvent(new CustomEvent("siteLoaderComplete")); 
+  });
   
   return tl;
 }

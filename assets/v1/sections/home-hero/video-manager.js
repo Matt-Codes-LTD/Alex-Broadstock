@@ -1,4 +1,4 @@
-// video-manager.js - UPDATED: Faster crossfade timing (0.2s)
+// video-manager.js - UPDATED: Adjusted timing for smoother handoff with new morph duration
 export function createVideoManager(stage) {
   const MAX_VIDEOS = 8;
   const videoBySrc = new Map();
@@ -169,7 +169,7 @@ export function createVideoManager(stage) {
   function setActive(src, linkEl, opts = {}) {
     if (transitionInProgress) return;
 
-    // Handle loader handoff
+    // Handle loader handoff - UPDATED TIMING
     if (opts.useHandoff && opts.handoff) {
       const { loaderVideo, currentTime } = opts.handoff;
       
@@ -191,13 +191,13 @@ export function createVideoManager(stage) {
         const ratio = item?.dataset.ratio || 'cover';
         next.style.objectFit = ratio.toLowerCase();
         
-        // UPDATED: Faster fade in for handoff
+        // UPDATED: Adjusted timing to match new morph duration
         if (window.gsap) {
           gsap.to(next, {
             opacity: 1,
-            duration: 0.3,  // Slightly faster than before
+            duration: 0.4,  // Slightly longer for smoother transition with new morph
             ease: "power2.out",
-            delay: 0.8,
+            delay: 1.0,  // Adjusted delay to sync with 1.6s morph
             onStart: () => {
               if (next.paused) {
                 next.play().catch(() => {});
@@ -257,7 +257,7 @@ export function createVideoManager(stage) {
       if (window.gsap) {
         gsap.to(previousVideo, {
           opacity: 0,
-          duration: 0.2,  // CHANGED from 0.3 to 0.2
+          duration: 0.2,  // Fast crossfade
           ease: "power2.inOut",
           onComplete: () => {
             if (!previousVideo.__keepAlive) {
@@ -285,7 +285,7 @@ export function createVideoManager(stage) {
     if (window.gsap) {
       gsap.to(next, {
         opacity: 1,
-        duration: 0.2,  // CHANGED from 0.3 to 0.2
+        duration: 0.2,  // Fast crossfade
         ease: "power2.out"  // Snappier easing
       });
     } else {
