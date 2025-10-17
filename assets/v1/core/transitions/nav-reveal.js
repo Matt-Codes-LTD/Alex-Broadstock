@@ -1,5 +1,5 @@
 // assets/v1/core/transitions/nav-reveal.js
-// FIXED: Project navigation overlay now properly animated with GSAP
+// FIXED: Proper stagger animation for home page navigation returns
 import { ANIMATION, getAnimProps } from "../animation-constants.js";
 
 /**
@@ -17,7 +17,7 @@ export function createHomeRevealAnimation(container) {
     return null;
   }
   
-  // Set initial hidden states
+  // Set initial hidden states (including client names)
   gsap.set([
     ".nav_wrap",
     ".brand_logo",
@@ -25,11 +25,13 @@ export function createHomeRevealAnimation(container) {
     ".home-category_text",
     ".home_hero_text",
     ".home-category_ref_text:not([hidden])",
+    "[data-client-name='true']", // Include client names
     ".home-awards_list"
   ], {
     opacity: 0
   });
   
+  // Set transform states
   gsap.set(".nav_wrap", { y: ANIMATION.TRANSFORM.navY });
   gsap.set(".brand_logo", { scale: ANIMATION.TRANSFORM.scaleSmall });
   gsap.set(".nav_link", { x: ANIMATION.TRANSFORM.tagX });
@@ -42,6 +44,7 @@ export function createHomeRevealAnimation(container) {
     filter: ANIMATION.FILTER.blur 
   });
   gsap.set(".home-category_ref_text:not([hidden])", { x: ANIMATION.TRANSFORM.tagX });
+  gsap.set("[data-client-name='true']", { x: ANIMATION.TRANSFORM.tagX }); // Set client name transforms
   gsap.set(".home-awards_list", { 
     y: ANIMATION.TRANSFORM.tagX, 
     scale: ANIMATION.TRANSFORM.scaleLarge 
@@ -75,65 +78,102 @@ export function createHomeRevealAnimation(container) {
     opacity: 1, 
     y: 0, 
     rotateX: 0,
-    ...getAnimProps('categoryText')
+    ...getAnimProps('categories')
   }, "-=0.3")
   
-  // Hero text
-  .to(".home_hero_text", {
-    opacity: 1, 
-    x: 0, 
-    filter: "none",
-    ...getAnimProps('heroText')
-  }, "-=0.5")
-  
-  // Category refs
-  .to(".home-category_ref_text:not([hidden])", {
-    opacity: 1, 
-    x: 0,
-    ...getAnimProps('categoryRefs')
-  }, "-=0.3")
-  
-  // Awards list
+  // FIXED: Project rows with proper stagger animation
   .add(() => {
-    const awardsList = document.querySelector(".home-awards_list");
-    if (!awardsList) return;
+    const visibleRows = container.querySelectorAll(".home-hero_list:not([style*='display: none'])");
     
-    const hasChildren = awardsList.children.length > 0;
+    console.log(`[NavReveal] Animating ${visibleRows.length} visible rows`);
     
-    if (hasChildren && ScrollTrigger) {
-      awardsList.querySelectorAll(":scope > *").forEach((child, i) => {
-        gsap.fromTo(child, 
-          { opacity: 0, y: 20, scale: 1.1 },
-          {
-            opacity: 1,
-            y: 0,
-            scale: 1,
-            duration: 0.5,
-            delay: i * 0.05,
-            ease: "power3.out",
-            scrollTrigger: {
-              trigger: child,
-              start: "top 85%",
-              once: true
-            }
-          }
-        );
-      });
+    visibleRows.forEach((row, index) => {
+      const name = row.querySelector(".home_hero_text");
+      const tags = row.querySelectorAll(".home-category_ref_text:not([hidden])");
+      const clientName = row.querySelector("[data-client-name='true']");
       
-      gsap.to(awardsList, {
+      // Animate project name with stagger
+      if (name) {
+        gsap.fromTo(name, {
+          opacity: 0, 
+          x: ANIMATION.TRANSFORM.textX, 
+          filter: ANIMATION.FILTER.blur
+        }, {
+          opacity: 1, 
+          x: 0, 
+          filter: ANIMATION.FILTER.blurNone,
+          duration: 0.45,
+          ease: "power2.out",
+          delay: index * 0.08 // Stagger delay per row
+        });
+      }
+      
+      // Animate category tags with stagger
+      if (tags.length) {
+        gsap.fromTo(tags, {
+          opacity: 0, 
+          x: ANIMATION.TRANSFORM.tagX
+        }, {
+          opacity: 1, 
+          x: 0,
+          duration: 0.4,
+          ease: "power2.out",
+          delay: index * 0.08,
+          stagger: 0.015
+        });
+      }
+      
+      // Animate client name if present
+      if (clientName) {
+        gsap.fromTo(clientName, {
+          opacity: 0, 
+          x: ANIMATION.TRANSFORM.tagX
+        }, {
+          opacity: 1, 
+          x: 0,
+          duration: 0.4,
+          ease: "power2.out",
+          delay: index * 0.08
+        });
+      }
+    });
+  }, "-=0.15")
+  
+  // Awards list animation
+  .add(() => {
+    const awardsList = container.querySelector(".home-awards_list");
+    
+    if (!awardsList) {
+      console.warn("[NavReveal] Awards list not found");
+      return;
+    }
+    
+    const awardsItems = awardsList.querySelectorAll(":scope > *");
+    
+    // If CMS items exist, animate them individually
+    if (awardsItems.length > 0) {
+      console.log(`[NavReveal] Animating ${awardsItems.length} award items`);
+      
+      gsap.fromTo(awardsItems, {
+        opacity: 0, 
+        y: 20, 
+        scale: 0.95
+      }, {
         opacity: 1, 
         y: 0, 
         scale: 1,
-        duration: 0.3,
-        ease: "power2.out",
-        scrollTrigger: {
-          trigger: awardsList,
-          start: "top 85%",
-          once: true
+        duration: 0.5,
+        ease: "power3.out",
+        stagger: {
+          amount: 0.3,
+          from: "start"
         },
         delay: 0.3
       });
     } else {
+      // Fallback: animate parent container if CMS items not loaded yet
+      console.log("[NavReveal] No award items found, animating parent container");
+      
       gsap.to(awardsList, {
         opacity: 1, 
         y: 0, 
@@ -145,7 +185,7 @@ export function createHomeRevealAnimation(container) {
     }
   }, "-=0.2")
   
-  // Clear props
+  // Clear props after animation complete
   .add(() => {
     gsap.set([
       ".nav_wrap",
@@ -154,11 +194,15 @@ export function createHomeRevealAnimation(container) {
       ".home-category_text",
       ".home_hero_text",
       ".home-category_ref_text",
+      "[data-client-name='true']", // Clear client name props
       ".home-awards_list",
       ".home-awards_list > *"
     ], {
       clearProps: "transform,filter"
     });
+    
+    // Mark intro as complete for proper visibility
+    container.setAttribute('data-intro-complete', 'true');
   });
   
   return tl;
@@ -262,7 +306,7 @@ export function createProjectNavAnimation(container) {
       ...getAnimProps('playerButtons')
     }, "-=0.4");
     
-    // FIX: Force navigation overlay to show using multiple methods
+    // Navigation overlay reveal animation
     if (navOverlay) {
       tl.to(navOverlay, {
         opacity: 1,
