@@ -1,4 +1,4 @@
-// index.js - HIGH VISIBILITY DEBUG VERSION
+// index.js - Production version - Clean styling
 export default function initMobileFilters(container) {
   const wrap = container.querySelector('.home-hero_wrap');
   if (!wrap || wrap.dataset.mobileFiltersInit) return () => {};
@@ -61,32 +61,23 @@ export default function initMobileFilters(container) {
   
   // Reveal function - called AFTER site loader completes
   const revealButton = () => {
-    console.log('[MobileFilters] Revealing button NOW');
-    
-    // Force override all styles with !important via inline style
-    button.style.cssText = `
-      position: fixed !important;
-      bottom: 2rem !important;
-      left: 50% !important;
-      transform: translateX(-50%) translateY(0) !important;
-      padding: 0.75rem 1.5rem !important;
-      background-color: #FF0000 !important;
-      color: #FFFFFF !important;
-      border: 3px solid #000000 !important;
-      border-radius: 8px !important;
-      cursor: pointer !important;
-      z-index: 999999 !important;
-      opacity: 1 !important;
-      visibility: visible !important;
-      pointer-events: auto !important;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important;
-      font-size: 18px !important;
-      font-weight: bold !important;
-    `;
-    
-    console.log('[MobileFilters] Button forced visible with red background');
-    console.log('[MobileFilters] Button rect:', button.getBoundingClientRect());
-    console.log('[MobileFilters] Button in viewport:', button.getBoundingClientRect().top < window.innerHeight);
+    if (window.gsap) {
+      gsap.set(button, { visibility: 'visible' });
+      gsap.to(button, {
+        opacity: 1,
+        transform: 'translateX(-50%) translateY(0)',
+        duration: 0.6,
+        ease: "power3.out",
+        onComplete: () => {
+          button.style.pointerEvents = 'auto';
+        }
+      });
+    } else {
+      button.style.visibility = 'visible';
+      button.style.opacity = '1';
+      button.style.transform = 'translateX(-50%) translateY(0)';
+      button.style.pointerEvents = 'auto';
+    }
   };
   
   // Determine when to show button
@@ -100,12 +91,10 @@ export default function initMobileFilters(container) {
   } else {
     // Initial load - wait for site loader to complete
     fallbackTimeout = setTimeout(() => {
-      console.warn('[MobileFilters] Fallback timeout - revealing now');
       revealButton();
     }, 5000); // Fallback after 5 seconds
     
     const onLoaderComplete = () => {
-      console.log('[MobileFilters] Site loader complete event');
       if (fallbackTimeout) {
         clearTimeout(fallbackTimeout);
         fallbackTimeout = null;
@@ -290,7 +279,23 @@ function createMobileUI() {
   button.className = 'mobile-filters-button u-text-style-main';
   button.setAttribute('aria-label', 'Open filters');
   button.setAttribute('aria-expanded', 'false');
-  button.innerHTML = `<span class="mobile-filters-button-text">TEST FILTERS</span>`;
+  button.innerHTML = `<span class="mobile-filters-button-text">Filters</span>`;
+  
+  // Styles for button - Original brand colors
+  Object.assign(button.style, {
+    position: 'fixed',
+    bottom: '2rem',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    padding: '0.75rem 1.5rem',
+    backgroundColor: 'var(--swatch--brand-paper)',
+    color: 'var(--swatch--brand-ink)',
+    border: '1px solid var(--_theme---button-primary--border)',
+    borderRadius: 'var(--radius--main)',
+    cursor: 'pointer',
+    zIndex: '100',
+    transition: 'all 0.3s ease'
+  });
   
   // Backdrop
   const backdrop = document.createElement('div');
