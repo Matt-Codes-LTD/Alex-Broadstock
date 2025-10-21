@@ -1,4 +1,4 @@
-// index.js - Button fades out when panel opens
+// index.js - Fix button reappearing after close
 export default function initMobileFilters(container) {
   const wrap = container.querySelector('.home-hero_wrap');
   if (!wrap || wrap.dataset.mobileFiltersInit) return () => {};
@@ -55,7 +55,6 @@ export default function initMobileFilters(container) {
   
   // Reveal function - FORCE OVERRIDE ALL STYLES
   const revealButton = () => {
-    // Use cssText to completely override all styles with !important
     button.style.cssText = `
       position: fixed !important;
       bottom: 2rem !important;
@@ -71,6 +70,29 @@ export default function initMobileFilters(container) {
       opacity: 1 !important;
       visibility: visible !important;
       pointer-events: auto !important;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+      font-size: inherit !important;
+      transition: opacity 0.3s ease, transform 0.3s ease !important;
+    `;
+  };
+  
+  // Hide button function
+  const hideButton = () => {
+    button.style.cssText = `
+      position: fixed !important;
+      bottom: 2rem !important;
+      left: 50% !important;
+      transform: translateX(-50%) translateY(10px) !important;
+      padding: 0.75rem 1.5rem !important;
+      background-color: #FFFFFF !important;
+      color: #000000 !important;
+      border: 1px solid #E5E5E5 !important;
+      border-radius: 8px !important;
+      cursor: pointer !important;
+      z-index: 9999 !important;
+      opacity: 0 !important;
+      visibility: visible !important;
+      pointer-events: none !important;
       box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
       font-size: inherit !important;
       transition: opacity 0.3s ease, transform 0.3s ease !important;
@@ -107,9 +129,7 @@ export default function initMobileFilters(container) {
     isOpen = true;
     
     // Hide button when opening panel
-    button.style.opacity = '0';
-    button.style.transform = 'translateX(-50%) translateY(10px)';
-    button.style.pointerEvents = 'none';
+    hideButton();
     
     scrollPos = window.scrollY;
     document.body.style.position = 'fixed';
@@ -138,10 +158,8 @@ export default function initMobileFilters(container) {
     
     // Show button again when closing panel
     setTimeout(() => {
-      button.style.opacity = '1';
-      button.style.transform = 'translateX(-50%) translateY(0)';
-      button.style.pointerEvents = 'auto';
-    }, 100); // Small delay to let panel start closing
+      revealButton();
+    }, 100);
   }
   
   function syncActiveStates() {
