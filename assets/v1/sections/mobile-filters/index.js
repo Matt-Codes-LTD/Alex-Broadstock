@@ -1,25 +1,12 @@
-// index.js - FIXED - Proper transform to preserve centering
+// index.js - HIGH VISIBILITY DEBUG VERSION
 export default function initMobileFilters(container) {
-  console.log('[MobileFilters] Starting init...');
-  console.log('[MobileFilters] Window width:', window.innerWidth);
-  console.log('[MobileFilters] __initialPageLoad:', window.__initialPageLoad);
-  
   const wrap = container.querySelector('.home-hero_wrap');
-  console.log('[MobileFilters] Found wrap:', !!wrap);
-  
-  if (!wrap || wrap.dataset.mobileFiltersInit) {
-    console.log('[MobileFilters] Exiting - no wrap or already initialized');
-    return () => {};
-  }
+  if (!wrap || wrap.dataset.mobileFiltersInit) return () => {};
   wrap.dataset.mobileFiltersInit = "true";
   
   // Only initialize on mobile/tablet
-  if (window.innerWidth > 991) {
-    console.log('[MobileFilters] Exiting - desktop viewport');
-    return () => {};
-  }
+  if (window.innerWidth > 991) return () => {};
   
-  console.log('[MobileFilters] Creating UI elements...');
   // Create mobile UI elements
   const { button, panel, backdrop } = createMobileUI();
   
@@ -34,24 +21,12 @@ export default function initMobileFilters(container) {
   document.body.appendChild(panel);
   document.body.appendChild(button);
   
-  console.log('[MobileFilters] Button added to DOM');
-  console.log('[MobileFilters] Button styles:', {
-    opacity: button.style.opacity,
-    visibility: button.style.visibility,
-    position: button.style.position,
-    bottom: button.style.bottom,
-    zIndex: button.style.zIndex
-  });
-  
   // Force reflow to ensure styles are applied
   button.offsetHeight;
   
   // Clone categories to panel
   const categories = container.querySelector('.home_hero_categories');
-  console.log('[MobileFilters] Found categories:', !!categories);
-  
   if (!categories) {
-    console.warn('[MobileFilters] No categories found - cleaning up');
     button.remove();
     panel.remove();
     backdrop.remove();
@@ -76,7 +51,6 @@ export default function initMobileFilters(container) {
   });
   
   panel.querySelector('.mobile-filters-content').appendChild(clone);
-  console.log('[MobileFilters] Categories cloned to panel');
   
   let isOpen = false;
   let scrollPos = 0;
@@ -84,49 +58,39 @@ export default function initMobileFilters(container) {
   
   // Make button globally accessible for reveal timeline
   window.__mobileFiltersButton = button;
-  console.log('[MobileFilters] Button set to window.__mobileFiltersButton');
   
   // Reveal function - called AFTER site loader completes
   const revealButton = () => {
-    console.log('[MobileFilters] revealButton() called');
-    console.log('[MobileFilters] Current button state:', {
-      visibility: button.style.visibility,
-      opacity: button.style.opacity,
-      transform: button.style.transform,
-      pointerEvents: button.style.pointerEvents
-    });
+    console.log('[MobileFilters] Revealing button NOW');
     
-    if (window.gsap) {
-      console.log('[MobileFilters] Using GSAP animation');
-      gsap.set(button, { visibility: 'visible' });
-      gsap.to(button, {
-        opacity: 1,
-        // Use transform instead of y to preserve translateX(-50%)
-        transform: 'translateX(-50%) translateY(0)',
-        duration: 0.6,
-        ease: "power3.out",
-        onComplete: () => {
-          button.style.pointerEvents = 'auto';
-          console.log('[MobileFilters] GSAP animation complete');
-          console.log('[MobileFilters] Final button state:', {
-            visibility: button.style.visibility,
-            opacity: button.style.opacity,
-            transform: button.style.transform
-          });
-        }
-      });
-    } else {
-      console.log('[MobileFilters] Using CSS animation (no GSAP)');
-      button.style.visibility = 'visible';
-      button.style.opacity = '1';
-      button.style.transform = 'translateX(-50%) translateY(0)';
-      button.style.pointerEvents = 'auto';
-    }
+    // Force override all styles with !important via inline style
+    button.style.cssText = `
+      position: fixed !important;
+      bottom: 2rem !important;
+      left: 50% !important;
+      transform: translateX(-50%) translateY(0) !important;
+      padding: 0.75rem 1.5rem !important;
+      background-color: #FF0000 !important;
+      color: #FFFFFF !important;
+      border: 3px solid #000000 !important;
+      border-radius: 8px !important;
+      cursor: pointer !important;
+      z-index: 999999 !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+      pointer-events: auto !important;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important;
+      font-size: 18px !important;
+      font-weight: bold !important;
+    `;
+    
+    console.log('[MobileFilters] Button forced visible with red background');
+    console.log('[MobileFilters] Button rect:', button.getBoundingClientRect());
+    console.log('[MobileFilters] Button in viewport:', button.getBoundingClientRect().top < window.innerHeight);
   };
   
   // Determine when to show button
   if (!window.__initialPageLoad) {
-    console.log('[MobileFilters] Not initial load - revealing immediately');
     // Not initial load, reveal immediately
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
@@ -134,29 +98,21 @@ export default function initMobileFilters(container) {
       });
     });
   } else {
-    console.log('[MobileFilters] Initial load - waiting for site loader');
     // Initial load - wait for site loader to complete
     fallbackTimeout = setTimeout(() => {
-      console.warn('[MobileFilters] FALLBACK TIMEOUT - Revealing button now');
+      console.warn('[MobileFilters] Fallback timeout - revealing now');
       revealButton();
     }, 5000); // Fallback after 5 seconds
     
     const onLoaderComplete = () => {
-      console.log('[MobileFilters] siteLoaderComplete event fired');
-      console.log('[MobileFilters] Button state before reveal:', {
-        visibility: button.style.visibility,
-        opacity: button.style.opacity,
-        inDOM: document.body.contains(button)
-      });
-      
+      console.log('[MobileFilters] Site loader complete event');
       if (fallbackTimeout) {
         clearTimeout(fallbackTimeout);
         fallbackTimeout = null;
       }
       
-      // Always reveal after 100ms delay to ensure timeline is done
+      // Reveal after 100ms delay to ensure timeline is done
       setTimeout(() => {
-        console.log('[MobileFilters] Revealing button after loader complete');
         revealButton();
       }, 100);
     };
@@ -167,7 +123,6 @@ export default function initMobileFilters(container) {
   function open() {
     if (isOpen) return;
     isOpen = true;
-    console.log('[MobileFilters] Opening panel');
     
     // Save scroll position and lock body
     scrollPos = window.scrollY;
@@ -186,7 +141,6 @@ export default function initMobileFilters(container) {
   function close() {
     if (!isOpen) return;
     isOpen = false;
-    console.log('[MobileFilters] Closing panel');
     
     // Restore scroll position
     document.body.style.position = '';
@@ -314,11 +268,8 @@ export default function initMobileFilters(container) {
     });
   }
   
-  console.log('[MobileFilters] Init complete - waiting for reveal');
-  
   // Cleanup
   return () => {
-    console.log('[MobileFilters] Cleanup called');
     if (fallbackTimeout) {
       clearTimeout(fallbackTimeout);
     }
@@ -339,23 +290,7 @@ function createMobileUI() {
   button.className = 'mobile-filters-button u-text-style-main';
   button.setAttribute('aria-label', 'Open filters');
   button.setAttribute('aria-expanded', 'false');
-  button.innerHTML = `<span class="mobile-filters-button-text">Filters</span>`;
-  
-  // Styles for button - UPDATED COLORS
-  Object.assign(button.style, {
-    position: 'fixed',
-    bottom: '2rem',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    padding: '0.75rem 1.5rem',
-    backgroundColor: 'var(--swatch--brand-paper)',
-    color: 'var(--swatch--brand-ink)',
-    border: '1px solid var(--_theme---button-primary--border)',
-    borderRadius: 'var(--radius--main)',
-    cursor: 'pointer',
-    zIndex: '100',
-    transition: 'all 0.3s ease'
-  });
+  button.innerHTML = `<span class="mobile-filters-button-text">TEST FILTERS</span>`;
   
   // Backdrop
   const backdrop = document.createElement('div');
