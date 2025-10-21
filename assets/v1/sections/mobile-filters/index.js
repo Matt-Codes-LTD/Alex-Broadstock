@@ -1,4 +1,4 @@
-// index.js - With solid fallback colors
+// index.js - Force override approach that works
 export default function initMobileFilters(container) {
   const wrap = container.querySelector('.home-hero_wrap');
   if (!wrap || wrap.dataset.mobileFiltersInit) return () => {};
@@ -10,18 +10,12 @@ export default function initMobileFilters(container) {
   // Create mobile UI elements
   const { button, panel, backdrop } = createMobileUI();
   
-  // Ensure button starts fully hidden (prevents FOUC)
-  button.style.opacity = '0';
-  button.style.visibility = 'hidden';
-  button.style.transform = 'translateX(-50%) translateY(10px)';
-  button.style.pointerEvents = 'none';
-  
-  // Add to DOM after setting initial styles
+  // Add to DOM
   document.body.appendChild(backdrop);
   document.body.appendChild(panel);
   document.body.appendChild(button);
   
-  // Force reflow to ensure styles are applied
+  // Force reflow
   button.offsetHeight;
   
   // Clone categories to panel
@@ -56,51 +50,49 @@ export default function initMobileFilters(container) {
   let scrollPos = 0;
   let fallbackTimeout = null;
   
-  // Make button globally accessible for reveal timeline
+  // Make button globally accessible
   window.__mobileFiltersButton = button;
   
-  // Reveal function - called AFTER site loader completes
+  // Reveal function - FORCE OVERRIDE ALL STYLES
   const revealButton = () => {
-    if (window.gsap) {
-      gsap.set(button, { visibility: 'visible' });
-      gsap.to(button, {
-        opacity: 1,
-        transform: 'translateX(-50%) translateY(0)',
-        duration: 0.6,
-        ease: "power3.out",
-        onComplete: () => {
-          button.style.pointerEvents = 'auto';
-        }
-      });
-    } else {
-      button.style.visibility = 'visible';
-      button.style.opacity = '1';
-      button.style.transform = 'translateX(-50%) translateY(0)';
-      button.style.pointerEvents = 'auto';
-    }
+    // Use cssText to completely override all styles with !important
+    button.style.cssText = `
+      position: fixed !important;
+      bottom: 2rem !important;
+      left: 50% !important;
+      transform: translateX(-50%) translateY(0) !important;
+      padding: 0.75rem 1.5rem !important;
+      background-color: #FFFFFF !important;
+      color: #000000 !important;
+      border: 1px solid #E5E5E5 !important;
+      border-radius: 8px !important;
+      cursor: pointer !important;
+      z-index: 9999 !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+      pointer-events: auto !important;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+      font-size: inherit !important;
+    `;
   };
   
   // Determine when to show button
   if (!window.__initialPageLoad) {
-    // Not initial load, reveal immediately
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         revealButton();
       });
     });
   } else {
-    // Initial load - wait for site loader to complete
     fallbackTimeout = setTimeout(() => {
       revealButton();
-    }, 5000); // Fallback after 5 seconds
+    }, 5000);
     
     const onLoaderComplete = () => {
       if (fallbackTimeout) {
         clearTimeout(fallbackTimeout);
         fallbackTimeout = null;
       }
-      
-      // Reveal after 100ms delay to ensure timeline is done
       setTimeout(() => {
         revealButton();
       }, 100);
@@ -113,7 +105,6 @@ export default function initMobileFilters(container) {
     if (isOpen) return;
     isOpen = true;
     
-    // Save scroll position and lock body
     scrollPos = window.scrollY;
     document.body.style.position = 'fixed';
     document.body.style.top = `-${scrollPos}px`;
@@ -123,7 +114,6 @@ export default function initMobileFilters(container) {
     panel.classList.add('is-visible');
     button.setAttribute('aria-expanded', 'true');
     
-    // Sync active state when opening
     syncActiveStates();
   }
   
@@ -131,7 +121,6 @@ export default function initMobileFilters(container) {
     if (!isOpen) return;
     isOpen = false;
     
-    // Restore scroll position
     document.body.style.position = '';
     document.body.style.top = '';
     document.body.style.width = '';
@@ -142,12 +131,10 @@ export default function initMobileFilters(container) {
     button.setAttribute('aria-expanded', 'false');
   }
   
-  // Sync active states between desktop and mobile (excluding "All")
   function syncActiveStates() {
     const activeDesktop = categories?.querySelector('.home-category_text[aria-current="true"]');
     let activeLabel = activeDesktop?.textContent?.trim() || '';
     
-    // Skip "All" and find the first real category if needed
     if (activeLabel.toLowerCase() === 'all' || !activeLabel) {
       const firstValidCategory = categories?.querySelector('.home-category_text:not([aria-current="false"])');
       if (firstValidCategory) {
@@ -158,7 +145,6 @@ export default function initMobileFilters(container) {
       }
     }
     
-    // If still no valid label, use the first non-"All" category
     if (!activeLabel || activeLabel.toLowerCase() === 'all') {
       const allCats = categories?.querySelectorAll('.home-category_text') || [];
       for (const cat of allCats) {
@@ -173,7 +159,6 @@ export default function initMobileFilters(container) {
     panel.querySelectorAll('.home-category_text').forEach(btn => {
       const btnText = btn.textContent.trim();
       
-      // Skip "All" buttons
       if (btnText.toLowerCase() === 'all') {
         btn.setAttribute('aria-current', 'false');
         btn.classList.add('u-color-faded');
@@ -186,7 +171,6 @@ export default function initMobileFilters(container) {
     });
   }
   
-  // Events with better touch handling
   button.addEventListener('click', (e) => {
     e.preventDefault();
     open();
@@ -197,7 +181,6 @@ export default function initMobileFilters(container) {
     close();
   });
   
-  // ESC key to close
   const keyHandler = (e) => {
     if (e.key === 'Escape' && isOpen) {
       close();
@@ -205,7 +188,6 @@ export default function initMobileFilters(container) {
   };
   document.addEventListener('keydown', keyHandler);
   
-  // Sync category clicks with main filter system
   panel.addEventListener('click', (e) => {
     const catBtn = e.target.closest('.home-category_text');
     if (!catBtn) return;
@@ -213,8 +195,6 @@ export default function initMobileFilters(container) {
     e.preventDefault();
     
     const label = catBtn.textContent.trim();
-    
-    // Skip "All" buttons
     if (label.toLowerCase() === 'all') return;
     
     const match = Array.from(categories?.querySelectorAll('.home-category_text') || [])
@@ -223,11 +203,9 @@ export default function initMobileFilters(container) {
     if (match) {
       match.click();
       
-      // Update mobile active states immediately
       panel.querySelectorAll('.home-category_text').forEach(btn => {
         const btnText = btn.textContent.trim();
         
-        // Skip "All" buttons
         if (btnText.toLowerCase() === 'all') {
           btn.setAttribute('aria-current', 'false');
           btn.classList.add('u-color-faded');
@@ -240,11 +218,9 @@ export default function initMobileFilters(container) {
       });
     }
     
-    // Close after selection
     setTimeout(close, 300);
   });
   
-  // Watch for changes in desktop categories
   const observer = new MutationObserver(() => {
     if (isOpen) syncActiveStates();
   });
@@ -257,7 +233,6 @@ export default function initMobileFilters(container) {
     });
   }
   
-  // Cleanup
   return () => {
     if (fallbackTimeout) {
       clearTimeout(fallbackTimeout);
@@ -274,31 +249,16 @@ export default function initMobileFilters(container) {
 }
 
 function createMobileUI() {
-  // Button
   const button = document.createElement('button');
   button.className = 'mobile-filters-button u-text-style-main';
   button.setAttribute('aria-label', 'Open filters');
   button.setAttribute('aria-expanded', 'false');
   button.innerHTML = `<span class="mobile-filters-button-text">Filters</span>`;
   
-  // Styles for button - Solid colors with higher z-index
-  Object.assign(button.style, {
-    position: 'fixed',
-    bottom: '2rem',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    padding: '0.75rem 1.5rem',
-    backgroundColor: '#FFFFFF',  // Solid white
-    color: '#000000',             // Solid black
-    border: '1px solid #E5E5E5',  // Light gray border
-    borderRadius: '8px',
-    cursor: 'pointer',
-    zIndex: '9999',               // Very high to ensure visibility
-    transition: 'all 0.3s ease',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.15)'  // Add subtle shadow
-  });
+  // Initial hidden state
+  button.style.opacity = '0';
+  button.style.visibility = 'hidden';
   
-  // Backdrop
   const backdrop = document.createElement('div');
   backdrop.className = 'mobile-filters-backdrop';
   Object.assign(backdrop.style, {
@@ -312,7 +272,6 @@ function createMobileUI() {
     zIndex: '9998'
   });
   
-  // Panel
   const panel = document.createElement('div');
   panel.className = 'mobile-filters-panel';
   panel.innerHTML = `<div class="mobile-filters-content"></div>`;
@@ -321,7 +280,7 @@ function createMobileUI() {
     bottom: '0',
     left: '0',
     right: '0',
-    backgroundColor: '#FFFFFF',  // Solid white
+    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: '8px',
     borderTopRightRadius: '8px',
     padding: '2rem',
@@ -332,7 +291,6 @@ function createMobileUI() {
     overflowY: 'auto'
   });
   
-  // Visible states and center alignment styles
   const style = document.createElement('style');
   style.textContent = `
     .mobile-filters-backdrop.is-visible {
@@ -342,7 +300,6 @@ function createMobileUI() {
     .mobile-filters-panel.is-visible {
       transform: translateY(0) !important;
     }
-    /* Center align categories horizontally with gaps */
     .mobile-filters-content {
       display: flex;
       justify-content: center;
