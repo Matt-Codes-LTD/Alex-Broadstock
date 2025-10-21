@@ -23,6 +23,14 @@ export function initSwipeNavigation(wrap, getItems) {
   const HORIZONTAL_TOLERANCE = 30;
 
   /**
+   * Check if we're on the home page
+   */
+  function isHomePage() {
+    const container = document.querySelector('[data-barba-namespace="home"]');
+    return container && container.offsetParent !== null;
+  }
+
+  /**
    * Get all currently visible projects
    */
   function getVisibleProjects() {
@@ -65,8 +73,11 @@ export function initSwipeNavigation(wrap, getItems) {
    * Handle touch start
    */
   function handleTouchStart(e) {
-    // Don't interfere with clickable elements
-    if (e.target.closest('a, button, [role="button"]')) {
+    // Only work on home page
+    if (!isHomePage()) return;
+    
+    // Don't interfere with navigation links
+    if (e.target.closest('.nav_wrap a, .nav_wrap button')) {
       return;
     }
 
@@ -79,14 +90,15 @@ export function initSwipeNavigation(wrap, getItems) {
    * Handle touch move
    */
   function handleTouchMove(e) {
-    if (!isSwiping) return;
+    if (!isSwiping || !isHomePage()) return;
     
-    // Only prevent default if we're actually swiping vertically
+    // Calculate movement
     const currentY = e.touches[0].clientY;
     const currentX = e.touches[0].clientX;
     const deltaY = Math.abs(touchStartY - currentY);
     const deltaX = Math.abs(touchStartX - currentX);
     
+    // Prevent page scroll if this looks like a vertical swipe
     if (deltaY > deltaX && deltaY > 10) {
       e.preventDefault();
     }
@@ -96,7 +108,7 @@ export function initSwipeNavigation(wrap, getItems) {
    * Handle touch end
    */
   function handleTouchEnd(e) {
-    if (!isSwiping) return;
+    if (!isSwiping || !isHomePage()) return;
 
     touchEndY = e.changedTouches[0].clientY;
     touchEndX = e.changedTouches[0].clientX;
@@ -138,18 +150,20 @@ export function initSwipeNavigation(wrap, getItems) {
     isSwiping = false;
   }
 
-  // CHANGED: Add event listeners to WINDOW instead of wrap
-  // This ensures touch events work across the entire screen
-  window.addEventListener('touchstart', handleTouchStart, { passive: true });
-  window.addEventListener('touchmove', handleTouchMove, { passive: false });
-  window.addEventListener('touchend', handleTouchEnd, { passive: true });
-  window.addEventListener('touchcancel', handleTouchCancel, { passive: true });
+  // Add event listeners to DOCUMENT BODY for full page coverage
+  document.body.addEventListener('touchstart', handleTouchStart, { passive: true });
+  document.body.addEventListener('touchmove', handleTouchMove, { passive: false });
+  document.body.addEventListener('touchend', handleTouchEnd, { passive: true });
+  document.body.addEventListener('touchcancel', handleTouchCancel, { passive: true });
+
+  console.log('[SwipeNav] Initialized - listening on entire page');
 
   // Return cleanup function
   return () => {
-    window.removeEventListener('touchstart', handleTouchStart);
-    window.removeEventListener('touchmove', handleTouchMove);
-    window.removeEventListener('touchend', handleTouchEnd);
-    window.removeEventListener('touchcancel', handleTouchCancel);
+    document.body.removeEventListener('touchstart', handleTouchStart);
+    document.body.removeEventListener('touchmove', handleTouchMove);
+    document.body.removeEventListener('touchend', handleTouchEnd);
+    document.body.removeEventListener('touchcancel', handleTouchCancel);
+    console.log('[SwipeNav] Cleaned up');
   };
 }
