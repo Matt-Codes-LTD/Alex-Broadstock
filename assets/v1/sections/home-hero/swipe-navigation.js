@@ -14,13 +14,13 @@ export function initSwipeNavigation(wrap, getItems) {
   // Swipe tracking state
   let touchStartY = 0;
   let touchStartX = 0;
-  let touchEndY = 0;
-  let touchEndX = 0;
   let isSwiping = false;
+  let swipeDebounce = false;
 
-  // REDUCED thresholds for more responsive swiping
-  const SWIPE_THRESHOLD = 30; // Reduced from 50px
-  const HORIZONTAL_TOLERANCE = 50; // Increased from 30px - allow more diagonal swiping
+  // Relaxed thresholds for easier swiping
+  const SWIPE_THRESHOLD = 25; // Very low - 25px is easy to trigger
+  const HORIZONTAL_TOLERANCE = 80; // Very high - allows diagonal swipes
+  const DEBOUNCE_TIME = 300; // Prevent rapid re-triggering
 
   /**
    * Check if we're on the home page
@@ -74,22 +74,19 @@ export function initSwipeNavigation(wrap, getItems) {
    */
   function handleTouchStart(e) {
     // Only work on home page
-    if (!isHomePage()) {
-      console.log('[SwipeNav] Not on home page, ignoring');
+    if (!isHomePage()) return;
+    
+    // Don't interfere with navigation or category filters
+    if (e.target.closest('.nav_wrap, .home-hero-category_wrap')) {
       return;
     }
     
-    // Don't interfere with navigation links or category filters
-    if (e.target.closest('.nav_wrap a, .nav_wrap button, .home-hero-category_wrap')) {
-      console.log('[SwipeNav] Touch on nav element, ignoring');
-      return;
-    }
+    // Don't start new swipe if debounced
+    if (swipeDebounce) return;
 
     touchStartY = e.touches[0].clientY;
     touchStartX = e.touches[0].clientX;
     isSwiping = true;
-    
-    console.log('[SwipeNav] Touch start at', touchStartX, touchStartY);
   }
 
   /**
@@ -98,14 +95,13 @@ export function initSwipeNavigation(wrap, getItems) {
   function handleTouchMove(e) {
     if (!isSwiping || !isHomePage()) return;
     
-    // Calculate movement
     const currentY = e.touches[0].clientY;
     const currentX = e.touches[0].clientX;
     const deltaY = Math.abs(touchStartY - currentY);
     const deltaX = Math.abs(touchStartX - currentX);
     
-    // Prevent page scroll if this looks like a vertical swipe
-    if (deltaY > deltaX && deltaY > 5) { // Reduced from 10 to 5
+    // Prevent page scroll if moving more vertically than horizontally
+    if (deltaY > deltaX) {
       e.preventDefault();
     }
   }
@@ -119,24 +115,25 @@ export function initSwipeNavigation(wrap, getItems) {
       return;
     }
 
-    touchEndY = e.changedTouches[0].clientY;
-    touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    const touchEndX = e.changedTouches[0].clientX;
 
     const deltaY = touchStartY - touchEndY;
     const deltaX = Math.abs(touchStartX - touchEndX);
     const totalDistance = Math.abs(deltaY);
 
-    console.log('[SwipeNav] Touch end - deltaY:', deltaY, 'deltaX:', deltaX, 'distance:', totalDistance);
-
     const isVerticalSwipe = totalDistance > SWIPE_THRESHOLD && deltaX < HORIZONTAL_TOLERANCE;
 
-    if (isVerticalSwipe) {
-      console.log('[SwipeNav] Valid swipe detected!');
+    if (isVerticalSwipe && !swipeDebounce) {
+      // Set debounce
+      swipeDebounce = true;
+      setTimeout(() => {
+        swipeDebounce = false;
+      }, DEBOUNCE_TIME);
       
       const visibleProjects = getVisibleProjects();
       
       if (visibleProjects.length === 0) {
-        console.log('[SwipeNav] No visible projects');
         isSwiping = false;
         return;
       }
@@ -147,16 +144,12 @@ export function initSwipeNavigation(wrap, getItems) {
       if (deltaY > 0) {
         // Swiped up - next project
         nextIndex = (currentIndex + 1) % visibleProjects.length;
-        console.log('[SwipeNav] Swiped UP - going to project', nextIndex);
       } else {
         // Swiped down - previous project
         nextIndex = (currentIndex - 1 + visibleProjects.length) % visibleProjects.length;
-        console.log('[SwipeNav] Swiped DOWN - going to project', nextIndex);
       }
 
       activateProject(visibleProjects[nextIndex]);
-    } else {
-      console.log('[SwipeNav] Swipe not valid - threshold:', SWIPE_THRESHOLD, 'tolerance:', HORIZONTAL_TOLERANCE);
     }
 
     isSwiping = false;
@@ -166,24 +159,20 @@ export function initSwipeNavigation(wrap, getItems) {
    * Cancel swipe
    */
   function handleTouchCancel() {
-    console.log('[SwipeNav] Touch cancelled');
     isSwiping = false;
   }
 
-  // Add event listeners to DOCUMENT BODY for full page coverage
-  document.body.addEventListener('touchstart', handleTouchStart, { passive: true });
-  document.body.addEventListener('touchmove', handleTouchMove, { passive: false });
-  document.body.addEventListener('touchend', handleTouchEnd, { passive: true });
-  document.body.addEventListener('touchcancel', handleTouchCancel, { passive: true });
-
-  console.log('[SwipeNav] Initialized - SWIPE_THRESHOLD:', SWIPE_THRESHOLD, 'HORIZONTAL_TOLERANCE:', HORIZONTAL_TOLERANCE);
+  // Add event listeners to document for full coverage
+  document.addEventListener('touchstart', handleTouchStart, { passive: true });
+  document.addEventListener('touchmove', handleTouchMove, { passive: false });
+  document.addEventListener('touchend', handleTouchEnd, { passive: true });
+  document.addEventListener('touchcancel', handleTouchCancel, { passive: true });
 
   // Return cleanup function
   return () => {
-    document.body.removeEventListener('touchstart', handleTouchStart);
-    document.body.removeEventListener('touchmove', handleTouchMove);
-    document.body.removeEventListener('touchend', handleTouchEnd);
-    document.body.removeEventListener('touchcancel', handleTouchCancel);
-    console.log('[SwipeNav] Cleaned up');
+    document.removeEventListener('touchstart', handleTouchStart);
+    document.removeEventListener('touchmove', handleTouchMove);
+    document.removeEventListener('touchend', handleTouchEnd);
+    document.removeEventListener('touchcancel', handleTouchCancel);
   };
 }
