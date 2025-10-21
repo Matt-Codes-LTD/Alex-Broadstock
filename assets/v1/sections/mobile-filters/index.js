@@ -83,11 +83,11 @@ export default function initMobileFilters(container) {
       bottom: 2rem !important;
       left: 50% !important;
       transform: translateX(-50%) translateY(10px) !important;
-      padding: 0.75rem 1.5rem !important;
+      padding: 0.75rem 0.75rem !important;
       background-color: #FFFFFF !important;
       color: #000000 !important;
       border: 1px solid #E5E5E5 !important;
-      border-radius: 8px !important;
+      border-radius: 1px !important;
       cursor: pointer !important;
       z-index: 9999 !important;
       opacity: 0 !important;
@@ -312,8 +312,8 @@ function createMobileUI() {
     left: '0',
     right: '0',
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: '8px',
-    borderTopRightRadius: '8px',
+    borderTopLeftRadius: '3px',
+    borderTopRightRadius: '3px',
     padding: '2rem',
     transform: 'translateY(100%)',
     transition: 'transform 0.3s ease',
