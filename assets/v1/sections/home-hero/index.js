@@ -1,7 +1,8 @@
-// index.js - UPDATED: Added client names feature
+// index.js - UPDATED: Added swipe navigation for mobile/tablet
 import { createVideoManager } from "./video-manager.js";
 import { initCategoryFilter } from "./category-filter.js";
 import { initClientNames } from "./client-names.js";
+import { initSwipeNavigation } from "./swipe-navigation.js";
 
 export default function initHomeHero(container) {
   const section = container.querySelector(".home-hero_wrap");
@@ -71,6 +72,10 @@ export default function initHomeHero(container) {
       }
     });
     cleanupFunctions.push(cleanupFilter);
+    
+    // Initialize swipe navigation for mobile/tablet
+    const cleanupSwipe = initSwipeNavigation(section, () => items);
+    cleanupFunctions.push(cleanupSwipe);
     
     emitReadyOnce();
     section.dataset.introComplete = "true";
