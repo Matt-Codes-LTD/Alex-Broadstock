@@ -1,4 +1,4 @@
-// index.js - Force override approach that works
+// index.js - Button fades out when panel opens
 export default function initMobileFilters(container) {
   const wrap = container.querySelector('.home-hero_wrap');
   if (!wrap || wrap.dataset.mobileFiltersInit) return () => {};
@@ -73,6 +73,7 @@ export default function initMobileFilters(container) {
       pointer-events: auto !important;
       box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
       font-size: inherit !important;
+      transition: opacity 0.3s ease, transform 0.3s ease !important;
     `;
   };
   
@@ -105,6 +106,11 @@ export default function initMobileFilters(container) {
     if (isOpen) return;
     isOpen = true;
     
+    // Hide button when opening panel
+    button.style.opacity = '0';
+    button.style.transform = 'translateX(-50%) translateY(10px)';
+    button.style.pointerEvents = 'none';
+    
     scrollPos = window.scrollY;
     document.body.style.position = 'fixed';
     document.body.style.top = `-${scrollPos}px`;
@@ -129,6 +135,13 @@ export default function initMobileFilters(container) {
     backdrop.classList.remove('is-visible');
     panel.classList.remove('is-visible');
     button.setAttribute('aria-expanded', 'false');
+    
+    // Show button again when closing panel
+    setTimeout(() => {
+      button.style.opacity = '1';
+      button.style.transform = 'translateX(-50%) translateY(0)';
+      button.style.pointerEvents = 'auto';
+    }, 100); // Small delay to let panel start closing
   }
   
   function syncActiveStates() {
