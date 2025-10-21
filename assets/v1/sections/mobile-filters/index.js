@@ -64,7 +64,7 @@ export default function initMobileFilters(container) {
       background-color: #FFFFFF !important;
       color: #000000 !important;
       border: 1px solid #E5E5E5 !important;
-      border-radius: 1px !important;
+      border-radius: 8px !important;
       cursor: pointer !important;
       z-index: 9999 !important;
       opacity: 1 !important;
@@ -87,7 +87,7 @@ export default function initMobileFilters(container) {
       background-color: #FFFFFF !important;
       color: #000000 !important;
       border: 1px solid #E5E5E5 !important;
-      border-radius: 1px !important;
+      border-radius: 8px !important;
       cursor: pointer !important;
       z-index: 9999 !important;
       opacity: 0 !important;
