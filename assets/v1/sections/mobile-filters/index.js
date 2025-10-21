@@ -1,4 +1,4 @@
-// index.js - Production version - Clean styling
+// index.js - With solid fallback colors
 export default function initMobileFilters(container) {
   const wrap = container.querySelector('.home-hero_wrap');
   if (!wrap || wrap.dataset.mobileFiltersInit) return () => {};
@@ -281,20 +281,21 @@ function createMobileUI() {
   button.setAttribute('aria-expanded', 'false');
   button.innerHTML = `<span class="mobile-filters-button-text">Filters</span>`;
   
-  // Styles for button - Original brand colors
+  // Styles for button - Solid colors with higher z-index
   Object.assign(button.style, {
     position: 'fixed',
     bottom: '2rem',
     left: '50%',
     transform: 'translateX(-50%)',
     padding: '0.75rem 1.5rem',
-    backgroundColor: 'var(--swatch--brand-paper)',
-    color: 'var(--swatch--brand-ink)',
-    border: '1px solid var(--_theme---button-primary--border)',
-    borderRadius: 'var(--radius--main)',
+    backgroundColor: '#FFFFFF',  // Solid white
+    color: '#000000',             // Solid black
+    border: '1px solid #E5E5E5',  // Light gray border
+    borderRadius: '8px',
     cursor: 'pointer',
-    zIndex: '100',
-    transition: 'all 0.3s ease'
+    zIndex: '9999',               // Very high to ensure visibility
+    transition: 'all 0.3s ease',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.15)'  // Add subtle shadow
   });
   
   // Backdrop
@@ -308,7 +309,7 @@ function createMobileUI() {
     opacity: '0',
     visibility: 'hidden',
     transition: 'all 0.3s ease',
-    zIndex: '998'
+    zIndex: '9998'
   });
   
   // Panel
@@ -320,13 +321,13 @@ function createMobileUI() {
     bottom: '0',
     left: '0',
     right: '0',
-    backgroundColor: 'var(--_theme---background)',
-    borderTopLeftRadius: 'var(--radius--main)',
-    borderTopRightRadius: 'var(--radius--main)',
+    backgroundColor: '#FFFFFF',  // Solid white
+    borderTopLeftRadius: '8px',
+    borderTopRightRadius: '8px',
     padding: '2rem',
     transform: 'translateY(100%)',
     transition: 'transform 0.3s ease',
-    zIndex: '999',
+    zIndex: '9999',
     maxHeight: '50vh',
     overflowY: 'auto'
   });
