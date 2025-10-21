@@ -1,12 +1,25 @@
-// index.js - Fixed with better visibility logic and cleanup - ALL BUTTON REMOVED
+// index.js - DEBUG VERSION - Check console for logs
 export default function initMobileFilters(container) {
+  console.log('[MobileFilters] Starting init...');
+  console.log('[MobileFilters] Window width:', window.innerWidth);
+  console.log('[MobileFilters] __initialPageLoad:', window.__initialPageLoad);
+  
   const wrap = container.querySelector('.home-hero_wrap');
-  if (!wrap || wrap.dataset.mobileFiltersInit) return () => {};
+  console.log('[MobileFilters] Found wrap:', !!wrap);
+  
+  if (!wrap || wrap.dataset.mobileFiltersInit) {
+    console.log('[MobileFilters] Exiting - no wrap or already initialized');
+    return () => {};
+  }
   wrap.dataset.mobileFiltersInit = "true";
   
   // Only initialize on mobile/tablet
-  if (window.innerWidth > 991) return () => {};
+  if (window.innerWidth > 991) {
+    console.log('[MobileFilters] Exiting - desktop viewport');
+    return () => {};
+  }
   
+  console.log('[MobileFilters] Creating UI elements...');
   // Create mobile UI elements
   const { button, panel, backdrop } = createMobileUI();
   
@@ -14,20 +27,31 @@ export default function initMobileFilters(container) {
   button.style.opacity = '0';
   button.style.visibility = 'hidden';
   button.style.transform = 'translateX(-50%) translateY(10px)';
-  button.style.pointerEvents = 'none'; // Prevent clicks during loader
+  button.style.pointerEvents = 'none';
   
   // Add to DOM after setting initial styles
   document.body.appendChild(backdrop);
   document.body.appendChild(panel);
   document.body.appendChild(button);
   
+  console.log('[MobileFilters] Button added to DOM');
+  console.log('[MobileFilters] Button styles:', {
+    opacity: button.style.opacity,
+    visibility: button.style.visibility,
+    position: button.style.position,
+    bottom: button.style.bottom,
+    zIndex: button.style.zIndex
+  });
+  
   // Force reflow to ensure styles are applied
   button.offsetHeight;
   
   // Clone categories to panel
   const categories = container.querySelector('.home_hero_categories');
+  console.log('[MobileFilters] Found categories:', !!categories);
+  
   if (!categories) {
-    // Clean up if no categories found
+    console.warn('[MobileFilters] No categories found - cleaning up');
     button.remove();
     panel.remove();
     backdrop.remove();
@@ -52,6 +76,7 @@ export default function initMobileFilters(container) {
   });
   
   panel.querySelector('.mobile-filters-content').appendChild(clone);
+  console.log('[MobileFilters] Categories cloned to panel');
   
   let isOpen = false;
   let scrollPos = 0;
@@ -59,10 +84,13 @@ export default function initMobileFilters(container) {
   
   // Make button globally accessible for reveal timeline
   window.__mobileFiltersButton = button;
+  console.log('[MobileFilters] Button set to window.__mobileFiltersButton');
   
   // Reveal function - called AFTER site loader completes
   const revealButton = () => {
+    console.log('[MobileFilters] revealButton() called');
     if (window.gsap) {
+      console.log('[MobileFilters] Using GSAP animation');
       gsap.set(button, { visibility: 'visible' });
       gsap.to(button, {
         opacity: 1,
@@ -70,10 +98,12 @@ export default function initMobileFilters(container) {
         duration: 0.6,
         ease: "power3.out",
         onComplete: () => {
-          button.style.pointerEvents = 'auto'; // Re-enable clicks
+          button.style.pointerEvents = 'auto';
+          console.log('[MobileFilters] GSAP animation complete');
         }
       });
     } else {
+      console.log('[MobileFilters] Using CSS animation (no GSAP)');
       button.style.visibility = 'visible';
       button.style.opacity = '1';
       button.style.transform = 'translateX(-50%) translateY(0)';
@@ -83,6 +113,7 @@ export default function initMobileFilters(container) {
   
   // Determine when to show button
   if (!window.__initialPageLoad) {
+    console.log('[MobileFilters] Not initial load - revealing immediately');
     // Not initial load, reveal immediately
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
@@ -90,15 +121,17 @@ export default function initMobileFilters(container) {
       });
     });
   } else {
+    console.log('[MobileFilters] Initial load - waiting for site loader');
     // Initial load - wait for site loader to complete, then reveal if not already visible
     fallbackTimeout = setTimeout(() => {
+      console.warn('[MobileFilters] FALLBACK TIMEOUT - Site loader did not reveal button, revealing now');
       if (button.style.visibility === 'hidden') {
-        console.warn('[MobileFilters] Site loader did not reveal button, revealing now');
         revealButton();
       }
     }, 5000); // Fallback after 5 seconds
     
     const onLoaderComplete = () => {
+      console.log('[MobileFilters] siteLoaderComplete event fired');
       if (fallbackTimeout) {
         clearTimeout(fallbackTimeout);
         fallbackTimeout = null;
@@ -114,6 +147,7 @@ export default function initMobileFilters(container) {
   function open() {
     if (isOpen) return;
     isOpen = true;
+    console.log('[MobileFilters] Opening panel');
     
     // Save scroll position and lock body
     scrollPos = window.scrollY;
@@ -132,6 +166,7 @@ export default function initMobileFilters(container) {
   function close() {
     if (!isOpen) return;
     isOpen = false;
+    console.log('[MobileFilters] Closing panel');
     
     // Restore scroll position
     document.body.style.position = '';
@@ -259,8 +294,11 @@ export default function initMobileFilters(container) {
     });
   }
   
+  console.log('[MobileFilters] Init complete - waiting for reveal');
+  
   // Cleanup
   return () => {
+    console.log('[MobileFilters] Cleanup called');
     if (fallbackTimeout) {
       clearTimeout(fallbackTimeout);
     }
