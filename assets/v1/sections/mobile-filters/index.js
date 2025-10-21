@@ -55,6 +55,7 @@ export default function initMobileFilters(container) {
   
   let isOpen = false;
   let scrollPos = 0;
+  let fallbackTimeout = null;
   
   // Make button globally accessible for reveal timeline
   window.__mobileFiltersButton = button;
@@ -81,16 +82,34 @@ export default function initMobileFilters(container) {
   };
   
   // Determine when to show button
-  const siteLoader = document.querySelector('.site-loader_wrap[data-script-initialized="true"]');
-  if (!siteLoader || !window.__initialPageLoad) {
-    // No loader or not initial load, show after DOM settles
+  if (!window.__initialPageLoad) {
+    // Not initial load, reveal immediately
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         revealButton();
       });
     });
+  } else {
+    // Initial load - wait for site loader to complete, then reveal if not already visible
+    fallbackTimeout = setTimeout(() => {
+      if (button.style.visibility === 'hidden') {
+        console.warn('[MobileFilters] Site loader did not reveal button, revealing now');
+        revealButton();
+      }
+    }, 5000); // Fallback after 5 seconds
+    
+    const onLoaderComplete = () => {
+      if (fallbackTimeout) {
+        clearTimeout(fallbackTimeout);
+        fallbackTimeout = null;
+      }
+      if (button.style.visibility === 'hidden') {
+        revealButton();
+      }
+    };
+    
+    window.addEventListener('siteLoaderComplete', onLoaderComplete, { once: true });
   }
-  // Otherwise, the site loader timeline will handle reveal
   
   function open() {
     if (isOpen) return;
@@ -242,6 +261,9 @@ export default function initMobileFilters(container) {
   
   // Cleanup
   return () => {
+    if (fallbackTimeout) {
+      clearTimeout(fallbackTimeout);
+    }
     if (isOpen) close();
     button.remove();
     panel.remove();
