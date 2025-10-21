@@ -1,3 +1,11 @@
+/**
+ * Swipe Navigation for Home Hero
+ * Enables vertical swipe gestures on touch devices to navigate between projects
+ * 
+ * @param {HTMLElement} wrap - The home-hero_wrap element
+ * @param {Function} getItems - Function that returns array of all project items
+ * @returns {Function} Cleanup function
+ */
 export function initSwipeNavigation(wrap, getItems) {
   // Only run on touch devices
   const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
