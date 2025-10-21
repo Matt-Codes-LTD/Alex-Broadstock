@@ -359,24 +359,7 @@ export function createMainTimeline({ state, ui, video, container, loaderEl, lock
     });
   }, "-=0.15")
   
-  // Mobile filters button
-  .add(() => {
-    const mobileFiltersButton = window.__mobileFiltersButton;
-    if (mobileFiltersButton && window.innerWidth <= 991) {
-      gsap.fromTo(mobileFiltersButton, {
-        opacity: 0,
-        y: 10,
-        visibility: "hidden"
-      }, {
-        opacity: 1,
-        y: 0,
-        visibility: "visible",
-        duration: 0.4, // FASTER (was 0.5)
-        ease: "power2.out",
-        delay: 0.15 // FASTER (was 0.2)
-      });
-    }
-  }, "-=0.1")
+  // ❌ REMOVED: Mobile filters button animation (now handled by mobile-filters module)
   
   // Awards strip - FASTER
   .add(() => {
