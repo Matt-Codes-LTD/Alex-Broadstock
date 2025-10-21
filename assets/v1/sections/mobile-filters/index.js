@@ -1,4 +1,4 @@
-// index.js - DEBUG VERSION - Check console for logs
+// index.js - FIXED - Always reveal after site loader completes
 export default function initMobileFilters(container) {
   console.log('[MobileFilters] Starting init...');
   console.log('[MobileFilters] Window width:', window.innerWidth);
@@ -89,6 +89,13 @@ export default function initMobileFilters(container) {
   // Reveal function - called AFTER site loader completes
   const revealButton = () => {
     console.log('[MobileFilters] revealButton() called');
+    console.log('[MobileFilters] Current button state:', {
+      visibility: button.style.visibility,
+      opacity: button.style.opacity,
+      transform: button.style.transform,
+      pointerEvents: button.style.pointerEvents
+    });
+    
     if (window.gsap) {
       console.log('[MobileFilters] Using GSAP animation');
       gsap.set(button, { visibility: 'visible' });
@@ -100,6 +107,11 @@ export default function initMobileFilters(container) {
         onComplete: () => {
           button.style.pointerEvents = 'auto';
           console.log('[MobileFilters] GSAP animation complete');
+          console.log('[MobileFilters] Final button state:', {
+            visibility: button.style.visibility,
+            opacity: button.style.opacity,
+            transform: button.style.transform
+          });
         }
       });
     } else {
@@ -122,23 +134,30 @@ export default function initMobileFilters(container) {
     });
   } else {
     console.log('[MobileFilters] Initial load - waiting for site loader');
-    // Initial load - wait for site loader to complete, then reveal if not already visible
+    // Initial load - wait for site loader to complete
     fallbackTimeout = setTimeout(() => {
-      console.warn('[MobileFilters] FALLBACK TIMEOUT - Site loader did not reveal button, revealing now');
-      if (button.style.visibility === 'hidden') {
-        revealButton();
-      }
+      console.warn('[MobileFilters] FALLBACK TIMEOUT - Revealing button now');
+      revealButton();
     }, 5000); // Fallback after 5 seconds
     
     const onLoaderComplete = () => {
       console.log('[MobileFilters] siteLoaderComplete event fired');
+      console.log('[MobileFilters] Button state before reveal:', {
+        visibility: button.style.visibility,
+        opacity: button.style.opacity,
+        inDOM: document.body.contains(button)
+      });
+      
       if (fallbackTimeout) {
         clearTimeout(fallbackTimeout);
         fallbackTimeout = null;
       }
-      if (button.style.visibility === 'hidden') {
+      
+      // Always reveal after 100ms delay to ensure timeline is done
+      setTimeout(() => {
+        console.log('[MobileFilters] Revealing button after loader complete');
         revealButton();
-      }
+      }, 100);
     };
     
     window.addEventListener('siteLoaderComplete', onLoaderComplete, { once: true });
