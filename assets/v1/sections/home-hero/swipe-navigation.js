@@ -65,6 +65,7 @@ export function initSwipeNavigation(wrap, getItems) {
    * Handle touch start
    */
   function handleTouchStart(e) {
+    // Don't interfere with clickable elements
     if (e.target.closest('a, button, [role="button"]')) {
       return;
     }
@@ -79,7 +80,16 @@ export function initSwipeNavigation(wrap, getItems) {
    */
   function handleTouchMove(e) {
     if (!isSwiping) return;
-    e.preventDefault();
+    
+    // Only prevent default if we're actually swiping vertically
+    const currentY = e.touches[0].clientY;
+    const currentX = e.touches[0].clientX;
+    const deltaY = Math.abs(touchStartY - currentY);
+    const deltaX = Math.abs(touchStartX - currentX);
+    
+    if (deltaY > deltaX && deltaY > 10) {
+      e.preventDefault();
+    }
   }
 
   /**
@@ -128,17 +138,18 @@ export function initSwipeNavigation(wrap, getItems) {
     isSwiping = false;
   }
 
-  // Add event listeners
-  wrap.addEventListener('touchstart', handleTouchStart, { passive: true });
-  wrap.addEventListener('touchmove', handleTouchMove, { passive: false });
-  wrap.addEventListener('touchend', handleTouchEnd, { passive: true });
-  wrap.addEventListener('touchcancel', handleTouchCancel, { passive: true });
+  // CHANGED: Add event listeners to WINDOW instead of wrap
+  // This ensures touch events work across the entire screen
+  window.addEventListener('touchstart', handleTouchStart, { passive: true });
+  window.addEventListener('touchmove', handleTouchMove, { passive: false });
+  window.addEventListener('touchend', handleTouchEnd, { passive: true });
+  window.addEventListener('touchcancel', handleTouchCancel, { passive: true });
 
   // Return cleanup function
   return () => {
-    wrap.removeEventListener('touchstart', handleTouchStart);
-    wrap.removeEventListener('touchmove', handleTouchMove);
-    wrap.removeEventListener('touchend', handleTouchEnd);
-    wrap.removeEventListener('touchcancel', handleTouchCancel);
+    window.removeEventListener('touchstart', handleTouchStart);
+    window.removeEventListener('touchmove', handleTouchMove);
+    window.removeEventListener('touchend', handleTouchEnd);
+    window.removeEventListener('touchcancel', handleTouchCancel);
   };
 }
