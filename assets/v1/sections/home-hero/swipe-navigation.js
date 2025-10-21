@@ -18,9 +18,9 @@ export function initSwipeNavigation(wrap, getItems) {
   let touchEndX = 0;
   let isSwiping = false;
 
-  // Swipe threshold (minimum distance in pixels)
-  const SWIPE_THRESHOLD = 50;
-  const HORIZONTAL_TOLERANCE = 30;
+  // REDUCED thresholds for more responsive swiping
+  const SWIPE_THRESHOLD = 30; // Reduced from 50px
+  const HORIZONTAL_TOLERANCE = 50; // Increased from 30px - allow more diagonal swiping
 
   /**
    * Check if we're on the home page
@@ -74,16 +74,22 @@ export function initSwipeNavigation(wrap, getItems) {
    */
   function handleTouchStart(e) {
     // Only work on home page
-    if (!isHomePage()) return;
+    if (!isHomePage()) {
+      console.log('[SwipeNav] Not on home page, ignoring');
+      return;
+    }
     
-    // Don't interfere with navigation links
-    if (e.target.closest('.nav_wrap a, .nav_wrap button')) {
+    // Don't interfere with navigation links or category filters
+    if (e.target.closest('.nav_wrap a, .nav_wrap button, .home-hero-category_wrap')) {
+      console.log('[SwipeNav] Touch on nav element, ignoring');
       return;
     }
 
     touchStartY = e.touches[0].clientY;
     touchStartX = e.touches[0].clientX;
     isSwiping = true;
+    
+    console.log('[SwipeNav] Touch start at', touchStartX, touchStartY);
   }
 
   /**
@@ -99,7 +105,7 @@ export function initSwipeNavigation(wrap, getItems) {
     const deltaX = Math.abs(touchStartX - currentX);
     
     // Prevent page scroll if this looks like a vertical swipe
-    if (deltaY > deltaX && deltaY > 10) {
+    if (deltaY > deltaX && deltaY > 5) { // Reduced from 10 to 5
       e.preventDefault();
     }
   }
@@ -108,20 +114,29 @@ export function initSwipeNavigation(wrap, getItems) {
    * Handle touch end
    */
   function handleTouchEnd(e) {
-    if (!isSwiping || !isHomePage()) return;
+    if (!isSwiping || !isHomePage()) {
+      isSwiping = false;
+      return;
+    }
 
     touchEndY = e.changedTouches[0].clientY;
     touchEndX = e.changedTouches[0].clientX;
 
     const deltaY = touchStartY - touchEndY;
     const deltaX = Math.abs(touchStartX - touchEndX);
+    const totalDistance = Math.abs(deltaY);
 
-    const isVerticalSwipe = Math.abs(deltaY) > SWIPE_THRESHOLD && deltaX < HORIZONTAL_TOLERANCE;
+    console.log('[SwipeNav] Touch end - deltaY:', deltaY, 'deltaX:', deltaX, 'distance:', totalDistance);
+
+    const isVerticalSwipe = totalDistance > SWIPE_THRESHOLD && deltaX < HORIZONTAL_TOLERANCE;
 
     if (isVerticalSwipe) {
+      console.log('[SwipeNav] Valid swipe detected!');
+      
       const visibleProjects = getVisibleProjects();
       
       if (visibleProjects.length === 0) {
+        console.log('[SwipeNav] No visible projects');
         isSwiping = false;
         return;
       }
@@ -132,12 +147,16 @@ export function initSwipeNavigation(wrap, getItems) {
       if (deltaY > 0) {
         // Swiped up - next project
         nextIndex = (currentIndex + 1) % visibleProjects.length;
+        console.log('[SwipeNav] Swiped UP - going to project', nextIndex);
       } else {
         // Swiped down - previous project
         nextIndex = (currentIndex - 1 + visibleProjects.length) % visibleProjects.length;
+        console.log('[SwipeNav] Swiped DOWN - going to project', nextIndex);
       }
 
       activateProject(visibleProjects[nextIndex]);
+    } else {
+      console.log('[SwipeNav] Swipe not valid - threshold:', SWIPE_THRESHOLD, 'tolerance:', HORIZONTAL_TOLERANCE);
     }
 
     isSwiping = false;
@@ -147,6 +166,7 @@ export function initSwipeNavigation(wrap, getItems) {
    * Cancel swipe
    */
   function handleTouchCancel() {
+    console.log('[SwipeNav] Touch cancelled');
     isSwiping = false;
   }
 
@@ -156,7 +176,7 @@ export function initSwipeNavigation(wrap, getItems) {
   document.body.addEventListener('touchend', handleTouchEnd, { passive: true });
   document.body.addEventListener('touchcancel', handleTouchCancel, { passive: true });
 
-  console.log('[SwipeNav] Initialized - listening on entire page');
+  console.log('[SwipeNav] Initialized - SWIPE_THRESHOLD:', SWIPE_THRESHOLD, 'HORIZONTAL_TOLERANCE:', HORIZONTAL_TOLERANCE);
 
   // Return cleanup function
   return () => {
