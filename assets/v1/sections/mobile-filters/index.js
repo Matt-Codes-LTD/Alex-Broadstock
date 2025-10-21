@@ -60,7 +60,7 @@ export default function initMobileFilters(container) {
       bottom: 2rem !important;
       left: 50% !important;
       transform: translateX(-50%) translateY(0) !important;
-      padding: 0.75rem 0.75rem!important;
+      padding: 0.45rem 0.75rem!important;
       background-color: #FFFFFF !important;
       color: #000000 !important;
       border: 1px solid #E5E5E5 !important;
@@ -83,7 +83,7 @@ export default function initMobileFilters(container) {
       bottom: 2rem !important;
       left: 50% !important;
       transform: translateX(-50%) translateY(10px) !important;
-      padding: 0.75rem 0.75rem !important;
+      padding: 0.45rem 0.75rem !important;
       background-color: #FFFFFF !important;
       color: #000000 !important;
       border: 1px solid #E5E5E5 !important;
