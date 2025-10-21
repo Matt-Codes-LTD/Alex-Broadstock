@@ -1,4 +1,4 @@
-// index.js - FIXED - Always reveal after site loader completes
+// index.js - FIXED - Proper transform to preserve centering
 export default function initMobileFilters(container) {
   console.log('[MobileFilters] Starting init...');
   console.log('[MobileFilters] Window width:', window.innerWidth);
@@ -101,7 +101,8 @@ export default function initMobileFilters(container) {
       gsap.set(button, { visibility: 'visible' });
       gsap.to(button, {
         opacity: 1,
-        y: 0,
+        // Use transform instead of y to preserve translateX(-50%)
+        transform: 'translateX(-50%) translateY(0)',
         duration: 0.6,
         ease: "power3.out",
         onComplete: () => {
